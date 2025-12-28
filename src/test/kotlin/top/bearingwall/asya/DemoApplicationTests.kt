@@ -1,4 +1,4 @@
-package top.bearingwall.demo
+package top.bearingwall.asya
 
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.SpringBootTest

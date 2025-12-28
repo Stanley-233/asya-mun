@@ -48,6 +48,8 @@ dependencies {
     // 开发体验工具
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     developmentOnly("org.springframework.boot:spring-boot-docker-compose")
+    // API 文档
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.0")
     // Lombok 注解处理器
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")

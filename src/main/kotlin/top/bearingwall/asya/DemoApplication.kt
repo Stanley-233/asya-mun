@@ -1,4 +1,4 @@
-package top.bearingwall.demo
+package top.bearingwall.asya
 
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication

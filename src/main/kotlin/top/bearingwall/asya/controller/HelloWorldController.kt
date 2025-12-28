@@ -1,4 +1,4 @@
-package top.bearingwall.demo
+package top.bearingwall.asya.controller
 
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RestController
@@ -11,4 +11,3 @@ class HelloWorldController {
         return "Hello World"
     }
 }
-
