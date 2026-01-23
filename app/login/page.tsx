@@ -9,7 +9,7 @@ export default function LoginPage() {
       <div className="max-w-md mx-auto">
         <Card>
           <CardHeader>
-            <CardTitle className="text-2xl">登陆</CardTitle>
+            <CardTitle className="text-2xl">登录</CardTitle>
             <CardDescription>
               请输入您的凭据以访问 Asya 系统
             </CardDescription>
@@ -25,7 +25,7 @@ export default function LoginPage() {
                 <Input id="password" type="password" placeholder="请输入密码" />
               </div>
               <Button type="submit" className="w-full">
-                登陆
+                登录
               </Button>
             </form>
           </CardContent>
