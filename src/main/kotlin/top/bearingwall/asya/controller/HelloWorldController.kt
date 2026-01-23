@@ -7,7 +7,7 @@ import top.bearingwall.asya.dto.Result
 @RestController
 class HelloWorldController {
 
-    @GetMapping("/hello")
+    @GetMapping("/api/hello")
     fun helloWorld(): Result<String> {
         return Result.success("Hello World")
     }
