@@ -57,6 +57,8 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    // Spring Security Crypto
+    implementation("org.springframework.security:spring-security-crypto")
 }
 
 kotlin {
