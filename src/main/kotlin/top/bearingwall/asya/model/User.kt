@@ -20,14 +20,6 @@ class User(
     @Column(nullable = false)
     var role: UserRole,
 
-    @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-        name = "user_group_link",
-        joinColumns = [JoinColumn(name = "user_id")],
-        inverseJoinColumns = [JoinColumn(name = "group_id")]
-    )
-    var groups: MutableSet<Group> = mutableSetOf(),
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "conference_id")
     var conference: Conference? = null

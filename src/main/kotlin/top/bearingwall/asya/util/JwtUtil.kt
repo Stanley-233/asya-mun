@@ -22,12 +22,12 @@ object JwtUtil {
             ?: DEFAULT_SECRET
         val keyBytes = configured.toByteArray(StandardCharsets.UTF_8)
         require(keyBytes.size >= MIN_KEY_BYTES) {
-            "JWT secret must be at least ${'$'}MIN_KEY_BYTES bytes; configure JWT_SECRET env or -Djwt.secret"
+            "JWT secret must be at least $MIN_KEY_BYTES bytes; configure JWT_SECRET env or -Djwt.secret"
         }
         return try {
             Keys.hmacShaKeyFor(keyBytes)
         } catch (e: WeakKeyException) {
-            throw IllegalStateException("JWT secret too weak: ${'$'}{e.message}", e)
+            throw IllegalStateException("JWT secret too weak: ${e.message}", e)
         }
     }
 
@@ -41,4 +41,22 @@ object JwtUtil {
             .signWith(key, SignatureAlgorithm.HS256)
             .compact()
     }
+
+    // Parse JWT and return subject and claims. Throws if invalid/expired.
+    fun parseToken(token: String): ParsedToken {
+        val jwt = Jwts.parserBuilder()
+            .setSigningKey(key)
+            .build()
+            .parseClaimsJws(token)
+        val claims = jwt.body
+        return ParsedToken(
+            subject = claims.subject,
+            claims = claims
+        )
+    }
 }
+
+data class ParsedToken(
+    val subject: String,
+    val claims: io.jsonwebtoken.Claims
+)
