@@ -8,6 +8,7 @@ import top.bearingwall.asya.dto.UserRegistrationRequest
 import top.bearingwall.asya.dto.UserResponse
 import top.bearingwall.asya.model.User
 import top.bearingwall.asya.repository.UserRepository
+import top.bearingwall.asya.util.JwtUtil
 
 @Service
 class UserService(
@@ -20,6 +21,9 @@ class UserService(
     @Transactional
     fun registerUser(request: UserRegistrationRequest): UserResponse {
         log.info("Registering user, name={}, role={}", request.name, request.role)
+
+        val existing = userRepository.findByName(request.name)
+        require(existing == null) { "User already exists: ${'$'}{request.name}" }
 
         val hashedPassword: String = requireNotNull(passwordEncoder.encode(request.password)) {
             "BCryptPasswordEncoder returned null hash"
@@ -35,10 +39,43 @@ class UserService(
 
         log.info("User registered successfully, uuid={}, name={}", savedUser.uuid, savedUser.name)
 
+        val userId = savedUser.uuid ?: throw IllegalStateException("User id missing after save")
+        val token = JwtUtil.generateToken(
+            subject = userId.toString(),
+            claims = mapOf("name" to savedUser.name, "role" to savedUser.role.name)
+        )
+
         return UserResponse(
-            uuid = savedUser.uuid.toString(),
+            uuid = userId.toString(),
             name = savedUser.name,
-            role = savedUser.role
+            role = savedUser.role,
+            token = token
+        )
+    }
+
+    fun loginUser(request: UserRegistrationRequest): UserResponse {
+        log.info("Logging in user, name={}", request.name)
+
+        val user = userRepository.findByName(request.name)
+            ?: throw IllegalStateException("User not found with name: ${'$'}{request.name}")
+
+        if (!passwordEncoder.matches(request.password, user.password)) {
+            throw IllegalArgumentException("Password not match for user: ${'$'}{request.name}")
+        }
+
+        val userId = user.uuid ?: throw IllegalStateException("User id missing")
+        val token = JwtUtil.generateToken(
+            subject = userId.toString(),
+            claims = mapOf("name" to user.name, "role" to user.role.name)
+        )
+
+        log.info("User logged in successfully, uuid={}, name={}", user.uuid, user.name)
+
+        return UserResponse(
+            uuid = userId.toString(),
+            name = user.name,
+            role = user.role,
+            token = token
         )
     }
 }

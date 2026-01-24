@@ -12,7 +12,10 @@ interface IErrorCode {
 enum class BizCode(override val code: Int, override val message: String) : IErrorCode {
     SUCCESS(200, "操作成功"),
     PARAM_ERROR(4001, "参数校验失败"),
-    TOKEN_INVALID(4003, "Token无效");
+    TOKEN_INVALID(4003, "Token无效"),
+    USER_NOT_FOUND(4004, "用户未注册"),
+    PASSWORD_ERROR(4005, "密码错误"),
+    USER_EXISTS(4006, "用户已存在")
 }
 
 /**
