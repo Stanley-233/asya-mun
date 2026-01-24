@@ -47,20 +47,32 @@ export default function LoginPage() {
         role: 'DM' as UserRegistrationRequestRole,
       })
       
+      // 调试：打印响应数据
+      console.log('登录响应:', response)
+      
       const responseData = response.data as any
+      console.log('响应数据:', responseData)
+      
       const token = responseData?.token || responseData?.data?.token
       if (token) {
         localStorage.setItem('token', token)
         localStorage.setItem('user', JSON.stringify(responseData))
         setSuccess(true)
+        // 强制刷新页面以更新 appbar
         setTimeout(() => {
-          router.push('/')
+          window.location.href = '/'
         }, 1000)
       } else {
+        console.warn('未找到 token，响应数据:', responseData)
         setError('登录成功但未获取到 Token')
       }
     } catch (err: any) {
-      const message = err.response?.data?.message || '登录失败，请检查用户名和密码'
+      // 调试：打印错误信息
+      console.warn('登录错误:', err)
+      console.warn('错误响应:', err.response)
+      
+      // 优先使用错误对象的 message，然后是响应中的 message
+      const message = err.message || err.response?.data?.message || '登录失败，请检查用户名和密码'
       setError(message)
     } finally {
       setLoading(false)
@@ -88,27 +100,39 @@ export default function LoginPage() {
 
     setLoading(true)
     try {
-      const response = await register({
+      // 先注册
+      await register({
         name: registerForm.name,
         password: registerForm.password,
         role: registerForm.role,
       })
       
-      const responseData = response.data as any
-      const token = responseData?.token || responseData?.data?.token
+      // 注册成功后自动登录
+      const loginResponse = await login({
+        name: registerForm.name,
+        password: registerForm.password,
+        role: registerForm.role,
+      })
+      
+      const loginData = loginResponse.data as any
+      const token = loginData?.token || loginData?.data?.token
+      
       if (token) {
         localStorage.setItem('token', token)
-        localStorage.setItem('user', JSON.stringify(responseData))
+        localStorage.setItem('user', JSON.stringify(loginData))
         setRegisterForm({ name: '', password: '', confirmPassword: '', role: 'DM' })
         setSuccess(true)
+        // 强制刷新页面以更新 appbar
         setTimeout(() => {
-          router.push('/')
+          window.location.href = '/'
         }, 1000)
       } else {
-        setError('注册成功但未获取到 Token')
+        setError('注册成功，但自动登录失败，请手动登录')
+        setTab('login')
       }
     } catch (err: any) {
-      const message = err.response?.data?.message || '注册失败，请重试'
+      // 优先使用错误对象的 message，然后是响应中的 message
+      const message = err.message || err.response?.data?.message || '注册失败，请重试'
       setError(message)
     } finally {
       setLoading(false)

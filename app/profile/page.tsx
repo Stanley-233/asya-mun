@@ -1,0 +1,188 @@
+'use client'
+
+import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { useAuth } from "@/lib/contexts/auth-context"
+import { useUpdateUser } from "@/lib/api/endpoints/用户管理/用户管理"
+
+const roleLabels = {
+  'SYS_ADMIN': '系统管理员',
+  'DELEGATE': '代表',
+  'DM': '危机指导',
+  'DH': '主席'
+}
+
+export default function ProfilePage() {
+  const router = useRouter()
+  const { user, isLoading, isAuthenticated } = useAuth()
+  const { mutate: updateUser, isPending: isUpdating } = useUpdateUser()
+
+  const [formData, setFormData] = useState({
+    name: '',
+    password: '',
+  })
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.push('/login')
+    }
+  }, [isLoading, isAuthenticated, router])
+
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        name: user.name || '',
+        password: '',
+      })
+    }
+  }, [user])
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }))
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!user?.uuid) {
+      setMessage({ type: 'error', text: '用户信息未加载' })
+      return
+    }
+
+    if (!formData.name.trim()) {
+      setMessage({ type: 'error', text: '用户昵称不能为空' })
+      return
+    }
+
+    try {
+      updateUser(
+        {
+          uuid: user.uuid,
+          data: {
+            name: formData.name,
+            ...(formData.password && { password: formData.password }),
+          }
+        },
+        {
+          onSuccess: () => {
+            setMessage({ type: 'success', text: '个人信息更新成功' })
+            setFormData(prev => ({ ...prev, password: '' }))
+          },
+          onError: (error) => {
+            setMessage({ type: 'error', text: '更新失败，请重试' })
+          }
+        }
+      )
+    } catch (error) {
+      setMessage({ type: 'error', text: '更新失败，请重试' })
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex justify-center items-center min-h-screen">
+          <p className="text-lg text-muted-foreground">加载中...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return null
+  }
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <div className="max-w-2xl mx-auto">
+        <Card>
+          <CardHeader>
+            <CardTitle>个人信息</CardTitle>
+            <CardDescription>查看和修改您的账户信息</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {message && (
+              <div className={`mb-6 p-4 rounded-lg ${
+                message.type === 'success'
+                  ? 'bg-green-50 text-green-900 border border-green-200'
+                  : 'bg-red-50 text-red-900 border border-red-200'
+              }`}>
+                {message.text}
+              </div>
+            )}
+
+            <div className="space-y-6">
+              {/* 用户信息显示 */}
+              <div>
+                <h3 className="text-sm font-semibold mb-4">账户信息</h3>
+                <div className="space-y-3 bg-muted/50 p-4 rounded-lg">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">用户ID</Label>
+                    <p className="font-mono text-sm break-all">{user.uuid}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">用户角色</Label>
+                    <p className="text-sm font-medium">
+                      {roleLabels[user.role as keyof typeof roleLabels] || user.role}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 编辑表单 */}
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <h3 className="text-sm font-semibold">修改信息</h3>
+                
+                <div>
+                  <Label htmlFor="name">用户昵称</Label>
+                  <Input
+                    id="name"
+                    name="name"
+                    type="text"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    placeholder="输入新的用户昵称"
+                    className="mt-2"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="password">新密码 (可选)</Label>
+                  <Input
+                    id="password"
+                    name="password"
+                    type="password"
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    placeholder="留空表示不修改密码"
+                    className="mt-2"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    如果不想修改密码，请留空此字段
+                  </p>
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={isUpdating}
+                  className="w-full"
+                >
+                  {isUpdating ? '保存中...' : '保存修改'}
+                </Button>
+              </form>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}

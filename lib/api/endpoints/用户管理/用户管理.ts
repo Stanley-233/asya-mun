@@ -5,20 +5,128 @@
  * API documentation for Asya Backend application
  * OpenAPI spec version: 1.0.0
  */
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type {
+  DataTag,
+  DefinedInitialDataOptions,
+  DefinedUseQueryResult,
   MutationFunction,
   QueryClient,
+  QueryFunction,
+  QueryKey,
+  UndefinedInitialDataOptions,
   UseMutationOptions,
   UseMutationResult,
+  UseQueryOptions,
+  UseQueryResult,
 } from "@tanstack/react-query";
 
-import type { UserRegistrationRequest } from "../asyaBackendAPI.schemas";
+import type {
+  UserRegistrationRequest,
+  UserUpdateRequest,
+} from "../asyaBackendAPI.schemas";
 
 import { customInstance } from "../../client";
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
+/**
+ * 管理员可修改所有用户；普通用户仅能修改自己的信息
+ * @summary 更新用户信息
+ */
+export type updateUserResponse200 = {
+  data: Blob;
+  status: 200;
+};
+
+export type updateUserResponseSuccess = updateUserResponse200 & {
+  headers: Headers;
+};
+export type updateUserResponse = updateUserResponseSuccess;
+
+export const getUpdateUserUrl = (uuid: string) => {
+  return `/api/users/user/${uuid}`;
+};
+
+export const updateUser = async (
+  uuid: string,
+  userUpdateRequest: UserUpdateRequest,
+  options?: RequestInit,
+): Promise<updateUserResponse> => {
+  return customInstance<updateUserResponse>(getUpdateUserUrl(uuid), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(userUpdateRequest),
+  });
+};
+
+export const getUpdateUserMutationOptions = <
+  TError = unknown,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateUser>>,
+    TError,
+    { uuid: string; data: UserUpdateRequest },
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateUser>>,
+  TError,
+  { uuid: string; data: UserUpdateRequest },
+  TContext
+> => {
+  const mutationKey = ["updateUser"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateUser>>,
+    { uuid: string; data: UserUpdateRequest }
+  > = (props) => {
+    const { uuid, data } = props ?? {};
+
+    return updateUser(uuid, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateUserMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateUser>>
+>;
+export type UpdateUserMutationBody = UserUpdateRequest;
+export type UpdateUserMutationError = unknown;
+
+/**
+ * @summary 更新用户信息
+ */
+export const useUpdateUser = <TError = unknown, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof updateUser>>,
+      TError,
+      { uuid: string; data: UserUpdateRequest },
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof updateUser>>,
+  TError,
+  { uuid: string; data: UserUpdateRequest },
+  TContext
+> => {
+  return useMutation(getUpdateUserMutationOptions(options), queryClient);
+};
 /**
  * 创建新用户。密码会使用 BCrypt 进行加密后存储。
  * @summary 用户注册
@@ -204,3 +312,293 @@ export const useLogin = <TError = unknown, TContext = unknown>(
 > => {
   return useMutation(getLoginMutationOptions(options), queryClient);
 };
+/**
+ * 仅系统管理员可访问
+ * @summary 获取所有用户
+ */
+export type listAllResponse200 = {
+  data: Blob;
+  status: 200;
+};
+
+export type listAllResponseSuccess = listAllResponse200 & {
+  headers: Headers;
+};
+export type listAllResponse = listAllResponseSuccess;
+
+export const getListAllUrl = () => {
+  return `/api/users`;
+};
+
+export const listAll = async (
+  options?: RequestInit,
+): Promise<listAllResponse> => {
+  return customInstance<listAllResponse>(getListAllUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListAllQueryKey = () => {
+  return [`/api/users`] as const;
+};
+
+export const getListAllQueryOptions = <
+  TData = Awaited<ReturnType<typeof listAll>>,
+  TError = unknown,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<Awaited<ReturnType<typeof listAll>>, TError, TData>
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListAllQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listAll>>> = ({
+    signal,
+  }) => listAll({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listAll>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListAllQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listAll>>
+>;
+export type ListAllQueryError = unknown;
+
+export function useListAll<
+  TData = Awaited<ReturnType<typeof listAll>>,
+  TError = unknown,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listAll>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listAll>>,
+          TError,
+          Awaited<ReturnType<typeof listAll>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListAll<
+  TData = Awaited<ReturnType<typeof listAll>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listAll>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listAll>>,
+          TError,
+          Awaited<ReturnType<typeof listAll>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListAll<
+  TData = Awaited<ReturnType<typeof listAll>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listAll>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary 获取所有用户
+ */
+
+export function useListAll<
+  TData = Awaited<ReturnType<typeof listAll>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listAll>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getListAllQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary 获取当前登录用户信息
+ */
+export type getCurrentUserResponse200 = {
+  data: Blob;
+  status: 200;
+};
+
+export type getCurrentUserResponseSuccess = getCurrentUserResponse200 & {
+  headers: Headers;
+};
+export type getCurrentUserResponse = getCurrentUserResponseSuccess;
+
+export const getGetCurrentUserUrl = () => {
+  return `/api/users/user`;
+};
+
+export const getCurrentUser = async (
+  options?: RequestInit,
+): Promise<getCurrentUserResponse> => {
+  return customInstance<getCurrentUserResponse>(getGetCurrentUserUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetCurrentUserQueryKey = () => {
+  return [`/api/users/user`] as const;
+};
+
+export const getGetCurrentUserQueryOptions = <
+  TData = Awaited<ReturnType<typeof getCurrentUser>>,
+  TError = unknown,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<Awaited<ReturnType<typeof getCurrentUser>>, TError, TData>
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetCurrentUserQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getCurrentUser>>> = ({
+    signal,
+  }) => getCurrentUser({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getCurrentUser>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetCurrentUserQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getCurrentUser>>
+>;
+export type GetCurrentUserQueryError = unknown;
+
+export function useGetCurrentUser<
+  TData = Awaited<ReturnType<typeof getCurrentUser>>,
+  TError = unknown,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getCurrentUser>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCurrentUser>>,
+          TError,
+          Awaited<ReturnType<typeof getCurrentUser>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetCurrentUser<
+  TData = Awaited<ReturnType<typeof getCurrentUser>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getCurrentUser>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCurrentUser>>,
+          TError,
+          Awaited<ReturnType<typeof getCurrentUser>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetCurrentUser<
+  TData = Awaited<ReturnType<typeof getCurrentUser>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getCurrentUser>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary 获取当前登录用户信息
+ */
+
+export function useGetCurrentUser<
+  TData = Awaited<ReturnType<typeof getCurrentUser>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getCurrentUser>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getGetCurrentUserQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}

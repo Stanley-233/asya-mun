@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
-import { Navbar } from "@/components/navbar";
 import { QueryProvider } from "@/lib/api/query-provider";
+import { AuthProvider } from "@/lib/contexts/auth-context";
+import { LayoutContent } from "@/components/layout-content";
 
 const inter = Inter({subsets:['latin'],variable:'--font-sans'});
 
@@ -32,8 +33,9 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <QueryProvider>
-          <Navbar />
-          {children}
+          <AuthProvider>
+            <LayoutContent>{children}</LayoutContent>
+          </AuthProvider>
         </QueryProvider>
       </body>
     </html>

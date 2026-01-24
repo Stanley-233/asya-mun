@@ -8,6 +8,67 @@
 /**
  * 用户角色
  */
+export type UserUpdateRequestRole =
+  (typeof UserUpdateRequestRole)[keyof typeof UserUpdateRequestRole];
+
+export const UserUpdateRequestRole = {
+  DELEGATE: "DELEGATE",
+  DM: "DM",
+  DH: "DH",
+  SYS_ADMIN: "SYS_ADMIN",
+} as const;
+
+/**
+ * 用户更新请求
+ */
+export interface UserUpdateRequest {
+  /** 用户昵称 */
+  name?: string;
+  /** 用户密码 */
+  password?: string;
+  /** 用户角色 */
+  role?: UserUpdateRequestRole;
+}
+
+/**
+ * 用户角色
+ */
+export type UserInfoResponseRole =
+  (typeof UserInfoResponseRole)[keyof typeof UserInfoResponseRole];
+
+export const UserInfoResponseRole = {
+  DELEGATE: "DELEGATE",
+  DM: "DM",
+  DH: "DH",
+  SYS_ADMIN: "SYS_ADMIN",
+} as const;
+
+/**
+ * 用户信息响应
+ */
+export interface UserInfoResponse {
+  /** 用户ID */
+  uuid: string;
+  /** 用户昵称 */
+  name: string;
+  /** 用户角色 */
+  role: UserInfoResponseRole;
+}
+
+/**
+ * 统一接口返回结构
+ */
+export interface ResultUserInfoResponse {
+  /** 状态码 */
+  code: number;
+  /** 提示信息 */
+  message: string;
+  data?: UserInfoResponse;
+}
+
+/**
+ * 用户角色
+ */
 export type UserRegistrationRequestRole =
   (typeof UserRegistrationRequestRole)[keyof typeof UserRegistrationRequestRole];
 
@@ -54,7 +115,7 @@ export interface UserResponse {
   /** 用户角色 */
   role: UserResponseRole;
   /** JWT Token */
-  token?: string;
+  token: string;
 }
 
 /**
@@ -66,6 +127,17 @@ export interface ResultUserResponse {
   /** 提示信息 */
   message: string;
   data?: UserResponse;
+}
+
+/**
+ * 统一接口返回结构
+ */
+export interface ResultListUserInfoResponse {
+  /** 状态码 */
+  code: number;
+  /** 提示信息 */
+  message: string;
+  data?: UserInfoResponse[];
 }
 
 /**
