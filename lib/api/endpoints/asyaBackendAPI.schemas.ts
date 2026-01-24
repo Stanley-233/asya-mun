@@ -67,6 +67,67 @@ export interface ResultUserInfoResponse {
 }
 
 /**
+ * 会议状态
+ */
+export type ConferenceRequestStatus =
+  (typeof ConferenceRequestStatus)[keyof typeof ConferenceRequestStatus];
+
+export const ConferenceRequestStatus = {
+  PREPARING: "PREPARING",
+  RUNNING: "RUNNING",
+  COMPLETED: "COMPLETED",
+} as const;
+
+/**
+ * 会议信息请求
+ */
+export interface ConferenceRequest {
+  /** 会议名称 */
+  name: string;
+  /** 会议描述 */
+  description: string;
+  /** 会议状态 */
+  status?: ConferenceRequestStatus;
+}
+
+/**
+ * 会议状态
+ */
+export type ConferenceResponseStatus =
+  (typeof ConferenceResponseStatus)[keyof typeof ConferenceResponseStatus];
+
+export const ConferenceResponseStatus = {
+  PREPARING: "PREPARING",
+  RUNNING: "RUNNING",
+  COMPLETED: "COMPLETED",
+} as const;
+
+/**
+ * 会议信息响应
+ */
+export interface ConferenceResponse {
+  /** 会议ID */
+  uuid: string;
+  /** 会议名称 */
+  name: string;
+  /** 会议描述 */
+  description: string;
+  /** 会议状态 */
+  status: ConferenceResponseStatus;
+}
+
+/**
+ * 统一接口返回结构
+ */
+export interface ResultConferenceResponse {
+  /** 状态码 */
+  code: number;
+  /** 提示信息 */
+  message: string;
+  data?: ConferenceResponse;
+}
+
+/**
  * 用户角色
  */
 export type UserRegistrationRequestRole =
@@ -130,6 +191,16 @@ export interface ResultUserResponse {
 }
 
 /**
+ * 用户关联会议请求
+ */
+export interface ConferenceAssignRequest {
+  /** 会议ID */
+  conferenceUuid: string;
+  /** 用户ID */
+  userUuid: string;
+}
+
+/**
  * 统一接口返回结构
  */
 export interface ResultListUserInfoResponse {
@@ -149,4 +220,15 @@ export interface ResultString {
   /** 提示信息 */
   message: string;
   data?: string;
+}
+
+/**
+ * 统一接口返回结构
+ */
+export interface ResultListConferenceResponse {
+  /** 状态码 */
+  code: number;
+  /** 提示信息 */
+  message: string;
+  data?: ConferenceResponse[];
 }

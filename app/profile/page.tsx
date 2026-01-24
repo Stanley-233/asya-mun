@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useAuth } from "@/lib/contexts/auth-context"
 import { useUpdateUser } from "@/lib/api/endpoints/用户管理/用户管理"
+import { useGetMine } from "@/lib/api/endpoints/会议管理/会议管理"
+import type { ConferenceResponse } from "@/lib/api/endpoints/asyaBackendAPI.schemas"
 
 const roleLabels = {
   'SYS_ADMIN': '系统管理员',
@@ -16,15 +18,23 @@ const roleLabels = {
   'DH': '主席'
 }
 
+const statusLabels = {
+  'PREPARING': '筹备中',
+  'RUNNING': '进行中',
+  'COMPLETED': '已结束'
+}
+
 export default function ProfilePage() {
   const router = useRouter()
   const { user, isLoading, isAuthenticated } = useAuth()
   const { mutate: updateUser, isPending: isUpdating } = useUpdateUser()
+  const { data: conferenceData, isLoading: conferenceLoading } = useGetMine()
 
   const [formData, setFormData] = useState({
     name: '',
     password: '',
   })
+  const [conference, setConference] = useState<ConferenceResponse | null>(null)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   useEffect(() => {
@@ -41,6 +51,25 @@ export default function ProfilePage() {
       })
     }
   }, [user])
+
+  useEffect(() => {
+    if (conferenceData && !conferenceLoading) {
+      try {
+        const responseData = (conferenceData as any).data
+        if (responseData) {
+          const parsedData = typeof responseData === 'string' 
+            ? JSON.parse(responseData) 
+            : responseData
+          
+          const conferenceInfo = parsedData.data || parsedData
+          setConference(conferenceInfo)
+        }
+      } catch (err) {
+        console.error('Failed to parse conference data:', err)
+        setConference(null)
+      }
+    }
+  }, [conferenceData, conferenceLoading])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -126,11 +155,11 @@ export default function ProfilePage() {
                 <h3 className="text-sm font-semibold mb-4">账户信息</h3>
                 <div className="space-y-3 bg-muted/50 p-4 rounded-lg">
                   <div>
-                    <Label className="text-xs text-muted-foreground">用户ID</Label>
+                    <p className="text-xs text-muted-foreground mb-1">用户ID</p>
                     <p className="font-mono text-sm break-all">{user.uuid}</p>
                   </div>
                   <div>
-                    <Label className="text-xs text-muted-foreground">用户角色</Label>
+                    <p className="text-xs text-muted-foreground mb-1">用户角色</p>
                     <p className="text-sm font-medium">
                       {roleLabels[user.role as keyof typeof roleLabels] || user.role}
                     </p>
@@ -138,8 +167,40 @@ export default function ProfilePage() {
                 </div>
               </div>
 
+              {/* 会议信息显示 */}
+              <div>
+                <h3 className="text-sm font-semibold mb-4">会议信息</h3>
+                {conferenceLoading ? (
+                  <div className="bg-muted/50 p-4 rounded-lg">
+                    <p className="text-sm text-muted-foreground">加载中...</p>
+                  </div>
+                ) : conference ? (
+                  <div className="space-y-3 bg-muted/50 p-4 rounded-lg">
+                    <div>
+                      <Label className="text-xs text-muted-foreground">会议名称</Label>
+                      <p className="text-sm font-medium">{conference.name}</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">会议描述</Label>
+                      <p className="text-sm">{conference.description}</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">会议状态</Label>
+                      <p className="text-sm">
+                        {statusLabels[conference.status as keyof typeof statusLabels] || conference.status}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
+                    <p className="text-sm text-yellow-900">尚未关联会议，请联系管理员</p>
+                  </div>
+                )}
+              </div>
+
               {/* 编辑表单 */}
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <form onSubmit={handleSubmit} className="space-y-4">
                 <h3 className="text-sm font-semibold">修改信息</h3>
                 
                 <div>
@@ -179,6 +240,7 @@ export default function ProfilePage() {
                   {isUpdating ? '保存中...' : '保存修改'}
                 </Button>
               </form>
+              </div>
             </div>
           </CardContent>
         </Card>

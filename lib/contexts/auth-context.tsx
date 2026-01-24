@@ -9,6 +9,7 @@ export interface AuthContextType {
   isLoading: boolean
   isAuthenticated: boolean
   isSysAdmin: boolean
+  canManageConference: boolean
   logout: () => void
 }
 
@@ -79,6 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isLoading,
     isAuthenticated: !!user,
     isSysAdmin: user?.role === 'SYS_ADMIN',
+    canManageConference: user?.role === 'DM' || user?.role === 'DH' || user?.role === 'SYS_ADMIN',
     logout,
   }
 
