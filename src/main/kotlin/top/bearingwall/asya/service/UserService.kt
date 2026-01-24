@@ -27,7 +27,7 @@ class UserService(
         log.info("Registering user, name={}, role={}", request.name, request.role)
 
         val existing = userRepository.findByName(request.name)
-        require(existing == null) { "User already exists: ${'$'}{request.name}" }
+        require(existing == null) { $$"User already exists: ${request.name}" }
 
         val hashedPassword: String = requireNotNull(passwordEncoder.encode(request.password)) {
             "BCryptPasswordEncoder returned null hash"
@@ -61,10 +61,10 @@ class UserService(
         log.info("Logging in user, name={}", request.name)
 
         val user = userRepository.findByName(request.name)
-            ?: throw IllegalStateException("User not found with name: ${'$'}{request.name}")
+            ?: throw IllegalStateException($$"User not found with name: ${request.name}")
 
         if (!passwordEncoder.matches(request.password, user.password)) {
-            throw IllegalArgumentException("Password not match for user: ${'$'}{request.name}")
+            throw IllegalArgumentException($$"Password not match for user: ${request.name}")
         }
 
         val userId = user.uuid ?: throw IllegalStateException("User id missing")
@@ -149,5 +149,13 @@ class UserService(
             name = saved.name,
             role = saved.role
         )
+    }
+
+    fun getUserFromToken(token: String): User {
+        val parsed = JwtUtil.parseToken(token)
+        val userId = UUID.fromString(parsed.subject)
+        return userRepository.findById(userId).orElseThrow {
+            IllegalStateException("User not found by token subject")
+        }
     }
 }
