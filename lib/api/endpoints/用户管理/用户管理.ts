@@ -115,3 +115,92 @@ export const useRegister = <TError = unknown, TContext = unknown>(
 > => {
   return useMutation(getRegisterMutationOptions(options), queryClient);
 };
+export type loginResponse200 = {
+  data: Blob;
+  status: 200;
+};
+
+export type loginResponseSuccess = loginResponse200 & {
+  headers: Headers;
+};
+export type loginResponse = loginResponseSuccess;
+
+export const getLoginUrl = () => {
+  return `/api/users/login`;
+};
+
+export const login = async (
+  userRegistrationRequest: UserRegistrationRequest,
+  options?: RequestInit,
+): Promise<loginResponse> => {
+  return customInstance<loginResponse>(getLoginUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(userRegistrationRequest),
+  });
+};
+
+export const getLoginMutationOptions = <
+  TError = unknown,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof login>>,
+    TError,
+    { data: UserRegistrationRequest },
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof login>>,
+  TError,
+  { data: UserRegistrationRequest },
+  TContext
+> => {
+  const mutationKey = ["login"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof login>>,
+    { data: UserRegistrationRequest }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return login(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LoginMutationResult = NonNullable<
+  Awaited<ReturnType<typeof login>>
+>;
+export type LoginMutationBody = UserRegistrationRequest;
+export type LoginMutationError = unknown;
+
+export const useLogin = <TError = unknown, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof login>>,
+      TError,
+      { data: UserRegistrationRequest },
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof login>>,
+  TError,
+  { data: UserRegistrationRequest },
+  TContext
+> => {
+  return useMutation(getLoginMutationOptions(options), queryClient);
+};

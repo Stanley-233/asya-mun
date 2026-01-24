@@ -1,35 +1,325 @@
+'use client'
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { login, register } from "@/lib/api/endpoints/用户管理/用户管理"
+import { UserRegistrationRequestRole } from "@/lib/api/endpoints/asyaBackendAPI.schemas"
 
 export default function LoginPage() {
+  const router = useRouter()
+  const [tab, setTab] = useState<'login' | 'register'>('login')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
+
+  // 登录表单状态
+  const [loginForm, setLoginForm] = useState({
+    name: '',
+    password: '',
+  })
+
+  // 注册表单状态
+  const [registerForm, setRegisterForm] = useState({
+    name: '',
+    password: '',
+    confirmPassword: '',
+    role: 'DM' as UserRegistrationRequestRole,
+  })
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
+
+    if (!loginForm.name || !loginForm.password) {
+      setError('请填写所有字段')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const response = await login({
+        name: loginForm.name,
+        password: loginForm.password,
+        role: 'DM' as UserRegistrationRequestRole,
+      })
+      
+      const responseData = response.data as any
+      const token = responseData?.token || responseData?.data?.token
+      if (token) {
+        localStorage.setItem('token', token)
+        localStorage.setItem('user', JSON.stringify(responseData))
+        setSuccess(true)
+        setTimeout(() => {
+          router.push('/')
+        }, 1000)
+      } else {
+        setError('登录成功但未获取到 Token')
+      }
+    } catch (err: any) {
+      const message = err.response?.data?.message || '登录失败，请检查用户名和密码'
+      setError(message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
+
+    if (!registerForm.name || !registerForm.password || !registerForm.confirmPassword) {
+      setError('请填写所有字段')
+      return
+    }
+
+    if (registerForm.password !== registerForm.confirmPassword) {
+      setError('两次输入的密码不一致')
+      return
+    }
+
+    if (registerForm.password.length < 6) {
+      setError('密码长度不少于 6 个字符')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const response = await register({
+        name: registerForm.name,
+        password: registerForm.password,
+        role: registerForm.role,
+      })
+      
+      const responseData = response.data as any
+      const token = responseData?.token || responseData?.data?.token
+      if (token) {
+        localStorage.setItem('token', token)
+        localStorage.setItem('user', JSON.stringify(responseData))
+        setRegisterForm({ name: '', password: '', confirmPassword: '', role: 'DM' })
+        setSuccess(true)
+        setTimeout(() => {
+          router.push('/')
+        }, 1000)
+      } else {
+        setError('注册成功但未获取到 Token')
+      }
+    } catch (err: any) {
+      const message = err.response?.data?.message || '注册失败，请重试'
+      setError(message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
-    <div className="container mx-auto px-4 py-16">
-      <div className="max-w-md mx-auto">
+    <div className="container mx-auto px-4 py-16 min-h-screen flex items-center justify-center">
+      {/* 成功弹窗 */}
+      {success && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-background border rounded-lg p-6 shadow-lg max-w-sm mx-4 animate-in fade-in zoom-in duration-200">
+            <div className="flex items-center gap-3">
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-semibold text-lg">{tab === 'login' ? '登录成功' : '注册成功'}</h3>
+                <p className="text-sm text-muted-foreground">正在跳转到主页...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="w-full max-w-md">
         <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl">登录</CardTitle>
-            <CardDescription>
-              请输入您的凭据以访问 Asya 系统
+          <CardHeader className="text-center">
+            <CardTitle className="text-3xl font-bold">Asya 系统</CardTitle>
+            <CardDescription className="mt-2">
+              {tab === 'login' ? '登录您的账户' : '创建新账户'}
             </CardDescription>
           </CardHeader>
+
           <CardContent>
-            <form className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="username">用户名</Label>
-                <Input id="username" placeholder="请输入用户名" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">密码</Label>
-                <Input id="password" type="password" placeholder="请输入密码" />
-              </div>
-              <Button type="submit" className="w-full">
+            {/* 选项卡按钮 */}
+            <div className="grid grid-cols-2 gap-2 mb-6">
+              <button
+                type="button"
+                onClick={() => {
+                  setTab('login')
+                  setError(null)
+                }}
+                className={`py-2 px-4 rounded-md font-medium transition-colors ${
+                  tab === 'login'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                }`}
+              >
                 登录
-              </Button>
-            </form>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setTab('register')
+                  setError(null)
+                }}
+                className={`py-2 px-4 rounded-md font-medium transition-colors ${
+                  tab === 'register'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                }`}
+              >
+                注册
+              </button>
+            </div>
+
+            {/* 错误提示 */}
+            {error && (
+              <div className="mb-4 p-3 bg-destructive/10 text-destructive text-sm rounded-md border border-destructive/20">
+                {error}
+              </div>
+            )}
+
+            {/* 登录表单 */}
+            {tab === 'login' && (
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="login-name">用户名</Label>
+                  <Input
+                    id="login-name"
+                    placeholder="请输入用户名"
+                    value={loginForm.name}
+                    onChange={(e) => setLoginForm({ ...loginForm, name: e.target.value })}
+                    disabled={loading}
+                    autoComplete="username"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="login-password">密码</Label>
+                  <Input
+                    id="login-password"
+                    type="password"
+                    placeholder="请输入密码"
+                    value={loginForm.password}
+                    onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                    disabled={loading}
+                    autoComplete="current-password"
+                  />
+                </div>
+
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? '登录中...' : '登录'}
+                </Button>
+              </form>
+            )}
+
+            {/* 注册表单 */}
+            {tab === 'register' && (
+              <form onSubmit={handleRegister} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="register-name">用户名</Label>
+                  <Input
+                    id="register-name"
+                    placeholder="请输入用户名"
+                    value={registerForm.name}
+                    onChange={(e) => setRegisterForm({ ...registerForm, name: e.target.value })}
+                    disabled={loading}
+                    autoComplete="username"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="register-password">密码</Label>
+                  <Input
+                    id="register-password"
+                    type="password"
+                    placeholder="请输入密码（至少6个字符）"
+                    value={registerForm.password}
+                    onChange={(e) => setRegisterForm({ ...registerForm, password: e.target.value })}
+                    disabled={loading}
+                    autoComplete="new-password"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-password">确认密码</Label>
+                  <Input
+                    id="confirm-password"
+                    type="password"
+                    placeholder="请再次输入密码"
+                    value={registerForm.confirmPassword}
+                    onChange={(e) =>
+                      setRegisterForm({ ...registerForm, confirmPassword: e.target.value })
+                    }
+                    disabled={loading}
+                    autoComplete="new-password"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="role">用户角色</Label>
+                  <select
+                    id="role"
+                    value={registerForm.role}
+                    onChange={(e) =>
+                      setRegisterForm({ ...registerForm, role: e.target.value as UserRegistrationRequestRole })
+                    }
+                    disabled={loading}
+                    className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <option value="DM">DM</option>
+                    <option value="DH">DH</option>
+                    <option value="DELEGATE">DELEGATE</option>
+                    <option value="SYS_ADMIN">SYS_ADMIN</option>
+                  </select>
+                </div>
+
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? '注册中...' : '注册'}
+                </Button>
+              </form>
+            )}
           </CardContent>
         </Card>
+
+        {/* 页脚文本 */}
+        <div className="text-center mt-4 text-sm text-muted-foreground">
+          {tab === 'login' ? (
+            <p>
+              还没有账户？{' '}
+              <button
+                type="button"
+                onClick={() => {
+                  setTab('register')
+                  setError(null)
+                }}
+                className="text-primary hover:underline font-medium"
+              >
+                立即注册
+              </button>
+            </p>
+          ) : (
+            <p>
+              已有账户？{' '}
+              <button
+                type="button"
+                onClick={() => {
+                  setTab('login')
+                  setError(null)
+                }}
+                className="text-primary hover:underline font-medium"
+              >
+                返回登录
+              </button>
+            </p>
+          )}
+        </div>
       </div>
     </div>
   )

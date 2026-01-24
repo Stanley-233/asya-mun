@@ -13,6 +13,10 @@ AXIOS_INSTANCE.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    // 确保 Content-Type 总是被正确设置
+    if (!config.headers['Content-Type'] && config.data) {
+      config.headers['Content-Type'] = 'application/json';
+    }
     return config;
   },
   (error) => {
@@ -42,9 +46,17 @@ export const customInstance = <T>(
   config: AxiosRequestConfig = {},
 ): Promise<T> => {
   const source = Axios.CancelToken.source();
+  
+  // 将 body 转换为 data（因为生成的代码使用 fetch API 格式，但我们用的是 Axios）
+  const axiosConfig: AxiosRequestConfig = { ...config };
+  if ('body' in config && config.body) {
+    axiosConfig.data = typeof config.body === 'string' ? JSON.parse(config.body as string) : config.body;
+    delete axiosConfig.body;
+  }
+  
   const promise = AXIOS_INSTANCE({
     url,
-    ...config,
+    ...axiosConfig,
     cancelToken: source.token,
   }).then(({ data, status, headers }) => {
     return { data, status, headers } as unknown as T;

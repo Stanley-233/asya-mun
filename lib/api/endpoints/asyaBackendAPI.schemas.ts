@@ -53,6 +53,8 @@ export interface UserResponse {
   name: string;
   /** 用户角色 */
   role: UserResponseRole;
+  /** JWT Token */
+  token?: string;
 }
 
 /**
