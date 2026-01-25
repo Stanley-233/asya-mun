@@ -14,8 +14,8 @@ import type { ConferenceResponse } from "@/lib/api/endpoints/asyaBackendAPI.sche
 const roleLabels = {
   'SYS_ADMIN': '系统管理员',
   'DELEGATE': '代表',
-  'DM': '危机指导',
-  'DH': '主席'
+  'DM': '主席团成员',
+  'DH': '主席团指导'
 }
 
 const statusLabels = {

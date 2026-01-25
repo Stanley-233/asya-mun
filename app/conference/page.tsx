@@ -15,8 +15,22 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useAuth } from "@/lib/contexts/auth-context"
-import { useGetMine, useUpdate, useGetUsers } from "@/lib/api/endpoints/会议管理/会议管理"
-import type { ConferenceResponse, ConferenceRequestStatus, UserInfoResponse } from "@/lib/api/endpoints/asyaBackendAPI.schemas"
+import { 
+  useGetMine, 
+  useUpdate, 
+  useGetUsers,
+  useListSessions,
+  useCreateSession,
+  useUpdateSession,
+  useUpdateCurrentSession
+} from "@/lib/api/endpoints/会议管理/会议管理"
+import type { 
+  ConferenceResponse, 
+  ConferenceRequestStatus, 
+  UserInfoResponse,
+  ConferenceSessionResponse,
+  ConferenceSessionRequestStatus
+} from "@/lib/api/endpoints/asyaBackendAPI.schemas"
 
 const statusLabels = {
   'PREPARING': '筹备中',
@@ -28,6 +42,20 @@ const statusOptions = [
   { value: 'PREPARING', label: '筹备中' },
   { value: 'RUNNING', label: '进行中' },
   { value: 'COMPLETED', label: '已结束' },
+]
+
+const sessionStatusLabels = {
+  'PREPARE': '准备中',
+  'RUNNING': '进行中',
+  'PAUSED': '暂停',
+  'ENDED': '已结束'
+}
+
+const sessionStatusOptions = [
+  { value: 'PREPARE', label: '准备中' },
+  { value: 'RUNNING', label: '进行中' },
+  { value: 'PAUSED', label: '暂停' },
+  { value: 'ENDED', label: '已结束' },
 ]
 
 const roleLabels: Record<string, string> = {
@@ -42,15 +70,27 @@ export default function ConferencePage() {
   const { user, isLoading: authLoading, isAuthenticated } = useAuth()
   const { data: conferenceData, isLoading: conferenceLoading } = useGetMine()
   const { data: usersData, isLoading: usersLoading } = useGetUsers()
+  const { data: sessionsData, isLoading: sessionsLoading, refetch: refetchSessions } = useListSessions()
   const { mutate: updateConference, isPending: isUpdating } = useUpdate()
+  const { mutate: createSession, isPending: isCreating } = useCreateSession()
+  const { mutate: updateSession, isPending: isUpdatingSession } = useUpdateSession()
+  const { mutate: setCurrentSession, isPending: isSettingCurrent } = useUpdateCurrentSession()
 
   const [conference, setConference] = useState<ConferenceResponse | null>(null)
   const [users, setUsers] = useState<UserInfoResponse[]>([])
+  const [sessions, setSessions] = useState<ConferenceSessionResponse[]>([])
   const [isEditing, setIsEditing] = useState(false)
+  const [isCreatingSession, setIsCreatingSession] = useState(false)
+  const [editingSessionUuid, setEditingSessionUuid] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     status: 'PREPARING' as ConferenceRequestStatus
+  })
+  const [sessionFormData, setSessionFormData] = useState({
+    name: '',
+    description: '',
+    status: 'PREPARE' as ConferenceSessionRequestStatus
   })
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
@@ -107,6 +147,26 @@ export default function ConferencePage() {
     }
   }, [usersData, usersLoading])
 
+  useEffect(() => {
+    if (sessionsData && !sessionsLoading) {
+      try {
+        const responseData = (sessionsData as any).data
+        if (responseData) {
+          const parsedData = typeof responseData === 'string'
+            ? JSON.parse(responseData)
+            : responseData
+
+          const sessionsList = parsedData.data || parsedData
+          const sessionsArray = Array.isArray(sessionsList) ? sessionsList : []
+          setSessions(sessionsArray)
+        }
+      } catch (err) {
+        console.error('Failed to parse sessions data:', err)
+        setSessions([])
+      }
+    }
+  }, [sessionsData, sessionsLoading])
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({
@@ -137,6 +197,127 @@ export default function ConferencePage() {
     }
     setIsEditing(false)
     setMessage(null)
+  }
+
+  const handleSessionInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target
+    setSessionFormData(prev => ({
+      ...prev,
+      [name]: value
+    }))
+  }
+
+  const handleSessionStatusChange = (value: string) => {
+    setSessionFormData(prev => ({
+      ...prev,
+      status: value as ConferenceSessionRequestStatus
+    }))
+  }
+
+  const handleCreateSession = () => {
+    setIsCreatingSession(true)
+    setSessionFormData({
+      name: '',
+      description: '',
+      status: 'PREPARE'
+    })
+    setMessage(null)
+  }
+
+  const handleEditSession = (session: ConferenceSessionResponse) => {
+    setEditingSessionUuid(session.uuid)
+    setSessionFormData({
+      name: session.name,
+      description: session.description || '',
+      status: session.status
+    })
+    setMessage(null)
+  }
+
+  const handleCancelSessionEdit = () => {
+    setIsCreatingSession(false)
+    setEditingSessionUuid(null)
+    setSessionFormData({
+      name: '',
+      description: '',
+      status: 'PREPARE'
+    })
+    setMessage(null)
+  }
+
+  const handleSubmitSession = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!sessionFormData.name.trim()) {
+      setMessage({ type: 'error', text: '会期名称不能为空' })
+      return
+    }
+
+    try {
+      if (editingSessionUuid) {
+        // 修改会期
+        updateSession(
+          {
+            sessionUuid: editingSessionUuid,
+            data: {
+              name: sessionFormData.name,
+              description: sessionFormData.description,
+              status: sessionFormData.status
+            }
+          },
+          {
+            onSuccess: () => {
+              setMessage({ type: 'success', text: '会期信息更新成功' })
+              setEditingSessionUuid(null)
+              setSessionFormData({ name: '', description: '', status: 'PREPARE' })
+              refetchSessions()
+            },
+            onError: () => {
+              setMessage({ type: 'error', text: '会期更新失败，请重试' })
+            }
+          }
+        )
+      } else {
+        // 创建会期
+        createSession(
+          {
+            data: {
+              name: sessionFormData.name,
+              description: sessionFormData.description,
+              status: sessionFormData.status
+            }
+          },
+          {
+            onSuccess: () => {
+              setMessage({ type: 'success', text: '会期创建成功' })
+              setIsCreatingSession(false)
+              setSessionFormData({ name: '', description: '', status: 'PREPARE' })
+              refetchSessions()
+            },
+            onError: () => {
+              setMessage({ type: 'error', text: '会期创建失败，请重试' })
+            }
+          }
+        )
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: '操作失败，请重试' })
+    }
+  }
+
+  const handleSetCurrentSession = (sessionUuid: string) => {
+    setCurrentSession(
+      { sessionUuid },
+      {
+        onSuccess: () => {
+          setMessage({ type: 'success', text: '当前会期设置成功' })
+          refetchSessions()
+        },
+        onError: () => {
+          setMessage({ type: 'error', text: '设置当前会期失败，请重试' })
+        }
+      }
+    )
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -322,6 +503,135 @@ export default function ConferencePage() {
                     </div>
                     <div className="text-sm font-medium">
                       {roleLabels[user.role as keyof typeof roleLabels] || user.role}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* 会期管理卡片 */}
+        <Card>
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <div>
+                <CardTitle>会期管理</CardTitle>
+                <CardDescription>管理会议的所有会期</CardDescription>
+              </div>
+              {!isCreatingSession && !editingSessionUuid && (
+                <Button onClick={handleCreateSession}>创建会期</Button>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            {/* 创建/编辑会期表单 */}
+            {(isCreatingSession || editingSessionUuid) && (
+              <form onSubmit={handleSubmitSession} className="mb-6 p-4 border rounded-lg space-y-4">
+                <h3 className="font-semibold text-lg">
+                  {editingSessionUuid ? '编辑会期' : '创建新会期'}
+                </h3>
+                <div>
+                  <Label htmlFor="session-name">会期名称</Label>
+                  <Input
+                    id="session-name"
+                    name="name"
+                    type="text"
+                    value={sessionFormData.name}
+                    onChange={handleSessionInputChange}
+                    placeholder="输入会期名称"
+                    className="mt-2"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="session-description">会期描述</Label>
+                  <Textarea
+                    id="session-description"
+                    name="description"
+                    value={sessionFormData.description}
+                    onChange={handleSessionInputChange}
+                    placeholder="输入会期描述（可选）"
+                    className="mt-2"
+                    rows={3}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="session-status">会期状态</Label>
+                  <Select value={sessionFormData.status} onValueChange={handleSessionStatusChange}>
+                    <SelectTrigger className="mt-2">
+                      <SelectValue placeholder="选择会期状态" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sessionStatusOptions.map(option => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex gap-3">
+                  <Button type="submit" disabled={isCreating || isUpdatingSession}>
+                    {isCreating || isUpdatingSession ? '保存中...' : '保存'}
+                  </Button>
+                  <Button type="button" variant="outline" onClick={handleCancelSessionEdit}>
+                    取消
+                  </Button>
+                </div>
+              </form>
+            )}
+
+            {/* 会期列表 */}
+            {sessionsLoading ? (
+              <p className="text-sm text-muted-foreground">加载中...</p>
+            ) : sessions.length === 0 ? (
+              <p className="text-sm text-muted-foreground">当前会议暂无会期</p>
+            ) : (
+              <div className="space-y-3">
+                {sessions.map((session) => (
+                  <div key={session.uuid} className="p-4 bg-muted/50 rounded-lg">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-base">{session.name}</h4>
+                        {session.description && (
+                          <p className="text-sm text-muted-foreground mt-1">{session.description}</p>
+                        )}
+                        <p className="text-xs text-muted-foreground font-mono mt-1">{session.uuid}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2 py-1 text-xs rounded-full ${
+                          session.status === 'RUNNING' 
+                            ? 'bg-green-100 text-green-800' 
+                            : session.status === 'PAUSED'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : session.status === 'ENDED'
+                            ? 'bg-gray-100 text-gray-800'
+                            : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          {sessionStatusLabels[session.status as keyof typeof sessionStatusLabels] || session.status}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 mt-3">
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        onClick={() => handleEditSession(session)}
+                        disabled={editingSessionUuid !== null || isCreatingSession}
+                      >
+                        编辑
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="default"
+                        onClick={() => handleSetCurrentSession(session.uuid)}
+                        disabled={isSettingCurrent || conference?.currentSession?.uuid === session.uuid}
+                      >
+                        {conference?.currentSession?.uuid === session.uuid ? '当前会期' : '设为当前'}
+                      </Button>
                     </div>
                   </div>
                 ))}

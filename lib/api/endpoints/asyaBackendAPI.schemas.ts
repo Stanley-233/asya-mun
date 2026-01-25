@@ -103,6 +103,35 @@ export const ConferenceResponseStatus = {
 } as const;
 
 /**
+ * 会期状态
+ */
+export type ConferenceSessionResponseStatus =
+  (typeof ConferenceSessionResponseStatus)[keyof typeof ConferenceSessionResponseStatus];
+
+export const ConferenceSessionResponseStatus = {
+  PREPARE: "PREPARE",
+  RUNNING: "RUNNING",
+  PAUSED: "PAUSED",
+  ENDED: "ENDED",
+} as const;
+
+/**
+ * 会期响应信息
+ */
+export interface ConferenceSessionResponse {
+  /** 会期ID */
+  uuid: string;
+  /** 所属会议ID */
+  conferenceId: string;
+  /** 会期名称 */
+  name: string;
+  /** 会期描述 */
+  description?: string;
+  /** 会期状态 */
+  status: ConferenceSessionResponseStatus;
+}
+
+/**
  * 会议信息响应
  */
 export interface ConferenceResponse {
@@ -114,6 +143,8 @@ export interface ConferenceResponse {
   description: string;
   /** 会议状态 */
   status: ConferenceResponseStatus;
+  /** 当前会期 */
+  currentSession?: ConferenceSessionResponse;
 }
 
 /**
@@ -125,6 +156,42 @@ export interface ResultConferenceResponse {
   /** 提示信息 */
   message: string;
   data?: ConferenceResponse;
+}
+
+/**
+ * 会期状态
+ */
+export type ConferenceSessionRequestStatus =
+  (typeof ConferenceSessionRequestStatus)[keyof typeof ConferenceSessionRequestStatus];
+
+export const ConferenceSessionRequestStatus = {
+  PREPARE: "PREPARE",
+  RUNNING: "RUNNING",
+  PAUSED: "PAUSED",
+  ENDED: "ENDED",
+} as const;
+
+/**
+ * 创建/修改会期请求
+ */
+export interface ConferenceSessionRequest {
+  /** 会期名称 */
+  name: string;
+  /** 会期描述 */
+  description?: string;
+  /** 会期状态 */
+  status: ConferenceSessionRequestStatus;
+}
+
+/**
+ * 统一接口返回结构
+ */
+export interface ResultConferenceSessionResponse {
+  /** 状态码 */
+  code: number;
+  /** 提示信息 */
+  message: string;
+  data?: ConferenceSessionResponse;
 }
 
 /**
@@ -220,6 +287,17 @@ export interface ResultString {
   /** 提示信息 */
   message: string;
   data?: string;
+}
+
+/**
+ * 统一接口返回结构
+ */
+export interface ResultListConferenceSessionResponse {
+  /** 状态码 */
+  code: number;
+  /** 提示信息 */
+  message: string;
+  data?: ConferenceSessionResponse[];
 }
 
 /**

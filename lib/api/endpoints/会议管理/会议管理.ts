@@ -24,6 +24,7 @@ import type {
 import type {
   ConferenceAssignRequest,
   ConferenceRequest,
+  ConferenceSessionRequest,
 } from "../asyaBackendAPI.schemas";
 
 import { customInstance } from "../../client";
@@ -368,6 +369,461 @@ export const useCreate = <TError = unknown, TContext = unknown>(
   return useMutation(getCreateMutationOptions(options), queryClient);
 };
 /**
+ * @summary 查看单个会期详情
+ */
+export type getSessionResponse200 = {
+  data: Blob;
+  status: 200;
+};
+
+export type getSessionResponseSuccess = getSessionResponse200 & {
+  headers: Headers;
+};
+export type getSessionResponse = getSessionResponseSuccess;
+
+export const getGetSessionUrl = (sessionUuid: string) => {
+  return `/api/conference/session/${sessionUuid}`;
+};
+
+export const getSession = async (
+  sessionUuid: string,
+  options?: RequestInit,
+): Promise<getSessionResponse> => {
+  return customInstance<getSessionResponse>(getGetSessionUrl(sessionUuid), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetSessionQueryKey = (sessionUuid: string) => {
+  return [`/api/conference/session/${sessionUuid}`] as const;
+};
+
+export const getGetSessionQueryOptions = <
+  TData = Awaited<ReturnType<typeof getSession>>,
+  TError = unknown,
+>(
+  sessionUuid: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getSession>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetSessionQueryKey(sessionUuid);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getSession>>> = ({
+    signal,
+  }) => getSession(sessionUuid, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!sessionUuid,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getSession>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetSessionQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getSession>>
+>;
+export type GetSessionQueryError = unknown;
+
+export function useGetSession<
+  TData = Awaited<ReturnType<typeof getSession>>,
+  TError = unknown,
+>(
+  sessionUuid: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getSession>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSession>>,
+          TError,
+          Awaited<ReturnType<typeof getSession>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetSession<
+  TData = Awaited<ReturnType<typeof getSession>>,
+  TError = unknown,
+>(
+  sessionUuid: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getSession>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSession>>,
+          TError,
+          Awaited<ReturnType<typeof getSession>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetSession<
+  TData = Awaited<ReturnType<typeof getSession>>,
+  TError = unknown,
+>(
+  sessionUuid: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getSession>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary 查看单个会期详情
+ */
+
+export function useGetSession<
+  TData = Awaited<ReturnType<typeof getSession>>,
+  TError = unknown,
+>(
+  sessionUuid: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getSession>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getGetSessionQueryOptions(sessionUuid, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * DH、DM、SYS_ADMIN 可修改指定会期
+ * @summary 修改会期信息
+ */
+export type updateSessionResponse200 = {
+  data: Blob;
+  status: 200;
+};
+
+export type updateSessionResponseSuccess = updateSessionResponse200 & {
+  headers: Headers;
+};
+export type updateSessionResponse = updateSessionResponseSuccess;
+
+export const getUpdateSessionUrl = (sessionUuid: string) => {
+  return `/api/conference/session/${sessionUuid}`;
+};
+
+export const updateSession = async (
+  sessionUuid: string,
+  conferenceSessionRequest: ConferenceSessionRequest,
+  options?: RequestInit,
+): Promise<updateSessionResponse> => {
+  return customInstance<updateSessionResponse>(
+    getUpdateSessionUrl(sessionUuid),
+    {
+      ...options,
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(conferenceSessionRequest),
+    },
+  );
+};
+
+export const getUpdateSessionMutationOptions = <
+  TError = unknown,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateSession>>,
+    TError,
+    { sessionUuid: string; data: ConferenceSessionRequest },
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateSession>>,
+  TError,
+  { sessionUuid: string; data: ConferenceSessionRequest },
+  TContext
+> => {
+  const mutationKey = ["updateSession"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateSession>>,
+    { sessionUuid: string; data: ConferenceSessionRequest }
+  > = (props) => {
+    const { sessionUuid, data } = props ?? {};
+
+    return updateSession(sessionUuid, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateSessionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateSession>>
+>;
+export type UpdateSessionMutationBody = ConferenceSessionRequest;
+export type UpdateSessionMutationError = unknown;
+
+/**
+ * @summary 修改会期信息
+ */
+export const useUpdateSession = <TError = unknown, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof updateSession>>,
+      TError,
+      { sessionUuid: string; data: ConferenceSessionRequest },
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof updateSession>>,
+  TError,
+  { sessionUuid: string; data: ConferenceSessionRequest },
+  TContext
+> => {
+  return useMutation(getUpdateSessionMutationOptions(options), queryClient);
+};
+/**
+ * DH、DM、SYS_ADMIN 可操作
+ * @summary 设置/修改会议的当前会期
+ */
+export type updateCurrentSessionResponse200 = {
+  data: Blob;
+  status: 200;
+};
+
+export type updateCurrentSessionResponseSuccess =
+  updateCurrentSessionResponse200 & {
+    headers: Headers;
+  };
+export type updateCurrentSessionResponse = updateCurrentSessionResponseSuccess;
+
+export const getUpdateCurrentSessionUrl = (sessionUuid: string) => {
+  return `/api/conference/session/current/${sessionUuid}`;
+};
+
+export const updateCurrentSession = async (
+  sessionUuid: string,
+  options?: RequestInit,
+): Promise<updateCurrentSessionResponse> => {
+  return customInstance<updateCurrentSessionResponse>(
+    getUpdateCurrentSessionUrl(sessionUuid),
+    {
+      ...options,
+      method: "PUT",
+    },
+  );
+};
+
+export const getUpdateCurrentSessionMutationOptions = <
+  TError = unknown,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateCurrentSession>>,
+    TError,
+    { sessionUuid: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateCurrentSession>>,
+  TError,
+  { sessionUuid: string },
+  TContext
+> => {
+  const mutationKey = ["updateCurrentSession"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateCurrentSession>>,
+    { sessionUuid: string }
+  > = (props) => {
+    const { sessionUuid } = props ?? {};
+
+    return updateCurrentSession(sessionUuid, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateCurrentSessionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateCurrentSession>>
+>;
+
+export type UpdateCurrentSessionMutationError = unknown;
+
+/**
+ * @summary 设置/修改会议的当前会期
+ */
+export const useUpdateCurrentSession = <TError = unknown, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof updateCurrentSession>>,
+      TError,
+      { sessionUuid: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof updateCurrentSession>>,
+  TError,
+  { sessionUuid: string },
+  TContext
+> => {
+  return useMutation(
+    getUpdateCurrentSessionMutationOptions(options),
+    queryClient,
+  );
+};
+/**
+ * DH、DM、SYS_ADMIN 可为当前关联会议创建会期
+ * @summary 创建会期
+ */
+export type createSessionResponse200 = {
+  data: Blob;
+  status: 200;
+};
+
+export type createSessionResponseSuccess = createSessionResponse200 & {
+  headers: Headers;
+};
+export type createSessionResponse = createSessionResponseSuccess;
+
+export const getCreateSessionUrl = () => {
+  return `/api/conference/session`;
+};
+
+export const createSession = async (
+  conferenceSessionRequest: ConferenceSessionRequest,
+  options?: RequestInit,
+): Promise<createSessionResponse> => {
+  return customInstance<createSessionResponse>(getCreateSessionUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(conferenceSessionRequest),
+  });
+};
+
+export const getCreateSessionMutationOptions = <
+  TError = unknown,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createSession>>,
+    TError,
+    { data: ConferenceSessionRequest },
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createSession>>,
+  TError,
+  { data: ConferenceSessionRequest },
+  TContext
+> => {
+  const mutationKey = ["createSession"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createSession>>,
+    { data: ConferenceSessionRequest }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createSession(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateSessionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createSession>>
+>;
+export type CreateSessionMutationBody = ConferenceSessionRequest;
+export type CreateSessionMutationError = unknown;
+
+/**
+ * @summary 创建会期
+ */
+export const useCreateSession = <TError = unknown, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof createSession>>,
+      TError,
+      { data: ConferenceSessionRequest },
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof createSession>>,
+  TError,
+  { data: ConferenceSessionRequest },
+  TContext
+> => {
+  return useMutation(getCreateSessionMutationOptions(options), queryClient);
+};
+/**
  * 仅 SYS_ADMIN 可用
  * @summary 将用户关联到会议
  */
@@ -599,6 +1055,317 @@ export function useGetUsers<
   queryKey: DataTag<QueryKey, TData, TError>;
 } {
   const queryOptions = getGetUsersQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * 查看当前用户关联会议下的所有会期
+ * @summary 查看会议的所有会期
+ */
+export type listSessionsResponse200 = {
+  data: Blob;
+  status: 200;
+};
+
+export type listSessionsResponseSuccess = listSessionsResponse200 & {
+  headers: Headers;
+};
+export type listSessionsResponse = listSessionsResponseSuccess;
+
+export const getListSessionsUrl = () => {
+  return `/api/conference/sessions`;
+};
+
+export const listSessions = async (
+  options?: RequestInit,
+): Promise<listSessionsResponse> => {
+  return customInstance<listSessionsResponse>(getListSessionsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListSessionsQueryKey = () => {
+  return [`/api/conference/sessions`] as const;
+};
+
+export const getListSessionsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listSessions>>,
+  TError = unknown,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<Awaited<ReturnType<typeof listSessions>>, TError, TData>
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListSessionsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listSessions>>> = ({
+    signal,
+  }) => listSessions({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listSessions>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListSessionsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listSessions>>
+>;
+export type ListSessionsQueryError = unknown;
+
+export function useListSessions<
+  TData = Awaited<ReturnType<typeof listSessions>>,
+  TError = unknown,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listSessions>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listSessions>>,
+          TError,
+          Awaited<ReturnType<typeof listSessions>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListSessions<
+  TData = Awaited<ReturnType<typeof listSessions>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listSessions>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listSessions>>,
+          TError,
+          Awaited<ReturnType<typeof listSessions>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListSessions<
+  TData = Awaited<ReturnType<typeof listSessions>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listSessions>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary 查看会议的所有会期
+ */
+
+export function useListSessions<
+  TData = Awaited<ReturnType<typeof listSessions>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listSessions>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getListSessionsQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary 查看当前正在进行的会期
+ */
+export type getCurrentSessionResponse200 = {
+  data: Blob;
+  status: 200;
+};
+
+export type getCurrentSessionResponseSuccess = getCurrentSessionResponse200 & {
+  headers: Headers;
+};
+export type getCurrentSessionResponse = getCurrentSessionResponseSuccess;
+
+export const getGetCurrentSessionUrl = () => {
+  return `/api/conference/session/current`;
+};
+
+export const getCurrentSession = async (
+  options?: RequestInit,
+): Promise<getCurrentSessionResponse> => {
+  return customInstance<getCurrentSessionResponse>(getGetCurrentSessionUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetCurrentSessionQueryKey = () => {
+  return [`/api/conference/session/current`] as const;
+};
+
+export const getGetCurrentSessionQueryOptions = <
+  TData = Awaited<ReturnType<typeof getCurrentSession>>,
+  TError = unknown,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<
+      Awaited<ReturnType<typeof getCurrentSession>>,
+      TError,
+      TData
+    >
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetCurrentSessionQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getCurrentSession>>
+  > = ({ signal }) => getCurrentSession({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getCurrentSession>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetCurrentSessionQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getCurrentSession>>
+>;
+export type GetCurrentSessionQueryError = unknown;
+
+export function useGetCurrentSession<
+  TData = Awaited<ReturnType<typeof getCurrentSession>>,
+  TError = unknown,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getCurrentSession>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCurrentSession>>,
+          TError,
+          Awaited<ReturnType<typeof getCurrentSession>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetCurrentSession<
+  TData = Awaited<ReturnType<typeof getCurrentSession>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getCurrentSession>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCurrentSession>>,
+          TError,
+          Awaited<ReturnType<typeof getCurrentSession>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetCurrentSession<
+  TData = Awaited<ReturnType<typeof getCurrentSession>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getCurrentSession>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary 查看当前正在进行的会期
+ */
+
+export function useGetCurrentSession<
+  TData = Awaited<ReturnType<typeof getCurrentSession>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getCurrentSession>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getGetCurrentSessionQueryOptions(options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<
     TData,

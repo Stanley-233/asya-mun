@@ -27,6 +27,7 @@ export function Navbar() {
       : isAuthenticated 
         ? [
             { href: "/profile", label: "个人信息" },
+            { href: "/progress", label: "会议进程" },
             ...(canManageConference ? [{ href: "/conference", label: "会议管理" }] : []),
             ...(isSysAdmin ? [{ href: "/admin", label: "系统管理" }] : []),
           ]
