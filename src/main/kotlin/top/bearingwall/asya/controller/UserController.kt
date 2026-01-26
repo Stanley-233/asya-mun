@@ -37,7 +37,7 @@ class UserController(
                 .body(Result.success(response))
         } catch (e: IllegalArgumentException) {
             ResponseEntity.status(HttpStatus.OK)
-                .body(Result.failure(BizCode.USER_EXISTS, BizCode.USER_EXISTS.message))
+                .body(Result.failure(BizCode.USER_EXISTS, e.message ?: BizCode.USER_EXISTS.message))
         }
     }
 

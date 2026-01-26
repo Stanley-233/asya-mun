@@ -8,5 +8,5 @@ import java.util.UUID
 @Repository
 interface UserRepository : JpaRepository<User, UUID> {
     fun findByName(name: String): User?
+    fun existsByRole(role: top.bearingwall.asya.model.UserRole): Boolean
 }
-

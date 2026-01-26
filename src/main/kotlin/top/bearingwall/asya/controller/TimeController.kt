@@ -2,22 +2,14 @@ package top.bearingwall.asya.controller
 
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter
-import top.bearingwall.asya.dto.BizCode
-import top.bearingwall.asya.dto.CurrentTimeResponse
-import top.bearingwall.asya.dto.Result
-import top.bearingwall.asya.dto.TimeAnchorResponse
-import top.bearingwall.asya.dto.TimeJumpRequest
-import top.bearingwall.asya.dto.TimeUpdateRequest
+import top.bearingwall.asya.dto.*
 import top.bearingwall.asya.model.UserRole
-import top.bearingwall.asya.repository.ConferenceSessionRepository
 import top.bearingwall.asya.service.TimeService
 import top.bearingwall.asya.service.UserService
 
@@ -28,7 +20,6 @@ class TimeController(
     private val timeService: TimeService,
     private val userService: UserService,
 ) {
-    private val log = LoggerFactory.getLogger(TimeService::class.java)
     @Operation(summary = "查看所有时间锚点", description = "DM、DH、SYS_ADMIN 可查看")
     @GetMapping
     fun getAll(
@@ -56,7 +47,6 @@ class TimeController(
             userService.getUserFromToken(extractBearer(authorization))
             val latest = timeService.getLatestTimeAnchor()
             if (latest != null) {
-                log.info("Latest time anchor: $latest")
                 ResponseEntity.ok(Result.success(latest))
             } else {
                 ResponseEntity.ok(Result.failure(BizCode.PARAM_ERROR, "无时间锚点"))

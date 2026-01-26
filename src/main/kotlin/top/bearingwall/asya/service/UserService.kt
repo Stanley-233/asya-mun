@@ -29,6 +29,10 @@ class UserService(
         val existing = userRepository.findByName(request.name)
         require(existing == null) { $$"User already exists: ${request.name}" }
 
+        if (request.role == UserRole.SYS_ADMIN && userRepository.existsByRole(UserRole.SYS_ADMIN)) {
+            throw IllegalArgumentException("已经存在系统管理员，禁止重复注册")
+        }
+
         val hashedPassword: String = requireNotNull(passwordEncoder.encode(request.password)) {
             "BCryptPasswordEncoder returned null hash"
         }

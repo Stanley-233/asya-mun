@@ -1,6 +1,7 @@
 package top.bearingwall.asya.model
 
 import jakarta.persistence.*
+import top.bearingwall.asya.util.LocalDateTimeStringConverter
 import java.math.BigDecimal
 import java.time.LocalDateTime
 
@@ -22,6 +23,7 @@ class TimeAnchor(
     var anchorRealTime: LocalDateTime? = null,
 
     @Column(name = "anchor_game_time")
+    @Convert(converter = LocalDateTimeStringConverter::class)
     var anchorGameTime: LocalDateTime? = null,
 
     @Column(name = "time_ratio", precision = 10, scale = 2)
