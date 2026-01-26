@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { CurrentGameTimeCard } from "@/components/current-game-time-card"
+import { useCurrentGameTime } from "@/lib/hooks/use-current-game-time"
 import { useGetAll, useGetLatest, useJump, useUpdate1 } from "@/lib/api/endpoints/时间轴管理/时间轴管理"
 import type { TimeAnchorResponse, ConferenceSessionResponse } from "@/lib/api/endpoints/asyaBackendAPI.schemas"
 
@@ -16,38 +18,6 @@ interface TimelineManagerProps {
 // 游戏开始时间：公元前450年1月1日
 const GAME_START_DATE = new Date(-450, 0, 1)
 
-// 解析包含负数年份的ISO格式时间字符串
-function parseGameDateTime(isoString: string): Date {
-  console.log('🔍 [parseGameDateTime] 输入字符串:', isoString)
-  
-  // 匹配格式: -YYYY-MM-DDTHH:mm:ss 或 YYYY-MM-DDTHH:mm:ss
-  const match = isoString.match(/^(-?\d+)-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/)
-  if (!match) {
-    console.error('❌ [parseGameDateTime] 无法匹配日期格式:', isoString)
-    throw new Error(`Invalid date format: ${isoString}`)
-  }
-  
-  const [, yearStr, month, day, hour, minute, second] = match
-  const year = parseInt(yearStr, 10)
-  
-  console.log('📅 [parseGameDateTime] 解析结果:', { year, month, day, hour, minute, second })
-  
-  // JavaScript Date构造函数：new Date(year, monthIndex, day, hour, minute, second)
-  // 注意：月份是0-based（0-11）
-  const date = new Date(
-    year,
-    parseInt(month, 10) - 1,
-    parseInt(day, 10),
-    parseInt(hour, 10),
-    parseInt(minute, 10),
-    parseInt(second, 10)
-  )
-  
-  console.log('✅ [parseGameDateTime] 生成的Date对象:', date, 'getFullYear():', date.getFullYear())
-  
-  return date
-}
-
 export function TimelineManager({ currentSession }: TimelineManagerProps) {
   const { data: allAnchorsData, isLoading: anchorsLoading, refetch: refetchAnchors } = useGetAll()
   const { data: latestAnchorData, isLoading: latestLoading, refetch: refetchLatest } = useGetLatest()
@@ -56,7 +26,9 @@ export function TimelineManager({ currentSession }: TimelineManagerProps) {
 
   const [allAnchors, setAllAnchors] = useState<TimeAnchorResponse[]>([])
   const [latestAnchor, setLatestAnchor] = useState<TimeAnchorResponse | null>(null)
-  const [currentGameTime, setCurrentGameTime] = useState<Date | null>(null)
+  
+  // 使用共享的 hook 计算当前游戏时间
+  const currentGameTime = useCurrentGameTime(latestAnchor)
 
   // 时间跳跃表单状态
   const [targetYear, setTargetYear] = useState<number>(-450)
@@ -116,42 +88,6 @@ export function TimelineManager({ currentSession }: TimelineManagerProps) {
       }
     }
   }, [latestAnchorData, latestLoading])
-
-  // 本地计算当前游戏时间
-  useEffect(() => {
-    if (!latestAnchor?.anchorGameTime || !latestAnchor?.anchorRealTime) {
-      setCurrentGameTime(null)
-      return
-    }
-
-    const updateCurrentTime = () => {
-      try {
-        // 使用专门的解析函数处理可能包含负数年份的游戏时间
-        const anchorGameTime = parseGameDateTime(latestAnchor.anchorGameTime!)
-        const anchorRealTime = new Date(latestAnchor.anchorRealTime!)
-        const now = new Date()
-        const ratio = latestAnchor.timeRatio || 1
-
-        // 当前游戏时间 = 锚点游戏时间 + (当前现实时间 - 锚点现实时间) × 流速
-        const timeDiffMs = now.getTime() - anchorRealTime.getTime()
-        const gameTimeDiffMs = timeDiffMs * ratio
-        const calculatedGameTime = new Date(anchorGameTime.getTime() + gameTimeDiffMs)
-
-        setCurrentGameTime(calculatedGameTime)
-      } catch (err) {
-        console.error('❌ Failed to calculate current game time:', err)
-        setCurrentGameTime(null)
-      }
-    }
-
-    // 初始计算
-    updateCurrentTime()
-
-    // 每秒更新一次
-    const interval = setInterval(updateCurrentTime, 1000)
-
-    return () => clearInterval(interval)
-  }, [latestAnchor])
 
   // 处理时间跳跃
   const handleTimeJump = async () => {
@@ -236,7 +172,8 @@ export function TimelineManager({ currentSession }: TimelineManagerProps) {
     }
   }
 
-  // 格式化游戏时间显示
+  // 格式化游戏时间显示（用于锚点列表）
+  // JavaScript Date遵循ISO 8601: 0年=BC1, -1年=BC2, -420年=BC421
   const formatGameTime = (date: Date | null) => {
     if (!date) return '未知'
     
@@ -247,13 +184,22 @@ export function TimelineManager({ currentSession }: TimelineManagerProps) {
     const minutes = String(date.getMinutes()).padStart(2, '0')
     const seconds = String(date.getSeconds()).padStart(2, '0')
 
-    const era = year < 0 ? 'BC' : 'AD'
-    const absYear = Math.abs(year)
+    // ISO 8601到历史年份的转换
+    let era: string
+    let displayYear: number
+    
+    if (year <= 0) {
+      era = 'BC'
+      displayYear = 1 - year  // 0→1, -1→2, -420→421
+    } else {
+      era = 'AD'
+      displayYear = year
+    }
 
-    return `${era} ${absYear}年${month}月${day}日 ${hours}:${minutes}:${seconds}`
+    return `${era} ${displayYear}年${month}月${day}日 ${hours}:${minutes}:${seconds}`
   }
 
-  // 格式化时间戳
+  // 格式化时间戳（用于锚点列表）
   const formatTimestamp = (timestamp: string | undefined) => {
     if (!timestamp) return '未知'
     try {
@@ -283,25 +229,10 @@ export function TimelineManager({ currentSession }: TimelineManagerProps) {
   return (
     <div className="space-y-6">
       {/* 当前游戏时间显示 */}
-      <Card className="border-2 border-primary">
-        <CardHeader>
-          <CardTitle className="text-2xl">当前游戏时间</CardTitle>
-          <CardDescription>基于最新锚点的实时计算</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center">
-            <div className="text-4xl font-bold mb-2">
-              {formatGameTime(currentGameTime)}
-            </div>
-            {latestAnchor && (
-              <div className="text-sm text-muted-foreground space-y-1">
-                <p>时间流速: {latestAnchor.timeRatio}x</p>
-                <p>最新锚点更新: {formatTimestamp(latestAnchor.updateTime)}</p>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      <CurrentGameTimeCard 
+        currentGameTime={currentGameTime}
+        latestAnchor={latestAnchor}
+      />
 
       {/* 时间跳跃控制 */}
       <Card>

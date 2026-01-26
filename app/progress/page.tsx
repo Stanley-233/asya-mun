@@ -3,9 +3,12 @@
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { CurrentGameTimeCard } from "@/components/current-game-time-card"
+import { useCurrentGameTime } from "@/lib/hooks/use-current-game-time"
 import { useAuth } from "@/lib/contexts/auth-context"
 import { useGetMine, useGetCurrentSession } from "@/lib/api/endpoints/会议管理/会议管理"
-import type { ConferenceResponse, ConferenceSessionResponse } from "@/lib/api/endpoints/asyaBackendAPI.schemas"
+import { useGetLatest } from "@/lib/api/endpoints/时间轴管理/时间轴管理"
+import type { ConferenceResponse, ConferenceSessionResponse, TimeAnchorResponse } from "@/lib/api/endpoints/asyaBackendAPI.schemas"
 import { TimelineManager } from "@/components/timeline-manager"
 
 const statusLabels = {
@@ -25,9 +28,14 @@ export default function ProgressPage() {
   const { isLoading: authLoading, isAuthenticated } = useAuth()
   const { data: conferenceData, isLoading: conferenceLoading } = useGetMine()
   const { data: currentSessionData, isLoading: sessionLoading } = useGetCurrentSession()
+  const { data: latestAnchorData, isLoading: latestLoading } = useGetLatest()
 
   const [conference, setConference] = useState<ConferenceResponse | null>(null)
   const [currentSession, setCurrentSession] = useState<ConferenceSessionResponse | null>(null)
+  const [latestAnchor, setLatestAnchor] = useState<TimeAnchorResponse | null>(null)
+  
+  // 使用共享的 hook 计算当前游戏时间
+  const currentGameTime = useCurrentGameTime(latestAnchor)
 
   useEffect(() => {
     if (conferenceData && !conferenceLoading) {
@@ -67,6 +75,26 @@ export default function ProgressPage() {
     }
   }, [currentSessionData, sessionLoading])
 
+  // 解析最新锚点数据
+  useEffect(() => {
+    if (latestAnchorData && !latestLoading) {
+      try {
+        const responseData = (latestAnchorData as any).data
+        if (responseData) {
+          const parsedData = typeof responseData === 'string'
+            ? JSON.parse(responseData)
+            : responseData
+
+          const anchor = parsedData.data || null
+          setLatestAnchor(anchor)
+        }
+      } catch (err) {
+        console.error('Failed to parse latest anchor data:', err)
+        setLatestAnchor(null)
+      }
+    }
+  }, [latestAnchorData, latestLoading])
+
   if (authLoading || conferenceLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -94,6 +122,12 @@ export default function ProgressPage() {
           <h1 className="text-4xl font-bold mb-2">会议进程</h1>
           <p className="text-muted-foreground">查看当前会议和会期状态</p>
         </div>
+
+        {/* 当前游戏时间 */}
+        <CurrentGameTimeCard 
+          currentGameTime={currentGameTime}
+          latestAnchor={latestAnchor}
+        />
 
         {/* 当前会议和会期合并卡片 */}
         <Card className="border-2">
