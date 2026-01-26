@@ -41,7 +41,8 @@ class ConferenceService(
             "Only DH, DM, or SYS_ADMIN can update conference"
         }
         // TODO：检查请求者是否有权限修改该会议
-        val conf = requester.conference ?: throw IllegalStateException("Requester not associated with any conference")
+        val user = userRepository.findById(requester.uuid!!).orElseThrow { IllegalStateException("User not found") }
+        val conf = user.conference ?: throw IllegalStateException("Requester not associated with any conference")
         req.name.let { conf.name = it }
         req.description.let { conf.description = it }
         req.status?.let { conf.status = it }
@@ -49,13 +50,17 @@ class ConferenceService(
         return saved.toResponse()
     }
 
+    @Transactional(readOnly = true)
     fun getMyConference(requester: User): ConferenceResponse {
-        val conf = requester.conference ?: throw IllegalStateException("Requester not associated with any conference")
+        val user = userRepository.findById(requester.uuid!!).orElseThrow { IllegalStateException("User not found") }
+        val conf = user.conference ?: throw IllegalStateException("Requester not associated with any conference")
         return conf.toResponse()
     }
 
+    @Transactional(readOnly = true)
     fun getConferenceUsers(requester: User): List<UserInfoResponse> {
-        val conf = requester.conference ?: throw IllegalStateException("Requester not associated with any conference")
+        val user = userRepository.findById(requester.uuid!!).orElseThrow { IllegalStateException("User not found") }
+        val conf = user.conference ?: throw IllegalStateException("Requester not associated with any conference")
         return conf.users.map { u ->
             UserInfoResponse(
                 uuid = u.uuid?.toString() ?: "",
@@ -65,6 +70,7 @@ class ConferenceService(
         }
     }
 
+    @Transactional(readOnly = true)
     fun listAll(requester: User): List<ConferenceResponse> {
         require(requester.role == UserRole.SYS_ADMIN) { "Only SYS_ADMIN can list all conferences" }
         return conferenceRepository.findAll().map { it.toResponse() }
@@ -90,10 +96,11 @@ class ConferenceService(
 
     @Transactional
     fun createSession(requester: User, req: ConferenceSessionRequest): ConferenceSessionResponse {
-        val conf = requester.conference ?: throw IllegalStateException("Requester not associated with any conference")
         require(requester.role == UserRole.DH || requester.role == UserRole.DM || requester.role == UserRole.SYS_ADMIN) {
             "Only DH, DM, or SYS_ADMIN can create session"
         }
+        val user = userRepository.findById(requester.uuid!!).orElseThrow { IllegalStateException("User not found") }
+        val conf = user.conference ?: throw IllegalStateException("Requester not associated with any conference")
         val session = ConferenceSession(
             conference = conf,
             name = req.name,
@@ -106,10 +113,11 @@ class ConferenceService(
 
     @Transactional
     fun updateSession(requester: User, sessionUuid: UUID, req: ConferenceSessionRequest): ConferenceSessionResponse {
-        val conf = requester.conference ?: throw IllegalStateException("Requester not associated with any conference")
         require(requester.role == UserRole.DH || requester.role == UserRole.DM || requester.role == UserRole.SYS_ADMIN) {
             "Only DH, DM, or SYS_ADMIN can update session"
         }
+        val user = userRepository.findById(requester.uuid!!).orElseThrow { IllegalStateException("User not found") }
+        val conf = user.conference ?: throw IllegalStateException("Requester not associated with any conference")
         val session = conferenceSessionRepository.findById(sessionUuid).orElseThrow {
             IllegalStateException("Session not found")
         }
@@ -123,13 +131,17 @@ class ConferenceService(
         return saved.toResponse()
     }
 
+    @Transactional(readOnly = true)
     fun listSessions(requester: User): List<ConferenceSessionResponse> {
-        val conf = requester.conference ?: throw IllegalStateException("Requester not associated with any conference")
+        val user = userRepository.findById(requester.uuid!!).orElseThrow { IllegalStateException("User not found") }
+        val conf = user.conference ?: throw IllegalStateException("Requester not associated with any conference")
         return conf.sessions.map { it.toResponse() }
     }
 
+    @Transactional(readOnly = true)
     fun getSession(requester: User, sessionUuid: UUID): ConferenceSessionResponse {
-         val conf = requester.conference ?: throw IllegalStateException("Requester not associated with any conference")
+         val user = userRepository.findById(requester.uuid!!).orElseThrow { IllegalStateException("User not found") }
+         val conf = user.conference ?: throw IllegalStateException("Requester not associated with any conference")
          val session = conferenceSessionRepository.findById(sessionUuid).orElseThrow {
             IllegalStateException("Session not found")
         }
@@ -139,17 +151,20 @@ class ConferenceService(
         return session.toResponse()
     }
 
+    @Transactional(readOnly = true)
     fun getCurrentSession(requester: User): ConferenceSessionResponse? {
-        val conf = requester.conference ?: throw IllegalStateException("Requester not associated with any conference")
+        val user = userRepository.findById(requester.uuid!!).orElseThrow { IllegalStateException("User not found") }
+        val conf = user.conference ?: throw IllegalStateException("Requester not associated with any conference")
         return conf.currentSession?.toResponse()
     }
 
     @Transactional
     fun setCurrentSession(requester: User, sessionUuid: UUID): ConferenceResponse {
-        val conf = requester.conference ?: throw IllegalStateException("Requester not associated with any conference")
         require(requester.role == UserRole.DH || requester.role == UserRole.DM || requester.role == UserRole.SYS_ADMIN) {
             "Only DH, DM, or SYS_ADMIN can set current session"
         }
+        val user = userRepository.findById(requester.uuid!!).orElseThrow { IllegalStateException("User not found") }
+        val conf = user.conference ?: throw IllegalStateException("Requester not associated with any conference")
         val session = conferenceSessionRepository.findById(sessionUuid).orElseThrow {
             IllegalStateException("Session not found")
         }

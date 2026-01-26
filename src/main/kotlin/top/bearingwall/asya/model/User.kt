@@ -22,5 +22,8 @@ class User(
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "conference_id")
-    var conference: Conference? = null
+    var conference: Conference? = null,
+
+    @ManyToMany(mappedBy = "receivers", fetch = FetchType.LAZY)
+    var receivedMessages: MutableSet<Message> = mutableSetOf()
 )
