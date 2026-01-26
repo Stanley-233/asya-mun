@@ -1,0 +1,72 @@
+name: Build and Upload Artifact
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch: # 允许手动触发
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '25'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build project
+        run: pnpm build
+        env:
+          NEXT_PUBLIC_API_BASE_URL: ${{ secrets.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8080' }}
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output-${{ github.sha }}
+          path: |
+            .next/
+            public/
+            package.json
+            next.config.ts
+          retention-days: 3
+
+      - name: Upload public folder only
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-folder-${{ github.sha }}
+          path: public/
+          retention-days: 3
+
+      - name: Create deployment package
+        run: |
+          mkdir -p deploy
+          cp -r .next deploy/
+          cp -r public deploy/
+          cp package.json deploy/
+          cp pnpm-lock.yaml deploy/
+          cp next.config.ts deploy/
+          tar -czf deployment.tar.gz -C deploy .
+
+      - name: Upload deployment package
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-package-${{ github.sha }}
+          path: deployment.tar.gz
+          retention-days: 5
