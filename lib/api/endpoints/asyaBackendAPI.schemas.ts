@@ -257,6 +257,53 @@ export interface ResultUserResponse {
   data?: UserResponse;
 }
 
+export interface TimeUpdateRequest {
+  /** 会期ID */
+  sessionId: string;
+  /** 时间流速 */
+  timeRatio: number;
+}
+
+/**
+ * 时间锚点响应
+ */
+export interface TimeAnchorResponse {
+  /** ID */
+  id: number;
+  /** 会期ID */
+  sessionId?: string;
+  /** 更新时间 */
+  updateTime?: string;
+  /** 锚点物理时间 */
+  anchorRealTime?: string;
+  /** 锚点游戏时间 */
+  anchorGameTime?: string;
+  /** 流速 */
+  timeRatio?: number;
+  /** 是否当前生效 */
+  isCurrent: boolean;
+}
+
+/**
+ * 统一接口返回结构
+ */
+export interface ResultTimeAnchorResponse {
+  /** 状态码 */
+  code: number;
+  /** 提示信息 */
+  message: string;
+  data?: TimeAnchorResponse;
+}
+
+export interface TimeJumpRequest {
+  /** 会期ID */
+  sessionId: string;
+  /** 目标游戏时间 */
+  targetGameTime: string;
+  /** 时间流速 */
+  timeRatio: number;
+}
+
 /**
  * 用户关联会议请求
  */
@@ -276,6 +323,37 @@ export interface ResultListUserInfoResponse {
   /** 提示信息 */
   message: string;
   data?: UserInfoResponse[];
+}
+
+/**
+ * 统一接口返回结构
+ */
+export interface ResultListTimeAnchorResponse {
+  /** 状态码 */
+  code: number;
+  /** 提示信息 */
+  message: string;
+  data?: TimeAnchorResponse[];
+}
+
+export interface SseEmitter {
+  timeout?: number;
+}
+
+export interface CurrentTimeResponse {
+  /** 当前游戏时间 */
+  currentGameTime: string;
+}
+
+/**
+ * 统一接口返回结构
+ */
+export interface ResultCurrentTimeResponse {
+  /** 状态码 */
+  code: number;
+  /** 提示信息 */
+  message: string;
+  data?: CurrentTimeResponse;
 }
 
 /**

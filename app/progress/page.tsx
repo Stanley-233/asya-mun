@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/lib/contexts/auth-context"
 import { useGetMine, useGetCurrentSession } from "@/lib/api/endpoints/会议管理/会议管理"
 import type { ConferenceResponse, ConferenceSessionResponse } from "@/lib/api/endpoints/asyaBackendAPI.schemas"
+import { TimelineManager } from "@/components/timeline-manager"
 
 const statusLabels = {
   'PREPARING': '筹备中',

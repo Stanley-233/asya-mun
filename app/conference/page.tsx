@@ -22,7 +22,8 @@ import {
   useListSessions,
   useCreateSession,
   useUpdateSession,
-  useUpdateCurrentSession
+  useUpdateCurrentSession,
+  useGetCurrentSession
 } from "@/lib/api/endpoints/会议管理/会议管理"
 import type { 
   ConferenceResponse, 
@@ -31,6 +32,7 @@ import type {
   ConferenceSessionResponse,
   ConferenceSessionRequestStatus
 } from "@/lib/api/endpoints/asyaBackendAPI.schemas"
+import { TimelineManager } from '@/components/timeline-manager'
 
 const statusLabels = {
   'PREPARING': '筹备中',
@@ -71,14 +73,16 @@ export default function ConferencePage() {
   const { data: conferenceData, isLoading: conferenceLoading } = useGetMine()
   const { data: usersData, isLoading: usersLoading } = useGetUsers()
   const { data: sessionsData, isLoading: sessionsLoading, refetch: refetchSessions } = useListSessions()
+  const { data: currentSessionData, isLoading: currentSessionLoading } = useGetCurrentSession()
   const { mutate: updateConference, isPending: isUpdating } = useUpdate()
   const { mutate: createSession, isPending: isCreating } = useCreateSession()
   const { mutate: updateSession, isPending: isUpdatingSession } = useUpdateSession()
-  const { mutate: setCurrentSession, isPending: isSettingCurrent } = useUpdateCurrentSession()
+  const { mutate: updateCurrentSession, isPending: isSettingCurrent } = useUpdateCurrentSession()
 
   const [conference, setConference] = useState<ConferenceResponse | null>(null)
   const [users, setUsers] = useState<UserInfoResponse[]>([])
   const [sessions, setSessions] = useState<ConferenceSessionResponse[]>([])
+  const [currentSession, setCurrentSession] = useState<ConferenceSessionResponse | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [isCreatingSession, setIsCreatingSession] = useState(false)
   const [editingSessionUuid, setEditingSessionUuid] = useState<string | null>(null)
@@ -166,6 +170,25 @@ export default function ConferencePage() {
       }
     }
   }, [sessionsData, sessionsLoading])
+
+  useEffect(() => {
+    if (currentSessionData && !currentSessionLoading) {
+      try {
+        const responseData = (currentSessionData as any).data
+        if (responseData) {
+          const parsedData = typeof responseData === 'string'
+            ? JSON.parse(responseData)
+            : responseData
+
+          const sessionInfo = parsedData.data || parsedData
+          setCurrentSession(sessionInfo)
+        }
+      } catch (err) {
+        console.error('Failed to parse current session data:', err)
+        setCurrentSession(null)
+      }
+    }
+  }, [currentSessionData, currentSessionLoading])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -306,7 +329,7 @@ export default function ConferencePage() {
   }
 
   const handleSetCurrentSession = (sessionUuid: string) => {
-    setCurrentSession(
+    updateCurrentSession(
       { sessionUuid },
       {
         onSuccess: () => {
@@ -639,6 +662,9 @@ export default function ConferencePage() {
             )}
           </CardContent>
         </Card>
+        {/* 时间轴管理 */}
+        <TimelineManager currentSession={currentSession} />
+
       </div>
     </div>
   )
