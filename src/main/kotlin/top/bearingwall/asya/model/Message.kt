@@ -2,6 +2,7 @@ package top.bearingwall.asya.model
 
 import jakarta.persistence.*
 import top.bearingwall.asya.dto.MessageType
+import top.bearingwall.asya.util.LocalDateTimeStringConverter
 import java.time.LocalDateTime
 import java.util.UUID
 
@@ -27,7 +28,7 @@ class Message(
     var brief: String? = null,
 
     @Lob
-    @Column(columnDefinition = "LONGTEXT")
+    @Column(name = "msg_content", columnDefinition = "LONGTEXT")
     var content: String? = null,
 
     @Enumerated(EnumType.STRING)
@@ -38,5 +39,9 @@ class Message(
     var publishRealTime: LocalDateTime,
 
     @Column(name = "publish_game_time", nullable = false)
-    var publishGameTime: LocalDateTime
+    @Convert(converter = LocalDateTimeStringConverter::class)
+    var publishGameTime: LocalDateTime,
+
+    @Column(name = "is_secret")
+    var isSecret: Boolean = false
 )
