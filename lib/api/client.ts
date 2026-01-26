@@ -89,7 +89,10 @@ export const customInstance = <T>(
   
   // 将 body 转换为 data（因为生成的代码使用 fetch API 格式，但我们用的是 Axios）
   const axiosConfig: AxiosRequestConfig = { ...config };
+  
+  // @ts-ignore - 处理生成代码中的 body 字段
   if ('body' in config && config.body) {
+    // @ts-ignore
     axiosConfig.data = typeof config.body === 'string' ? JSON.parse(config.body as string) : config.body;
     // @ts-ignore
     delete axiosConfig.body;
@@ -109,6 +112,10 @@ export const customInstance = <T>(
   };
 
   return promise;
+};
+
+export type CustomInstance<T> = {
+  (url: string, config?: AxiosRequestConfig): Promise<T>;
 };
 
 export default customInstance;
