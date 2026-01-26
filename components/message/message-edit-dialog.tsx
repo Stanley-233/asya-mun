@@ -330,7 +330,7 @@ export function MessageEditDialog({
                 className="w-4 h-4 rounded border-gray-300"
               />
               <Label htmlFor="isSecret" className="cursor-pointer">
-                加密消息
+                是非对称消息？
               </Label>
             </div>
           </div>

@@ -63,10 +63,26 @@ const roleLabels: Record<string, string> = {
 export default function ConferencePage() {
   const router = useRouter()
   const { user, isLoading: authLoading, isAuthenticated } = useAuth()
+  
+  // 检查用户权限
+  const canManageConference = user?.role === 'DM' || user?.role === 'DH' || user?.role === 'SYS_ADMIN'
+  
   const { data: conferenceData, isLoading: conferenceLoading } = useGetMine()
-  const { data: usersData, isLoading: usersLoading } = useGetUsers()
-  const { data: sessionsData, isLoading: sessionsLoading, refetch: refetchSessions } = useListSessions()
-  const { data: currentSessionData, isLoading: currentSessionLoading } = useGetCurrentSession()
+  const { data: usersData, isLoading: usersLoading, error: usersError } = useGetUsers({
+    query: {
+      enabled: isAuthenticated && canManageConference,
+    }
+  })
+  const { data: sessionsData, isLoading: sessionsLoading, refetch: refetchSessions } = useListSessions({
+    query: {
+      enabled: isAuthenticated && canManageConference,
+    }
+  })
+  const { data: currentSessionData, isLoading: currentSessionLoading } = useGetCurrentSession({
+    query: {
+      enabled: isAuthenticated && canManageConference,
+    }
+  })
   const { mutate: updateConference, isPending: isUpdating } = useUpdate1()
   const { mutate: createSession, isPending: isCreating } = useCreateSession()
   const { mutate: updateSession, isPending: isUpdatingSession } = useUpdateSession()
@@ -90,9 +106,6 @@ export default function ConferencePage() {
     status: 'PREPARE' as ConferenceSessionRequestStatus
   })
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
-
-  // 检查用户权限
-  const canManageConference = user?.role === 'DM' || user?.role === 'DH' || user?.role === 'SYS_ADMIN'
 
   useEffect(() => {
     if (!authLoading && (!isAuthenticated || !canManageConference)) {
@@ -125,24 +138,40 @@ export default function ConferencePage() {
   }, [conferenceData, conferenceLoading])
 
   useEffect(() => {
+    console.log('useGetUsers state:', { 
+      usersData, 
+      usersLoading, 
+      usersError,
+      isAuthenticated,
+      canManageConference 
+    })
     if (usersData && !usersLoading) {
       try {
+        console.log('Raw usersData:', usersData)
         const responseData = (usersData as any).data
         if (responseData) {
           const parsedData = typeof responseData === 'string'
             ? JSON.parse(responseData)
             : responseData
 
+          console.log('Parsed usersData:', parsedData)
           const usersList = parsedData.data || parsedData
           const userArray = Array.isArray(usersList) ? usersList : []
+          console.log('Final users array:', userArray)
           setUsers(userArray)
+        } else {
+          console.log('No responseData, setting empty users')
+          setUsers([])
         }
       } catch (err) {
         console.error('Failed to parse users data:', err)
         setUsers([])
       }
+    } else if (!usersLoading && !usersData) {
+      console.log('No usersData and not loading, setting empty users')
+      setUsers([])
     }
-  }, [usersData, usersLoading])
+  }, [usersData, usersLoading, usersError, isAuthenticated, canManageConference])
 
   useEffect(() => {
     if (sessionsData && !sessionsLoading) {
@@ -509,8 +538,21 @@ export default function ConferencePage() {
             <CardDescription>查看参与当前会议的所有用户</CardDescription>
           </CardHeader>
           <CardContent>
-            {usersLoading ? (
+            {!conference ? (
+              <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
+                <p className="text-sm text-yellow-900">请先创建或关联会议</p>
+              </div>
+            ) : usersLoading ? (
               <p className="text-sm text-muted-foreground">加载中...</p>
+            ) : usersError ? (
+              <div className="bg-red-50 border border-red-200 p-4 rounded-lg">
+                <p className="text-sm text-red-900 font-semibold mb-2">加载用户失败</p>
+                <p className="text-xs text-red-800">
+                  {String(usersError).includes('no session') 
+                    ? '后端数据库会话错误，请联系管理员检查后端服务配置' 
+                    : String(usersError)}
+                </p>
+              </div>
             ) : users.length === 0 ? (
               <p className="text-sm text-muted-foreground">当前会议暂无关联用户</p>
             ) : (
@@ -539,12 +581,18 @@ export default function ConferencePage() {
                 <CardTitle>会期管理</CardTitle>
                 <CardDescription>管理会议的所有会期</CardDescription>
               </div>
-              {!isCreatingSession && !editingSessionUuid && (
+              {!isCreatingSession && !editingSessionUuid && conference && (
                 <Button onClick={handleCreateSession}>创建会期</Button>
               )}
             </div>
           </CardHeader>
           <CardContent>
+            {!conference ? (
+              <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
+                <p className="text-sm text-yellow-900">请先创建或关联会议</p>
+              </div>
+            ) : (
+              <>
             {/* 创建/编辑会期表单 */}
             {(isCreatingSession || editingSessionUuid) && (
               <form onSubmit={handleSubmitSession} className="mb-6 p-4 border rounded-lg space-y-4">
@@ -656,6 +704,8 @@ export default function ConferencePage() {
                   </div>
                 ))}
               </div>
+            )}
+              </>
             )}
           </CardContent>
         </Card>
