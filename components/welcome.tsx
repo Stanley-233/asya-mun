@@ -38,9 +38,9 @@ export function WelcomeComponent() {
               模拟联合国联动系统
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          {/* <CardContent className="space-y-4">
             <p className="text-muted-foreground">
-              Asya 是一个专为模拟联合国活动设计的现代化联动平台，旨在提升会议效率和参与体验。
+              本系统是一个现代化模拟联合国联动平台，通过集成时间轴管理、会议管理、信息发布等功能，赋能模拟联合国联动委员会的组织效率。
             </p>
             <div className="space-y-2">
               <h3 className="font-semibold text-lg">主要功能</h3>
@@ -51,7 +51,7 @@ export function WelcomeComponent() {
                 <li>投票与决议系统</li>
               </ul>
             </div>
-          </CardContent>
+          </CardContent> */}
         </Card>
       </div>
     </div>

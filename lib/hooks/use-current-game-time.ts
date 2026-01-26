@@ -3,7 +3,7 @@ import type { TimeAnchorResponse } from "@/lib/api/endpoints/asyaBackendAPI.sche
 
 // 解析包含负数年份的ISO格式时间字符串
 function parseGameDateTime(isoString: string): Date {
-  console.log('🔍 [parseGameDateTime] 输入字符串:', isoString)
+  // console.log('🔍 [parseGameDateTime] 输入字符串:', isoString)
   
   // 匹配格式: -YYYY-MM-DDTHH:mm:ss 或 YYYY-MM-DDTHH:mm:ss
   const match = isoString.match(/^(-?\d+)-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/)
@@ -15,7 +15,7 @@ function parseGameDateTime(isoString: string): Date {
   const [, yearStr, month, day, hour, minute, second] = match
   const year = parseInt(yearStr, 10)
   
-  console.log('📅 [parseGameDateTime] 解析结果:', { year, month, day, hour, minute, second })
+  // console.log('📅 [parseGameDateTime] 解析结果:', { year, month, day, hour, minute, second })
   
   // JavaScript Date构造函数：new Date(year, monthIndex, day, hour, minute, second)
   // 注意：月份是0-based（0-11）
@@ -28,7 +28,7 @@ function parseGameDateTime(isoString: string): Date {
     parseInt(second, 10)
   )
   
-  console.log('✅ [parseGameDateTime] 生成的Date对象:', date, 'getFullYear():', date.getFullYear())
+  // console.log('✅ [parseGameDateTime] 生成的Date对象:', date, 'getFullYear():', date.getFullYear())
   
   return date
 }

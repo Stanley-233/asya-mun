@@ -1,0 +1,112 @@
+'use client'
+
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import { useAuth } from '@/lib/contexts/auth-context'
+import type { MessageResponse } from '@/lib/api/endpoints/asyaBackendAPI.schemas'
+import { Edit2 } from 'lucide-react'
+
+interface MessageCardProps {
+  message: MessageResponse
+  onEdit?: (message: MessageResponse) => void
+  onClick?: (message: MessageResponse) => void
+}
+
+const MSG_TYPE_LABELS = {
+  EVENT: '事件',
+  NEWS: '新闻',
+  CRISIS: '危机',
+} as const
+
+const MSG_TYPE_VARIANTS = {
+  EVENT: 'default',
+  NEWS: 'secondary',
+  CRISIS: 'destructive',
+} as const
+
+// 格式化游戏时间为人类可读格式
+function formatGameTime(isoString: string): string {
+  if (!isoString) return '未知'
+  
+  try {
+    // 匹配ISO格式: -0453-12-31T20:52:00 或 2024-01-15T10:00:00
+    const match = isoString.match(/^(-?\d+)-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})$/)
+    if (!match) return isoString
+    
+    const [, yearStr, month, day, hour, minute] = match
+    const year = parseInt(yearStr, 10)
+    
+    let displayYear: number
+    let era = ''
+    
+    if (year <= 0) {
+      era = 'BC '
+      displayYear = 1 - year  // 0→1, -1→2, -453→454
+    } else {
+      displayYear = year
+    }
+    
+    return `${era}${displayYear}年${month}月${day}日 ${hour}:${minute}`
+  } catch (err) {
+    return isoString
+  }
+}
+
+export function MessageCard({ message, onEdit, onClick }: MessageCardProps) {
+  const { canManageConference } = useAuth()
+
+  return (
+    <Card
+      className="cursor-pointer hover:shadow-md transition-shadow"
+      onClick={() => onClick?.(message)}
+    >
+      <CardHeader>
+        <CardTitle className="line-clamp-1">{message.title || '无标题'}</CardTitle>
+        <CardDescription className="flex items-center gap-2">
+          {message.msgType && (
+            <Badge variant={MSG_TYPE_VARIANTS[message.msgType] as any}>
+              {MSG_TYPE_LABELS[message.msgType]}
+            </Badge>
+          )}
+          {message.isSecret && <Badge variant="outline">非公开</Badge>}
+        </CardDescription>
+        {canManageConference && onEdit && (
+          <CardAction>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={(e) => {
+                e.stopPropagation()
+                onEdit(message)
+              }}
+            >
+              <Edit2 />
+            </Button>
+          </CardAction>
+        )}
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <p className="text-sm text-muted-foreground line-clamp-2">
+          {message.brief || '暂无摘要'}
+        </p>
+        <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+          <div className="flex justify-between">
+            <span>发布者: {message.senderName || '未知'}</span>
+            <span>游戏时间: {formatGameTime(message.publishGameTime)}</span>
+          </div>
+          <div className="text-right">
+            现实时间: {new Date(message.publishRealTime).toLocaleString('zh-CN')}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}

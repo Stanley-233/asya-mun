@@ -180,25 +180,25 @@ export function useGetMine<
  * DH、DM、SYS_ADMIN 可更新当前关联会议
  * @summary 更新会议信息
  */
-export type updateResponse200 = {
+export type update1Response200 = {
   data: Blob;
   status: 200;
 };
 
-export type updateResponseSuccess = updateResponse200 & {
+export type update1ResponseSuccess = update1Response200 & {
   headers: Headers;
 };
-export type updateResponse = updateResponseSuccess;
+export type update1Response = update1ResponseSuccess;
 
-export const getUpdateUrl = () => {
+export const getUpdate1Url = () => {
   return `/api/conference`;
 };
 
-export const update = async (
+export const update1 = async (
   conferenceRequest: ConferenceRequest,
   options?: RequestInit,
-): Promise<updateResponse> => {
-  return customInstance<updateResponse>(getUpdateUrl(), {
+): Promise<update1Response> => {
+  return customInstance<update1Response>(getUpdate1Url(), {
     ...options,
     method: "PUT",
     headers: { "Content-Type": "application/json", ...options?.headers },
@@ -206,24 +206,24 @@ export const update = async (
   });
 };
 
-export const getUpdateMutationOptions = <
+export const getUpdate1MutationOptions = <
   TError = unknown,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof update>>,
+    Awaited<ReturnType<typeof update1>>,
     TError,
     { data: ConferenceRequest },
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
-  Awaited<ReturnType<typeof update>>,
+  Awaited<ReturnType<typeof update1>>,
   TError,
   { data: ConferenceRequest },
   TContext
 > => {
-  const mutationKey = ["update"];
+  const mutationKey = ["update1"];
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation &&
       "mutationKey" in options.mutation &&
@@ -233,30 +233,30 @@ export const getUpdateMutationOptions = <
     : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof update>>,
+    Awaited<ReturnType<typeof update1>>,
     { data: ConferenceRequest }
   > = (props) => {
     const { data } = props ?? {};
 
-    return update(data, requestOptions);
+    return update1(data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
-export type UpdateMutationResult = NonNullable<
-  Awaited<ReturnType<typeof update>>
+export type Update1MutationResult = NonNullable<
+  Awaited<ReturnType<typeof update1>>
 >;
-export type UpdateMutationBody = ConferenceRequest;
-export type UpdateMutationError = unknown;
+export type Update1MutationBody = ConferenceRequest;
+export type Update1MutationError = unknown;
 
 /**
  * @summary 更新会议信息
  */
-export const useUpdate = <TError = unknown, TContext = unknown>(
+export const useUpdate1 = <TError = unknown, TContext = unknown>(
   options?: {
     mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof update>>,
+      Awaited<ReturnType<typeof update1>>,
       TError,
       { data: ConferenceRequest },
       TContext
@@ -265,12 +265,12 @@ export const useUpdate = <TError = unknown, TContext = unknown>(
   },
   queryClient?: QueryClient,
 ): UseMutationResult<
-  Awaited<ReturnType<typeof update>>,
+  Awaited<ReturnType<typeof update1>>,
   TError,
   { data: ConferenceRequest },
   TContext
 > => {
-  return useMutation(getUpdateMutationOptions(options), queryClient);
+  return useMutation(getUpdate1MutationOptions(options), queryClient);
 };
 /**
  * 仅 SYS_ADMIN 可创建会议

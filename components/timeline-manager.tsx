@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { CurrentGameTimeCard } from "@/components/current-game-time-card"
 import { useCurrentGameTime } from "@/lib/hooks/use-current-game-time"
-import { useGetAll, useGetLatest, useJump, useUpdate1 } from "@/lib/api/endpoints/时间轴管理/时间轴管理"
+import { useGetAll1, useGetLatest, useJump, useUpdate2 } from "@/lib/api/endpoints/时间轴管理/时间轴管理"
 import type { TimeAnchorResponse, ConferenceSessionResponse } from "@/lib/api/endpoints/asyaBackendAPI.schemas"
 
 interface TimelineManagerProps {
@@ -19,10 +19,10 @@ interface TimelineManagerProps {
 const GAME_START_DATE = new Date(-450, 0, 1)
 
 export function TimelineManager({ currentSession }: TimelineManagerProps) {
-  const { data: allAnchorsData, isLoading: anchorsLoading, refetch: refetchAnchors } = useGetAll()
+  const { data: allAnchorsData, isLoading: anchorsLoading, refetch: refetchAnchors } = useGetAll1()
   const { data: latestAnchorData, isLoading: latestLoading, refetch: refetchLatest } = useGetLatest()
   const jumpMutation = useJump()
-  const updateMutation = useUpdate1()
+  const updateMutation = useUpdate2()
 
   const [allAnchors, setAllAnchors] = useState<TimeAnchorResponse[]>([])
   const [latestAnchor, setLatestAnchor] = useState<TimeAnchorResponse | null>(null)

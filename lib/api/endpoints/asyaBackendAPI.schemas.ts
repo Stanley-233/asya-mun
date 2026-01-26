@@ -67,6 +67,89 @@ export interface ResultUserInfoResponse {
 }
 
 /**
+ * 消息类型
+ */
+export type MessageUpdateRequestMsgType =
+  (typeof MessageUpdateRequestMsgType)[keyof typeof MessageUpdateRequestMsgType];
+
+export const MessageUpdateRequestMsgType = {
+  EVENT: "EVENT",
+  NEWS: "NEWS",
+  CRISIS: "CRISIS",
+} as const;
+
+/**
+ * 更新消息请求
+ */
+export interface MessageUpdateRequest {
+  /** 标题 */
+  title?: string;
+  /** 内容 */
+  content?: string;
+  /** 摘要 */
+  brief?: string;
+  /** 消息类型 */
+  msgType?: MessageUpdateRequestMsgType;
+  /** 发布现实时间 */
+  publishRealTime?: string;
+  /** 发布游戏时间 */
+  publishGameTime?: string;
+  /** 是否加密 */
+  isSecret?: boolean;
+}
+
+/**
+ * 消息类型
+ */
+export type MessageResponseMsgType =
+  (typeof MessageResponseMsgType)[keyof typeof MessageResponseMsgType];
+
+export const MessageResponseMsgType = {
+  EVENT: "EVENT",
+  NEWS: "NEWS",
+  CRISIS: "CRISIS",
+} as const;
+
+/**
+ * 消息详情响应
+ */
+export interface MessageResponse {
+  /** 消息UUID */
+  uuid: string;
+  /** 会期UUID */
+  sessionId: string;
+  /** 发送者UUID */
+  senderId?: string;
+  /** 发送者名称 */
+  senderName?: string;
+  /** 标题 */
+  title?: string;
+  /** 摘要 */
+  brief?: string;
+  /** 内容(列表查询时为空) */
+  content?: string;
+  /** 消息类型 */
+  msgType?: MessageResponseMsgType;
+  /** 发布现实时间 */
+  publishRealTime: string;
+  /** 发布游戏时间 */
+  publishGameTime: string;
+  /** 是否加密 */
+  isSecret: boolean;
+}
+
+/**
+ * 统一接口返回结构
+ */
+export interface ResultMessageResponse {
+  /** 状态码 */
+  code: number;
+  /** 提示信息 */
+  message: string;
+  data?: MessageResponse;
+}
+
+/**
  * 会议状态
  */
 export type ConferenceRequestStatus =
@@ -305,6 +388,40 @@ export interface TimeJumpRequest {
 }
 
 /**
+ * 消息类型: EVENT, NEWS, CRISIS
+ */
+export type MessageCreateRequestMsgType =
+  (typeof MessageCreateRequestMsgType)[keyof typeof MessageCreateRequestMsgType];
+
+export const MessageCreateRequestMsgType = {
+  EVENT: "EVENT",
+  NEWS: "NEWS",
+  CRISIS: "CRISIS",
+} as const;
+
+/**
+ * 创建消息请求
+ */
+export interface MessageCreateRequest {
+  /** 会期ID(UUID) */
+  sessionId: string;
+  /** 标题 */
+  title: string;
+  /** 内容(富文本) */
+  content: string;
+  /** 摘要(可选, 默认截取前30字) */
+  brief?: string;
+  /** 消息类型: EVENT, NEWS, CRISIS */
+  msgType: MessageCreateRequestMsgType;
+  /** 发布现实时间(可选，默认为服务器当前时间) */
+  publishRealTime?: string;
+  /** 发布游戏时间 */
+  publishGameTime: string;
+  /** 是否加密(默认为false) */
+  isSecret: boolean;
+}
+
+/**
  * 用户关联会议请求
  */
 export interface ConferenceAssignRequest {
@@ -356,6 +473,54 @@ export interface ResultCurrentTimeResponse {
   data?: CurrentTimeResponse;
 }
 
+export interface Pageable {
+  /** @minimum 0 */
+  page?: number;
+  /** @minimum 1 */
+  size?: number;
+  sort?: string[];
+}
+
+export interface Sortnull {
+  empty?: boolean;
+  unsorted?: boolean;
+  sorted?: boolean;
+}
+
+export interface Pageablenull {
+  offset?: number;
+  sort?: Sortnull;
+  unpaged?: boolean;
+  paged?: boolean;
+  pageNumber?: number;
+  pageSize?: number;
+}
+
+export interface PageMessageResponse {
+  totalElements?: number;
+  totalPages?: number;
+  first?: boolean;
+  last?: boolean;
+  size?: number;
+  content?: MessageResponse[];
+  number?: number;
+  sort?: Sortnull;
+  numberOfElements?: number;
+  pageable?: Pageablenull;
+  empty?: boolean;
+}
+
+/**
+ * 统一接口返回结构
+ */
+export interface ResultPageMessageResponse {
+  /** 状态码 */
+  code: number;
+  /** 提示信息 */
+  message: string;
+  data?: PageMessageResponse;
+}
+
 /**
  * 统一接口返回结构
  */
@@ -388,3 +553,7 @@ export interface ResultListConferenceResponse {
   message: string;
   data?: ConferenceResponse[];
 }
+
+export type GetAllParams = {
+  pageable: Pageable;
+};

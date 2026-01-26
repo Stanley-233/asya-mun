@@ -7,17 +7,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { useAuth } from "@/lib/contexts/auth-context"
 import { 
   useGetMine, 
-  useUpdate, 
+  useUpdate1, 
   useGetUsers,
   useListSessions,
   useCreateSession,
@@ -74,7 +67,7 @@ export default function ConferencePage() {
   const { data: usersData, isLoading: usersLoading } = useGetUsers()
   const { data: sessionsData, isLoading: sessionsLoading, refetch: refetchSessions } = useListSessions()
   const { data: currentSessionData, isLoading: currentSessionLoading } = useGetCurrentSession()
-  const { mutate: updateConference, isPending: isUpdating } = useUpdate()
+  const { mutate: updateConference, isPending: isUpdating } = useUpdate1()
   const { mutate: createSession, isPending: isCreating } = useCreateSession()
   const { mutate: updateSession, isPending: isUpdatingSession } = useUpdateSession()
   const { mutate: updateCurrentSession, isPending: isSettingCurrent } = useUpdateCurrentSession()
@@ -370,7 +363,7 @@ export default function ConferencePage() {
             setMessage({ type: 'success', text: '会议信息更新成功' })
             setIsEditing(false)
           },
-          onError: (error) => {
+          onError: (error: unknown) => {
             setMessage({ type: 'error', text: '更新失败，请重试' })
           }
         }
@@ -461,18 +454,18 @@ export default function ConferencePage() {
 
                 <div>
                   <Label htmlFor="status">会议状态</Label>
-                  <Select value={formData.status} onValueChange={handleStatusChange}>
-                    <SelectTrigger className="mt-2">
-                      <SelectValue placeholder="选择会议状态" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {statusOptions.map(option => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <select
+                    id="status"
+                    value={formData.status}
+                    onChange={(e) => handleStatusChange(e.target.value as ConferenceRequestStatus)}
+                    className="flex h-8 w-full items-center justify-between rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 mt-2"
+                  >
+                    {statusOptions.map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="flex gap-3">
@@ -586,18 +579,18 @@ export default function ConferencePage() {
 
                 <div>
                   <Label htmlFor="session-status">会期状态</Label>
-                  <Select value={sessionFormData.status} onValueChange={handleSessionStatusChange}>
-                    <SelectTrigger className="mt-2">
-                      <SelectValue placeholder="选择会期状态" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {sessionStatusOptions.map(option => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <select
+                    id="session-status"
+                    value={sessionFormData.status}
+                    onChange={(e) => handleSessionStatusChange(e.target.value as ConferenceSessionRequestStatus)}
+                    className="flex h-8 w-full items-center justify-between rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 mt-2"
+                  >
+                    {sessionStatusOptions.map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="flex gap-3">

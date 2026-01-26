@@ -35,25 +35,25 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
  * 仅 DM、DH、SYS_ADMIN 可操作
  * @summary 启动/恢复/变速时间轴
  */
-export type update1Response200 = {
+export type update2Response200 = {
   data: Blob;
   status: 200;
 };
 
-export type update1ResponseSuccess = update1Response200 & {
+export type update2ResponseSuccess = update2Response200 & {
   headers: Headers;
 };
-export type update1Response = update1ResponseSuccess;
+export type update2Response = update2ResponseSuccess;
 
-export const getUpdate1Url = () => {
+export const getUpdate2Url = () => {
   return `/api/time/update`;
 };
 
-export const update1 = async (
+export const update2 = async (
   timeUpdateRequest: TimeUpdateRequest,
   options?: RequestInit,
-): Promise<update1Response> => {
-  return customInstance<update1Response>(getUpdate1Url(), {
+): Promise<update2Response> => {
+  return customInstance<update2Response>(getUpdate2Url(), {
     ...options,
     method: "POST",
     headers: { "Content-Type": "application/json", ...options?.headers },
@@ -61,24 +61,24 @@ export const update1 = async (
   });
 };
 
-export const getUpdate1MutationOptions = <
+export const getUpdate2MutationOptions = <
   TError = unknown,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof update1>>,
+    Awaited<ReturnType<typeof update2>>,
     TError,
     { data: TimeUpdateRequest },
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
-  Awaited<ReturnType<typeof update1>>,
+  Awaited<ReturnType<typeof update2>>,
   TError,
   { data: TimeUpdateRequest },
   TContext
 > => {
-  const mutationKey = ["update1"];
+  const mutationKey = ["update2"];
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation &&
       "mutationKey" in options.mutation &&
@@ -88,30 +88,30 @@ export const getUpdate1MutationOptions = <
     : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof update1>>,
+    Awaited<ReturnType<typeof update2>>,
     { data: TimeUpdateRequest }
   > = (props) => {
     const { data } = props ?? {};
 
-    return update1(data, requestOptions);
+    return update2(data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
-export type Update1MutationResult = NonNullable<
-  Awaited<ReturnType<typeof update1>>
+export type Update2MutationResult = NonNullable<
+  Awaited<ReturnType<typeof update2>>
 >;
-export type Update1MutationBody = TimeUpdateRequest;
-export type Update1MutationError = unknown;
+export type Update2MutationBody = TimeUpdateRequest;
+export type Update2MutationError = unknown;
 
 /**
  * @summary 启动/恢复/变速时间轴
  */
-export const useUpdate1 = <TError = unknown, TContext = unknown>(
+export const useUpdate2 = <TError = unknown, TContext = unknown>(
   options?: {
     mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof update1>>,
+      Awaited<ReturnType<typeof update2>>,
       TError,
       { data: TimeUpdateRequest },
       TContext
@@ -120,12 +120,12 @@ export const useUpdate1 = <TError = unknown, TContext = unknown>(
   },
   queryClient?: QueryClient,
 ): UseMutationResult<
-  Awaited<ReturnType<typeof update1>>,
+  Awaited<ReturnType<typeof update2>>,
   TError,
   { data: TimeUpdateRequest },
   TContext
 > => {
-  return useMutation(getUpdate1MutationOptions(options), queryClient);
+  return useMutation(getUpdate2MutationOptions(options), queryClient);
 };
 /**
  * 用于时间快进/回滚，仅 DM、DH、SYS_ADMIN 可操作
@@ -225,73 +225,75 @@ export const useJump = <TError = unknown, TContext = unknown>(
  * DM、DH、SYS_ADMIN 可查看
  * @summary 查看所有时间锚点
  */
-export type getAllResponse200 = {
+export type getAll1Response200 = {
   data: Blob;
   status: 200;
 };
 
-export type getAllResponseSuccess = getAllResponse200 & {
+export type getAll1ResponseSuccess = getAll1Response200 & {
   headers: Headers;
 };
-export type getAllResponse = getAllResponseSuccess;
+export type getAll1Response = getAll1ResponseSuccess;
 
-export const getGetAllUrl = () => {
+export const getGetAll1Url = () => {
   return `/api/time`;
 };
 
-export const getAll = async (
+export const getAll1 = async (
   options?: RequestInit,
-): Promise<getAllResponse> => {
-  return customInstance<getAllResponse>(getGetAllUrl(), {
+): Promise<getAll1Response> => {
+  return customInstance<getAll1Response>(getGetAll1Url(), {
     ...options,
     method: "GET",
   });
 };
 
-export const getGetAllQueryKey = () => {
+export const getGetAll1QueryKey = () => {
   return [`/api/time`] as const;
 };
 
-export const getGetAllQueryOptions = <
-  TData = Awaited<ReturnType<typeof getAll>>,
+export const getGetAll1QueryOptions = <
+  TData = Awaited<ReturnType<typeof getAll1>>,
   TError = unknown,
 >(options?: {
   query?: Partial<
-    UseQueryOptions<Awaited<ReturnType<typeof getAll>>, TError, TData>
+    UseQueryOptions<Awaited<ReturnType<typeof getAll1>>, TError, TData>
   >;
   request?: SecondParameter<typeof customInstance>;
 }) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getGetAllQueryKey();
+  const queryKey = queryOptions?.queryKey ?? getGetAll1QueryKey();
 
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof getAll>>> = ({
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getAll1>>> = ({
     signal,
-  }) => getAll({ signal, ...requestOptions });
+  }) => getAll1({ signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof getAll>>,
+    Awaited<ReturnType<typeof getAll1>>,
     TError,
     TData
   > & { queryKey: DataTag<QueryKey, TData, TError> };
 };
 
-export type GetAllQueryResult = NonNullable<Awaited<ReturnType<typeof getAll>>>;
-export type GetAllQueryError = unknown;
+export type GetAll1QueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAll1>>
+>;
+export type GetAll1QueryError = unknown;
 
-export function useGetAll<
-  TData = Awaited<ReturnType<typeof getAll>>,
+export function useGetAll1<
+  TData = Awaited<ReturnType<typeof getAll1>>,
   TError = unknown,
 >(
   options: {
     query: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getAll>>, TError, TData>
+      UseQueryOptions<Awaited<ReturnType<typeof getAll1>>, TError, TData>
     > &
       Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getAll>>,
+          Awaited<ReturnType<typeof getAll1>>,
           TError,
-          Awaited<ReturnType<typeof getAll>>
+          Awaited<ReturnType<typeof getAll1>>
         >,
         "initialData"
       >;
@@ -301,19 +303,19 @@ export function useGetAll<
 ): DefinedUseQueryResult<TData, TError> & {
   queryKey: DataTag<QueryKey, TData, TError>;
 };
-export function useGetAll<
-  TData = Awaited<ReturnType<typeof getAll>>,
+export function useGetAll1<
+  TData = Awaited<ReturnType<typeof getAll1>>,
   TError = unknown,
 >(
   options?: {
     query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getAll>>, TError, TData>
+      UseQueryOptions<Awaited<ReturnType<typeof getAll1>>, TError, TData>
     > &
       Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getAll>>,
+          Awaited<ReturnType<typeof getAll1>>,
           TError,
-          Awaited<ReturnType<typeof getAll>>
+          Awaited<ReturnType<typeof getAll1>>
         >,
         "initialData"
       >;
@@ -323,13 +325,13 @@ export function useGetAll<
 ): UseQueryResult<TData, TError> & {
   queryKey: DataTag<QueryKey, TData, TError>;
 };
-export function useGetAll<
-  TData = Awaited<ReturnType<typeof getAll>>,
+export function useGetAll1<
+  TData = Awaited<ReturnType<typeof getAll1>>,
   TError = unknown,
 >(
   options?: {
     query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getAll>>, TError, TData>
+      UseQueryOptions<Awaited<ReturnType<typeof getAll1>>, TError, TData>
     >;
     request?: SecondParameter<typeof customInstance>;
   },
@@ -341,13 +343,13 @@ export function useGetAll<
  * @summary 查看所有时间锚点
  */
 
-export function useGetAll<
-  TData = Awaited<ReturnType<typeof getAll>>,
+export function useGetAll1<
+  TData = Awaited<ReturnType<typeof getAll1>>,
   TError = unknown,
 >(
   options?: {
     query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getAll>>, TError, TData>
+      UseQueryOptions<Awaited<ReturnType<typeof getAll1>>, TError, TData>
     >;
     request?: SecondParameter<typeof customInstance>;
   },
@@ -355,7 +357,7 @@ export function useGetAll<
 ): UseQueryResult<TData, TError> & {
   queryKey: DataTag<QueryKey, TData, TError>;
 } {
-  const queryOptions = getGetAllQueryOptions(options);
+  const queryOptions = getGetAll1QueryOptions(options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<
     TData,

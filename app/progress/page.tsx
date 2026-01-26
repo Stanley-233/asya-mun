@@ -10,8 +10,9 @@ import { useTimelineStream } from "@/lib/hooks/use-timeline-stream"
 import { useAuth } from "@/lib/contexts/auth-context"
 import { useGetMine, useGetCurrentSession } from "@/lib/api/endpoints/会议管理/会议管理"
 import { useGetLatest } from "@/lib/api/endpoints/时间轴管理/时间轴管理"
-import type { ConferenceResponse, ConferenceSessionResponse, TimeAnchorResponse } from "@/lib/api/endpoints/asyaBackendAPI.schemas"
+import type { ConferenceResponse, ConferenceSessionResponse, TimeAnchorResponse, MessageResponse } from "@/lib/api/endpoints/asyaBackendAPI.schemas"
 import { TimelineManager } from "@/components/timeline-manager"
+import { MessageList, MessageDetailDialog, MessageEditDialog } from "@/components/message"
 
 const statusLabels = {
   'PREPARING': '筹备中',
@@ -24,6 +25,30 @@ const sessionStatusLabels = {
   'RUNNING': '进行中',
   'PAUSED': '暂停',
   'ENDED': '已结束'
+}
+
+// 格式化游戏时间为表单输入格式
+function formatGameTimeForInput(date: Date | null): string {
+  if (!date) return ''
+  
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+
+  // 处理负数年份（BC年）
+  let displayYear: number
+  let era = ''
+  
+  if (year <= 0) {
+    era = 'BC '
+    displayYear = 1 - year  // 0→1, -1→2, -420→421
+  } else {
+    displayYear = year
+  }
+
+  return `${era}${displayYear}-${month}-${day} ${hours}:${minutes}`
 }
 
 export default function ProgressPage() {
@@ -40,36 +65,43 @@ export default function ProgressPage() {
   const [showAlert, setShowAlert] = useState(false)
   const [alertMessage, setAlertMessage] = useState({ title: '', description: '' })
   
+  // 消息相关状态
+  const [selectedMessageUuid, setSelectedMessageUuid] = useState<string | null>(null)
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [editingMessage, setEditingMessage] = useState<MessageResponse | null>(null)
+  
   // 使用共享的 hook 计算当前游戏时间
   const currentGameTime = useCurrentGameTime(latestAnchor)
 
-  // 订阅时间轴事件流
-  useTimelineStream({
-    enabled: isAuthenticated && !!currentSession,
-    onTimeJump: (event) => {
-      console.log('⏭️ 时间跳跃事件:', event)
-      setAlertMessage({
-        title: '时间跳跃',
-        description: '游戏时间发生了跳跃，时间轴已更新',
-      })
-      setShowAlert(true)
-      // 刷新最新锚点数据
-      refetchLatest()
-    },
-    onTimeUpdate: (event) => {
-      console.log('🔄 时间更新事件:', event)
-      setAlertMessage({
-        title: '时间流速变化',
-        description: '游戏时间流速已调整',
-      })
-      setShowAlert(true)
-      // 刷新最新锚点数据
-      refetchLatest()
-    },
-    onError: (error) => {
-      console.error('SSE 连接错误:', error)
-    },
-  })
+  // ===== SSE 时间轴订阅功能已禁用 =====
+  // // 订阅时间轴事件流
+  // useTimelineStream({
+  //   enabled: isAuthenticated && !!currentSession,
+  //   onTimeJump: (event) => {
+  //     console.log('⏭️ 时间跳跃事件:', event)
+  //     setAlertMessage({
+  //       title: '时间跳跃',
+  //       description: '游戏时间发生了跳跃，时间轴已更新',
+  //     })
+  //     setShowAlert(true)
+  //     // 刷新最新锚点数据
+  //     refetchLatest()
+  //   },
+  //   onTimeUpdate: (event) => {
+  //     console.log('🔄 时间更新事件:', event)
+  //     setAlertMessage({
+  //       title: '时间流速变化',
+  //       description: '游戏时间流速已调整',
+  //     })
+  //     setShowAlert(true)
+  //     // 刷新最新锚点数据
+  //     refetchLatest()
+  //   },
+  //   onError: (error) => {
+  //     console.error('SSE 连接错误:', error)
+  //   },
+  // })
 
   useEffect(() => {
     if (conferenceData && !conferenceLoading) {
@@ -149,9 +181,30 @@ export default function ProgressPage() {
     )
   }
 
+  // 处理点击消息卡片
+  const handleMessageClick = (message: MessageResponse) => {
+    setSelectedMessageUuid(message.uuid)
+    setDetailDialogOpen(true)
+  }
+
+  // 处理编辑消息
+  const handleEditMessage = (message: MessageResponse) => {
+    setEditingMessage(message)
+    setEditDialogOpen(true)
+  }
+
+  // 处理创建消息
+  const handleCreateMessage = () => {
+    setEditingMessage(null)
+    setEditDialogOpen(true)
+  }
+
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="max-w-4xl mx-auto space-y-6">
+      {/* 两栏布局 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* 左侧：现有内容 */}
+        <div className="space-y-6">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold mb-2">会议进程</h1>
           <p className="text-muted-foreground">查看当前会议和会期状态</p>
@@ -256,7 +309,38 @@ export default function ProgressPage() {
             </div>
           </CardContent>
         </Card>
+        </div>
+
+        {/* 右侧：消息列表 */}
+        <div className="space-y-6">
+          <div className="text-center">
+            <h2 className="text-4xl font-bold mb-2">消息中心</h2>
+            <p className="text-muted-foreground">查看会议相关消息</p>
+          </div>
+          
+          <MessageList
+            onMessageClick={handleMessageClick}
+            onEditMessage={handleEditMessage}
+            onCreateMessage={handleCreateMessage}
+          />
+        </div>
       </div>
+
+      {/* 消息详情弹窗 */}
+      <MessageDetailDialog
+        messageUuid={selectedMessageUuid}
+        open={detailDialogOpen}
+        onOpenChange={setDetailDialogOpen}
+      />
+
+      {/* 消息编辑/创建弹窗 */}
+      <MessageEditDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        message={editingMessage}
+        sessionId={currentSession?.uuid || ''}
+        currentGameTime={formatGameTimeForInput(currentGameTime)}
+      />
     </div>
   )
 }
