@@ -15,7 +15,8 @@ enum class BizCode(override val code: Int, override val message: String) : IErro
     TOKEN_INVALID(4003, "Token无效"),
     USER_NOT_FOUND(4004, "用户未注册"),
     PASSWORD_ERROR(4005, "密码错误"),
-    USER_EXISTS(4006, "用户已存在")
+    USER_EXISTS(4006, "用户已存在"),
+    PERMISSION_DENIED(4009, "权限不足")
 }
 
 /**

@@ -1,7 +1,6 @@
 package top.bearingwall.asya.dto
 
 import io.swagger.v3.oas.annotations.media.Schema
-import java.util.UUID
 
 @Schema(description = "会期状态")
 enum class SessionStatus {
