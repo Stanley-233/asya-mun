@@ -6,6 +6,12 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: process.env.SKIP_TYPE_CHECK === 'true',
   },
   async rewrites() {
+    // 生产环境不需要rewrites，直接通过nginx代理
+    // 开发环境才需要rewrites避免CORS
+    if (process.env.NODE_ENV === 'production') {
+      return [];
+    }
+    
     return [
       {
         source: '/api/:path*',

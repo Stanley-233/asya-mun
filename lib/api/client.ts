@@ -83,19 +83,22 @@ AXIOS_INSTANCE.interceptors.response.use(
 // orval 会使用这个函数作为自定义实例
 export const customInstance = <T>(
   url: string,
-  config: AxiosRequestConfig = {},
+  config: any = {}, // 使用any避免类型冲突
 ): Promise<T> => {
   const source = Axios.CancelToken.source();
   
-  // 将 body 转换为 data（因为生成的代码使用 fetch API 格式，但我们用的是 Axios）
-  const axiosConfig: AxiosRequestConfig = { ...config };
+  // 将生成代码的各种格式统一转换为 Axios 配置
+  const axiosConfig: AxiosRequestConfig = {
+    method: config.method,
+    headers: config.headers,
+    params: config.params,
+  };
   
-  // @ts-ignore - 处理生成代码中的 body 字段
-  if ('body' in config && config.body) {
-    // @ts-ignore
-    axiosConfig.data = typeof config.body === 'string' ? JSON.parse(config.body as string) : config.body;
-    // @ts-ignore
-    delete axiosConfig.body;
+  // 处理 body/data 字段
+  if (config.body !== undefined) {
+    axiosConfig.data = typeof config.body === 'string' ? JSON.parse(config.body) : config.body;
+  } else if (config.data !== undefined) {
+    axiosConfig.data = config.data;
   }
   
   const promise = AXIOS_INSTANCE({
@@ -115,7 +118,7 @@ export const customInstance = <T>(
 };
 
 export type CustomInstance<T> = {
-  (url: string, config?: AxiosRequestConfig): Promise<T>;
+  (url: string, config?: any): Promise<T>;
 };
 
 export default customInstance;
