@@ -3,8 +3,10 @@
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { CurrentGameTimeCard } from "@/components/current-game-time-card"
 import { useCurrentGameTime } from "@/lib/hooks/use-current-game-time"
+import { useTimelineStream } from "@/lib/hooks/use-timeline-stream"
 import { useAuth } from "@/lib/contexts/auth-context"
 import { useGetMine, useGetCurrentSession } from "@/lib/api/endpoints/会议管理/会议管理"
 import { useGetLatest } from "@/lib/api/endpoints/时间轴管理/时间轴管理"
@@ -28,14 +30,46 @@ export default function ProgressPage() {
   const { isLoading: authLoading, isAuthenticated } = useAuth()
   const { data: conferenceData, isLoading: conferenceLoading } = useGetMine()
   const { data: currentSessionData, isLoading: sessionLoading } = useGetCurrentSession()
-  const { data: latestAnchorData, isLoading: latestLoading } = useGetLatest()
+  const { data: latestAnchorData, isLoading: latestLoading, refetch: refetchLatest } = useGetLatest()
 
   const [conference, setConference] = useState<ConferenceResponse | null>(null)
   const [currentSession, setCurrentSession] = useState<ConferenceSessionResponse | null>(null)
   const [latestAnchor, setLatestAnchor] = useState<TimeAnchorResponse | null>(null)
   
+  // 弹窗状态
+  const [showAlert, setShowAlert] = useState(false)
+  const [alertMessage, setAlertMessage] = useState({ title: '', description: '' })
+  
   // 使用共享的 hook 计算当前游戏时间
   const currentGameTime = useCurrentGameTime(latestAnchor)
+
+  // 订阅时间轴事件流
+  useTimelineStream({
+    enabled: isAuthenticated && !!currentSession,
+    onTimeJump: (event) => {
+      console.log('⏭️ 时间跳跃事件:', event)
+      setAlertMessage({
+        title: '时间跳跃',
+        description: '游戏时间发生了跳跃，时间轴已更新',
+      })
+      setShowAlert(true)
+      // 刷新最新锚点数据
+      refetchLatest()
+    },
+    onTimeUpdate: (event) => {
+      console.log('🔄 时间更新事件:', event)
+      setAlertMessage({
+        title: '时间流速变化',
+        description: '游戏时间流速已调整',
+      })
+      setShowAlert(true)
+      // 刷新最新锚点数据
+      refetchLatest()
+    },
+    onError: (error) => {
+      console.error('SSE 连接错误:', error)
+    },
+  })
 
   useEffect(() => {
     if (conferenceData && !conferenceLoading) {
@@ -129,6 +163,23 @@ export default function ProgressPage() {
           latestAnchor={latestAnchor}
         />
 
+        {/* 时间轴变化提醒弹窗 */}
+        <AlertDialog open={showAlert} onOpenChange={setShowAlert}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{alertMessage.title}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {alertMessage.description}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogAction onClick={() => setShowAlert(false)}>
+                知道了
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
         {/* 当前会议和会期合并卡片 */}
         <Card className="border-2">
           <CardHeader>
@@ -205,24 +256,6 @@ export default function ProgressPage() {
             </div>
           </CardContent>
         </Card>
-
-        {/* 信息提示 */}
-        {/* <Card className="bg-blue-50 border-blue-200">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-3">
-              <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-bold">
-                i
-              </div>
-              <div>
-                <h4 className="font-semibold text-blue-900 mb-1">关于会议进程</h4>
-                <p className="text-sm text-blue-800">
-                  此页面显示当前会议和会期的实时状态。会期状态由会议管理员控制，会根据会议进展自动更新。
-                  请随时关注当前会期状态，以了解会议的最新进展。
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card> */}
       </div>
     </div>
   )

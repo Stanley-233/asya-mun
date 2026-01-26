@@ -241,117 +241,175 @@ export function TimelineManager({ currentSession }: TimelineManagerProps) {
           <CardDescription>快进或回溯到指定游戏时间</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <Label htmlFor="target-year">年份</Label>
-                <Input
-                  id="target-year"
-                  type="number"
-                  value={targetYear}
-                  onChange={(e) => setTargetYear(parseInt(e.target.value) || 0)}
-                  placeholder="例: -450"
-                />
-                <p className="text-xs text-muted-foreground mt-1">负数表示公元前</p>
-              </div>
-              <div>
-                <Label htmlFor="target-month">月份</Label>
-                <Input
-                  id="target-month"
-                  type="number"
-                  min="1"
-                  max="12"
-                  value={targetMonth}
-                  onChange={(e) => setTargetMonth(parseInt(e.target.value) || 1)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="target-day">日期</Label>
-                <Input
-                  id="target-day"
-                  type="number"
-                  min="1"
-                  max="31"
-                  value={targetDay}
-                  onChange={(e) => setTargetDay(parseInt(e.target.value) || 1)}
-                />
+          {/* 快捷时间设置 */}
+          <div>
+            <Label className="mb-2 block">快捷设置</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setTargetYear(-450)
+                  setTargetMonth(1)
+                  setTargetDay(1)
+                  setTargetHour(0)
+                  setTargetMinute(0)
+                  setTargetSecond(0)
+                }}
+              >
+                游戏开始 (BC 450)
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (currentGameTime) {
+                    const year = currentGameTime.getFullYear()
+                    setTargetYear(year)
+                    setTargetMonth(currentGameTime.getMonth() + 1)
+                    setTargetDay(currentGameTime.getDate())
+                    setTargetHour(currentGameTime.getHours())
+                    setTargetMinute(currentGameTime.getMinutes())
+                    setTargetSecond(currentGameTime.getSeconds())
+                  }
+                }}
+                disabled={!currentGameTime}
+              >
+                使用当前时间
+              </Button>
+            </div>
+          </div>
+
+          <div className="border-t pt-4 space-y-4">
+            {/* 日期输入 */}
+            <div>
+              <Label className="mb-2 block">日期</Label>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <Input
+                    type="number"
+                    value={targetYear}
+                    onChange={(e) => setTargetYear(parseInt(e.target.value) || 0)}
+                    placeholder="年"
+                    className="text-center"
+                  />
+                  <p className="text-xs text-muted-foreground text-center mt-1">
+                    {targetYear <= 0 ? `BC ${1 - targetYear}` : `AD ${targetYear}`}
+                  </p>
+                </div>
+                <div>
+                  <Input
+                    type="number"
+                    min="1"
+                    max="12"
+                    value={targetMonth}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || 1
+                      setTargetMonth(Math.max(1, Math.min(12, val)))
+                    }}
+                    placeholder="月"
+                    className="text-center"
+                  />
+                  <p className="text-xs text-muted-foreground text-center mt-1">月</p>
+                </div>
+                <div>
+                  <Input
+                    type="number"
+                    min="1"
+                    max="31"
+                    value={targetDay}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || 1
+                      setTargetDay(Math.max(1, Math.min(31, val)))
+                    }}
+                    placeholder="日"
+                    className="text-center"
+                  />
+                  <p className="text-xs text-muted-foreground text-center mt-1">日</p>
+                </div>
               </div>
             </div>
-            
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <Label htmlFor="target-hour">时</Label>
-                <Input
-                  id="target-hour"
-                  type="number"
-                  min="0"
-                  max="23"
-                  value={targetHour}
-                  onChange={(e) => setTargetHour(parseInt(e.target.value) || 0)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="target-minute">分</Label>
-                <Input
-                  id="target-minute"
-                  type="number"
-                  min="0"
-                  max="59"
-                  value={targetMinute}
-                  onChange={(e) => setTargetMinute(parseInt(e.target.value) || 0)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="target-second">秒</Label>
-                <Input
-                  id="target-second"
-                  type="number"
-                  min="0"
-                  max="59"
-                  value={targetSecond}
-                  onChange={(e) => setTargetSecond(parseInt(e.target.value) || 0)}
-                />
+
+            {/* 时间输入 */}
+            <div>
+              <Label className="mb-2 block">时间</Label>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="23"
+                    value={targetHour}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || 0
+                      setTargetHour(Math.max(0, Math.min(23, val)))
+                    }}
+                    placeholder="时"
+                    className="text-center"
+                  />
+                  <p className="text-xs text-muted-foreground text-center mt-1">时</p>
+                </div>
+                <div>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="59"
+                    value={targetMinute}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || 0
+                      setTargetMinute(Math.max(0, Math.min(59, val)))
+                    }}
+                    placeholder="分"
+                    className="text-center"
+                  />
+                  <p className="text-xs text-muted-foreground text-center mt-1">分</p>
+                </div>
+                <div>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="59"
+                    value={targetSecond}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || 0
+                      setTargetSecond(Math.max(0, Math.min(59, val)))
+                    }}
+                    placeholder="秒"
+                    className="text-center"
+                  />
+                  <p className="text-xs text-muted-foreground text-center mt-1">秒</p>
+                </div>
               </div>
             </div>
           </div>
           
           <div>
             <Label htmlFor="time-ratio">时间流速</Label>
-            <Input
-              id="time-ratio"
-              type="number"
-              step="0.1"
-              min="0"
-              value={timeRatio}
-              onChange={(e) => setTimeRatio(parseFloat(e.target.value) || 0)}
-            />
+            <div className="flex items-center gap-2 mt-2">
+              <Input
+                id="time-ratio"
+                type="number"
+                step="0.1"
+                min="0"
+                value={timeRatio}
+                onChange={(e) => setTimeRatio(parseFloat(e.target.value) || 0)}
+                className="flex-1"
+              />
+              <span className="text-sm text-muted-foreground whitespace-nowrap">x 倍速</span>
+            </div>
             <p className="text-xs text-muted-foreground mt-1">
-              1.0 = 实时, 2.0 = 2倍速, 0 = 暂停
+              0 = 暂停，1 = 实时，2 = 2倍速
             </p>
           </div>
 
-          <div className="flex gap-2">
-            <Button 
-              onClick={handleTimeJump}
-              disabled={jumpMutation.isPending}
-              className="flex-1"
-            >
-              {jumpMutation.isPending ? '跳跃中...' : '执行时间跳跃'}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setTargetYear(-450)
-                setTargetMonth(1)
-                setTargetDay(1)
-                setTargetHour(0)
-                setTargetMinute(0)
-                setTargetSecond(0)
-              }}
-            >
-              重置为游戏开始
-            </Button>
-          </div>
+          <Button 
+            onClick={handleTimeJump}
+            disabled={jumpMutation.isPending}
+            className="w-full"
+            size="lg"
+          >
+            {jumpMutation.isPending ? '跳跃中...' : '执行时间跳跃'}
+          </Button>
 
           {/* 快捷时间流速调整 */}
           <div className="border-t pt-4">

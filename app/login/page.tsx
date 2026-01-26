@@ -72,7 +72,7 @@ export default function LoginPage() {
       console.warn('错误响应:', err.response)
       
       // 优先使用错误对象的 message，然后是响应中的 message
-      const message = err.message || err.response?.data?.message || '登录失败，请检查用户名和密码'
+      const message = err.message || err.response?.data?.message || '登录失败，请检查用户昵称和密码'
       setError(message)
     } finally {
       setLoading(false)
@@ -213,10 +213,10 @@ export default function LoginPage() {
             {tab === 'login' && (
               <form onSubmit={handleLogin} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="login-name">用户名</Label>
+                  <Label htmlFor="login-name">用户昵称</Label>
                   <Input
                     id="login-name"
-                    placeholder="请输入用户名"
+                    placeholder="请输入用户昵称"
                     value={loginForm.name}
                     onChange={(e) => setLoginForm({ ...loginForm, name: e.target.value })}
                     disabled={loading}
@@ -247,10 +247,10 @@ export default function LoginPage() {
             {tab === 'register' && (
               <form onSubmit={handleRegister} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="register-name">用户名</Label>
+                  <Label htmlFor="register-name">用户昵称</Label>
                   <Input
                     id="register-name"
-                    placeholder="请输入用户名"
+                    placeholder="请输入用户昵称"
                     value={registerForm.name}
                     onChange={(e) => setRegisterForm({ ...registerForm, name: e.target.value })}
                     disabled={loading}

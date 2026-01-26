@@ -396,11 +396,15 @@ export default function ConferencePage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="max-w-4xl mx-auto space-y-6">
-        <h1 className="text-3xl font-bold">会议管理</h1>
+      <div className="max-w-7xl mx-auto">
+        <h1 className="text-3xl font-bold mb-6">会议管理</h1>
 
-        {/* 会议信息卡片 */}
-        <Card>
+        {/* 两栏布局：移动端单栏，桌面端双栏 */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* 左栏：会议管理相关 */}
+          <div className="space-y-6">
+            {/* 会议信息卡片 */}
+            <Card>
           <CardHeader>
             <div className="flex justify-between items-center">
               <div>
@@ -662,9 +666,14 @@ export default function ConferencePage() {
             )}
           </CardContent>
         </Card>
-        {/* 时间轴管理 */}
-        <TimelineManager currentSession={currentSession} />
+          </div>
 
+          {/* 右栏：时间轴管理 */}
+          <div className="space-y-6">
+            {/* 时间轴管理 */}
+            <TimelineManager currentSession={currentSession} />
+          </div>
+        </div>
       </div>
     </div>
   )
