@@ -88,6 +88,7 @@ class UserService(
     }
 
     // 获取所有用户（仅 SYS_ADMIN）
+    @Transactional(readOnly = true)
     fun getAllUsers(): List<UserInfoResponse> {
         return userRepository.findAll()
             .map { u ->
@@ -100,6 +101,7 @@ class UserService(
     }
 
     // 通过 token 获取当前登录用户信息
+    @Transactional(readOnly = true)
     fun getCurrentUserInfo(token: String): UserInfoResponse {
         val parsed = JwtUtil.parseToken(token)
         val userId = UUID.fromString(parsed.subject)
@@ -155,6 +157,7 @@ class UserService(
         )
     }
 
+    @Transactional(readOnly = true)
     fun getUserFromToken(token: String): User {
         val parsed = JwtUtil.parseToken(token)
         val userId = UUID.fromString(parsed.subject)

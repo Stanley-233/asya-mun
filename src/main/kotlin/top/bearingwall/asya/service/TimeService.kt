@@ -25,10 +25,12 @@ class TimeService(
     private val log = LoggerFactory.getLogger(TimeService::class.java)
     private val emitters = CopyOnWriteArrayList<SseEmitter>()
 
+    @Transactional(readOnly = true)
     fun getAllTimeAnchors(): List<TimeAnchorResponse> {
         return timeAnchorRepository.findAll().map { it.toResponse() }
     }
 
+    @Transactional(readOnly = true)
     fun getLatestTimeAnchor(): TimeAnchorResponse? {
         // First try to find the one marked as current
         val current = timeAnchorRepository.findByIsCurrentTrue()
@@ -39,6 +41,7 @@ class TimeService(
         return timeAnchorRepository.findFirstByOrderByIdDesc()?.toResponse()
     }
 
+    @Transactional(readOnly = true)
     fun subscribe(): SseEmitter {
         val emitter = SseEmitter(Long.MAX_VALUE)
         emitters.add(emitter)
@@ -62,7 +65,7 @@ class TimeService(
         if (latest != null) {
             try {
                 emitter.send(SseEmitter.event().name("init").data(latest))
-            } catch (e: IOException) {
+            } catch (_: IOException) {
                 emitters.remove(emitter)
             }
         }
@@ -76,11 +79,11 @@ class TimeService(
         emitters.forEach { emitter ->
             try {
                 emitter.send(SseEmitter.event().name(eventName).data(response))
-            } catch (e: IOException) {
+            } catch (_: IOException) {
                 deadEmitters.add(emitter)
             }
         }
-        emitters.removeAll(deadEmitters)
+        emitters.removeAll(deadEmitters.toSet())
     }
 
     @Transactional
