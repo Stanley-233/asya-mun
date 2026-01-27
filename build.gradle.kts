@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "top.bearingwall"
-version = "0.0.3-SNAPSHOT"
+version = "0.1.0-SNAPSHOT"
 
 java {
     toolchain {
