@@ -34,7 +34,8 @@ jobs:
       - name: Build project
         run: pnpm build
         env:
-          NEXT_PUBLIC_API_BASE_URL: ${{ secrets.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8080' }}
+          # 不设置 NEXT_PUBLIC_API_BASE_URL，让 Next.js 自动读取 .env.production
+          # .env.production 中已配置: NEXT_PUBLIC_API_BASE_URL=https://mun.bearingwall.top
           # 跳过类型检查以避免生成代码的类型问题
           SKIP_TYPE_CHECK: true
 
