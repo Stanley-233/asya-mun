@@ -13,7 +13,10 @@ export function WelcomeComponent() {
   const [showScrollHint, setShowScrollHint] = useState(true)
 
   useEffect(() => {
+    // 确保页面刷新后滚动到顶部
+    window.scrollTo(0, 0)
     setMounted(true)
+    
     const handleScroll = () => {
       if (window.scrollY > 100) {
         setShowScrollHint(false)
@@ -45,7 +48,7 @@ export function WelcomeComponent() {
               <p className="text-2xl md:text-3xl font-light tracking-wide text-muted-foreground">
                 <span className="font-bold text-foreground">A</span>symmetric{' '}
                 <span className="font-bold text-foreground">SY</span>nergy{' '}
-                <span className="font-bold text-foreground">A</span>utomation
+                <span className="font-bold text-foreground">A</span>utomation System
               </p>
               <p className="text-xl md:text-2xl font-light text-muted-foreground/80">
                 非对称联动推演自动化系统
@@ -78,7 +81,7 @@ export function WelcomeComponent() {
             onClick={scrollToLogin}
             className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-muted-foreground hover:text-primary transition-all duration-300 group cursor-pointer animate-bounce"
           >
-            <span className="text-sm">下滑登录</span>
+            <span className="text-sm">下滑查看更多信息</span>
             <ChevronDown className="w-6 h-6 group-hover:translate-y-1 transition-transform" />
           </button>
         )}
@@ -87,58 +90,6 @@ export function WelcomeComponent() {
       {/* Login Section */}
       <section id="login-section" className="min-h-screen flex items-center justify-center px-4 py-16">
         <div className="max-w-md w-full space-y-8">
-          <Card className="backdrop-blur-sm bg-card/50 border-primary/20 shadow-2xl">
-            <CardHeader className="space-y-4 text-center">
-              <div className="flex justify-center">
-                <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
-                  <span className="text-2xl font-bold text-primary">A</span>
-                </div>
-              </div>
-              <CardTitle className="text-3xl font-bold">欢迎回来</CardTitle>
-              <CardDescription>
-                登录以访问 ASYA 系统
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                    用户名
-                  </label>
-                  <input
-                    type="text"
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all"
-                    placeholder="请输入用户名"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                    密码
-                  </label>
-                  <input
-                    type="password"
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all"
-                    placeholder="请输入密码"
-                  />
-                </div>
-              </div>
-              <Button 
-                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-all hover:scale-[1.02] active:scale-[0.98]"
-                onClick={() => router.push('/login')}
-              >
-                登录
-              </Button>
-              <div className="text-center">
-                <CardDescription className="text-xs">
-                  或{' '}
-                  <button className="text-primary hover:underline font-medium" onClick={() => router.push('/login')}>
-                    前往完整登录页面
-                  </button>
-                </CardDescription>
-              </div>
-            </CardContent>
-          </Card>
-
           {/* API Status Card */}
           <Card className="backdrop-blur-sm bg-card/50 border-primary/20">
             <CardHeader>

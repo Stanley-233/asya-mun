@@ -23,6 +23,8 @@ import type {
 
 import type {
   GetAllParams,
+  GetAllSecretInConferenceParams,
+  GetSecretMessagesParams,
   MessageCreateRequest,
   MessageUpdateRequest,
 } from "../asyaBackendAPI.schemas";
@@ -32,7 +34,7 @@ import { customInstance } from "../../client";
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
 /**
- * 查看消息及完整内容。所有登录用户可查看。若消息为secret则抛出未实现错误。
+ * 查看消息及完整内容。所有登录用户可查看。若消息为secret则检查请求者是否在receivers列表。
  * @summary 查询单条消息详情
  */
 export type getOneResponse200 = {
@@ -543,3 +545,553 @@ export const useCreate1 = <TError = unknown, TContext = unknown>(
 > => {
   return useMutation(getCreate1MutationOptions(options), queryClient);
 };
+/**
+ * 查看某条消息能被哪些用户查看。
+ * @summary 查询消息可见用户
+ */
+export type getReceiversResponse200 = {
+  data: Blob;
+  status: 200;
+};
+
+export type getReceiversResponseSuccess = getReceiversResponse200 & {
+  headers: Headers;
+};
+export type getReceiversResponse = getReceiversResponseSuccess;
+
+export const getGetReceiversUrl = (uuid: string) => {
+  return `/api/messages/${uuid}/receivers`;
+};
+
+export const getReceivers = async (
+  uuid: string,
+  options?: RequestInit,
+): Promise<getReceiversResponse> => {
+  return customInstance<getReceiversResponse>(getGetReceiversUrl(uuid), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetReceiversQueryKey = (uuid: string) => {
+  return [`/api/messages/${uuid}/receivers`] as const;
+};
+
+export const getGetReceiversQueryOptions = <
+  TData = Awaited<ReturnType<typeof getReceivers>>,
+  TError = unknown,
+>(
+  uuid: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getReceivers>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetReceiversQueryKey(uuid);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getReceivers>>> = ({
+    signal,
+  }) => getReceivers(uuid, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!uuid,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getReceivers>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetReceiversQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getReceivers>>
+>;
+export type GetReceiversQueryError = unknown;
+
+export function useGetReceivers<
+  TData = Awaited<ReturnType<typeof getReceivers>>,
+  TError = unknown,
+>(
+  uuid: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getReceivers>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getReceivers>>,
+          TError,
+          Awaited<ReturnType<typeof getReceivers>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetReceivers<
+  TData = Awaited<ReturnType<typeof getReceivers>>,
+  TError = unknown,
+>(
+  uuid: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getReceivers>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getReceivers>>,
+          TError,
+          Awaited<ReturnType<typeof getReceivers>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetReceivers<
+  TData = Awaited<ReturnType<typeof getReceivers>>,
+  TError = unknown,
+>(
+  uuid: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getReceivers>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary 查询消息可见用户
+ */
+
+export function useGetReceivers<
+  TData = Awaited<ReturnType<typeof getReceivers>>,
+  TError = unknown,
+>(
+  uuid: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getReceivers>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getGetReceiversQueryOptions(uuid, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * 分页查询用户发送或接收的非对称消息。
+ * @summary 查询用户的非对称消息
+ */
+export type getSecretMessagesResponse200 = {
+  data: Blob;
+  status: 200;
+};
+
+export type getSecretMessagesResponseSuccess = getSecretMessagesResponse200 & {
+  headers: Headers;
+};
+export type getSecretMessagesResponse = getSecretMessagesResponseSuccess;
+
+export const getGetSecretMessagesUrl = (params: GetSecretMessagesParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/messages/secret?${stringifiedParams}`
+    : `/api/messages/secret`;
+};
+
+export const getSecretMessages = async (
+  params: GetSecretMessagesParams,
+  options?: RequestInit,
+): Promise<getSecretMessagesResponse> => {
+  return customInstance<getSecretMessagesResponse>(
+    getGetSecretMessagesUrl(params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetSecretMessagesQueryKey = (
+  params?: GetSecretMessagesParams,
+) => {
+  return [`/api/messages/secret`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetSecretMessagesQueryOptions = <
+  TData = Awaited<ReturnType<typeof getSecretMessages>>,
+  TError = unknown,
+>(
+  params: GetSecretMessagesParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getSecretMessages>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetSecretMessagesQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getSecretMessages>>
+  > = ({ signal }) => getSecretMessages(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getSecretMessages>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetSecretMessagesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getSecretMessages>>
+>;
+export type GetSecretMessagesQueryError = unknown;
+
+export function useGetSecretMessages<
+  TData = Awaited<ReturnType<typeof getSecretMessages>>,
+  TError = unknown,
+>(
+  params: GetSecretMessagesParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getSecretMessages>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSecretMessages>>,
+          TError,
+          Awaited<ReturnType<typeof getSecretMessages>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetSecretMessages<
+  TData = Awaited<ReturnType<typeof getSecretMessages>>,
+  TError = unknown,
+>(
+  params: GetSecretMessagesParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getSecretMessages>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSecretMessages>>,
+          TError,
+          Awaited<ReturnType<typeof getSecretMessages>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetSecretMessages<
+  TData = Awaited<ReturnType<typeof getSecretMessages>>,
+  TError = unknown,
+>(
+  params: GetSecretMessagesParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getSecretMessages>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary 查询用户的非对称消息
+ */
+
+export function useGetSecretMessages<
+  TData = Awaited<ReturnType<typeof getSecretMessages>>,
+  TError = unknown,
+>(
+  params: GetSecretMessagesParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getSecretMessages>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getGetSecretMessagesQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * DH、DM、SYS_ADMIN 可查询自己关联的conference下的所有非对称消息（is_secret为true）
+ * @summary 查询用户关联会议的所有非对称消息
+ */
+export type getAllSecretInConferenceResponse200 = {
+  data: Blob;
+  status: 200;
+};
+
+export type getAllSecretInConferenceResponseSuccess =
+  getAllSecretInConferenceResponse200 & {
+    headers: Headers;
+  };
+export type getAllSecretInConferenceResponse =
+  getAllSecretInConferenceResponseSuccess;
+
+export const getGetAllSecretInConferenceUrl = (
+  params: GetAllSecretInConferenceParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/messages/secret/conference?${stringifiedParams}`
+    : `/api/messages/secret/conference`;
+};
+
+export const getAllSecretInConference = async (
+  params: GetAllSecretInConferenceParams,
+  options?: RequestInit,
+): Promise<getAllSecretInConferenceResponse> => {
+  return customInstance<getAllSecretInConferenceResponse>(
+    getGetAllSecretInConferenceUrl(params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetAllSecretInConferenceQueryKey = (
+  params?: GetAllSecretInConferenceParams,
+) => {
+  return [
+    `/api/messages/secret/conference`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getGetAllSecretInConferenceQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAllSecretInConference>>,
+  TError = unknown,
+>(
+  params: GetAllSecretInConferenceParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getAllSecretInConference>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetAllSecretInConferenceQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getAllSecretInConference>>
+  > = ({ signal }) =>
+    getAllSecretInConference(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAllSecretInConference>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetAllSecretInConferenceQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAllSecretInConference>>
+>;
+export type GetAllSecretInConferenceQueryError = unknown;
+
+export function useGetAllSecretInConference<
+  TData = Awaited<ReturnType<typeof getAllSecretInConference>>,
+  TError = unknown,
+>(
+  params: GetAllSecretInConferenceParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getAllSecretInConference>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAllSecretInConference>>,
+          TError,
+          Awaited<ReturnType<typeof getAllSecretInConference>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetAllSecretInConference<
+  TData = Awaited<ReturnType<typeof getAllSecretInConference>>,
+  TError = unknown,
+>(
+  params: GetAllSecretInConferenceParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getAllSecretInConference>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAllSecretInConference>>,
+          TError,
+          Awaited<ReturnType<typeof getAllSecretInConference>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetAllSecretInConference<
+  TData = Awaited<ReturnType<typeof getAllSecretInConference>>,
+  TError = unknown,
+>(
+  params: GetAllSecretInConferenceParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getAllSecretInConference>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary 查询用户关联会议的所有非对称消息
+ */
+
+export function useGetAllSecretInConference<
+  TData = Awaited<ReturnType<typeof getAllSecretInConference>>,
+  TError = unknown,
+>(
+  params: GetAllSecretInConferenceParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getAllSecretInConference>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getGetAllSecretInConferenceQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}

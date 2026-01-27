@@ -9,7 +9,8 @@ import { Label } from "@/components/ui/label"
 import { useAuth } from "@/lib/contexts/auth-context"
 import { useUpdateUser } from "@/lib/api/endpoints/用户管理/用户管理"
 import { useGetMine } from "@/lib/api/endpoints/会议管理/会议管理"
-import type { ConferenceResponse } from "@/lib/api/endpoints/asyaBackendAPI.schemas"
+import { SecretMessageList, MessageDetailDialog } from "@/components/message"
+import type { ConferenceResponse, MessageResponse } from "@/lib/api/endpoints/asyaBackendAPI.schemas"
 
 const roleLabels = {
   'SYS_ADMIN': '系统管理员',
@@ -36,6 +37,8 @@ export default function ProfilePage() {
   })
   const [conference, setConference] = useState<ConferenceResponse | null>(null)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [selectedMessageUuid, setSelectedMessageUuid] = useState<string | null>(null)
+  const [messageDetailOpen, setMessageDetailOpen] = useState(false)
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -116,6 +119,11 @@ export default function ProfilePage() {
     }
   }
 
+  const handleMessageClick = (msg: MessageResponse) => {
+    setSelectedMessageUuid(msg.uuid)
+    setMessageDetailOpen(true)
+  }
+
   if (isLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -132,119 +140,142 @@ export default function ProfilePage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="max-w-2xl mx-auto">
-        <Card>
-          <CardHeader>
-            <CardTitle>个人信息</CardTitle>
-            <CardDescription>查看和修改您的账户信息</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {message && (
-              <div className={`mb-6 p-4 rounded-lg ${
-                message.type === 'success'
-                  ? 'bg-green-50 text-green-900 border border-green-200'
-                  : 'bg-red-50 text-red-900 border border-red-200'
-              }`}>
-                {message.text}
-              </div>
-            )}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* 左侧：非对称消息列表 */}
+        <div>
+          <Card>
+            <CardHeader>
+              <CardTitle>我的非对称消息</CardTitle>
+              <CardDescription>查看您发送或接收的私密消息</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <SecretMessageList onMessageClick={handleMessageClick} />
+            </CardContent>
+          </Card>
+        </div>
 
-            <div className="space-y-6">
-              {/* 用户信息显示 */}
-              <div>
-                <h3 className="text-sm font-semibold mb-4">账户信息</h3>
-                <div className="space-y-3 bg-muted/50 p-4 rounded-lg">
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">用户ID</p>
-                    <p className="font-mono text-sm break-all">{user.uuid}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">用户角色</p>
-                    <p className="text-sm font-medium">
-                      {roleLabels[user.role as keyof typeof roleLabels] || user.role}
-                    </p>
-                  </div>
+        {/* 右侧：个人信息 */}
+        <div>
+          <Card>
+            <CardHeader>
+              <CardTitle>个人信息</CardTitle>
+              <CardDescription>查看和修改您的账户信息</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {message && (
+                <div className={`mb-6 p-4 rounded-lg ${
+                  message.type === 'success'
+                    ? 'bg-green-50 text-green-900 border border-green-200'
+                    : 'bg-red-50 text-red-900 border border-red-200'
+                }`}>
+                  {message.text}
                 </div>
-              </div>
+              )}
 
-              {/* 会议信息显示 */}
-              <div>
-                <h3 className="text-sm font-semibold mb-4">会议信息</h3>
-                {conferenceLoading ? (
-                  <div className="bg-muted/50 p-4 rounded-lg">
-                    <p className="text-sm text-muted-foreground">加载中...</p>
-                  </div>
-                ) : conference ? (
+              <div className="space-y-6">
+                {/* 用户信息显示 */}
+                <div>
+                  <h3 className="text-sm font-semibold mb-4">账户信息</h3>
                   <div className="space-y-3 bg-muted/50 p-4 rounded-lg">
                     <div>
-                      <Label className="text-xs text-muted-foreground">会议名称</Label>
-                      <p className="text-sm font-medium">{conference.name}</p>
+                      <p className="text-xs text-muted-foreground mb-1">用户ID</p>
+                      <p className="font-mono text-sm break-all">{user.uuid}</p>
                     </div>
                     <div>
-                      <Label className="text-xs text-muted-foreground">会议描述</Label>
-                      <p className="text-sm">{conference.description}</p>
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">会议状态</Label>
-                      <p className="text-sm">
-                        {statusLabels[conference.status as keyof typeof statusLabels] || conference.status}
+                      <p className="text-xs text-muted-foreground mb-1">用户角色</p>
+                      <p className="text-sm font-medium">
+                        {roleLabels[user.role as keyof typeof roleLabels] || user.role}
                       </p>
                     </div>
                   </div>
-                ) : (
-                  <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
-                    <p className="text-sm text-yellow-900">尚未关联会议，请联系管理员</p>
+                </div>
+
+                {/* 会议信息显示 */}
+                <div>
+                  <h3 className="text-sm font-semibold mb-4">会议信息</h3>
+                  {conferenceLoading ? (
+                    <div className="bg-muted/50 p-4 rounded-lg">
+                      <p className="text-sm text-muted-foreground">加载中...</p>
+                    </div>
+                  ) : conference ? (
+                    <div className="space-y-3 bg-muted/50 p-4 rounded-lg">
+                      <div>
+                        <Label className="text-xs text-muted-foreground">会议名称</Label>
+                        <p className="text-sm font-medium">{conference.name}</p>
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">会议描述</Label>
+                        <p className="text-sm">{conference.description}</p>
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">会议状态</Label>
+                        <p className="text-sm">
+                          {statusLabels[conference.status as keyof typeof statusLabels] || conference.status}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
+                      <p className="text-sm text-yellow-900">尚未关联会议，请联系管理员</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* 编辑表单 */}
+                <div>
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                  <h3 className="text-sm font-semibold">修改信息</h3>
+                  
+                  <div>
+                    <Label htmlFor="name">用户昵称</Label>
+                    <Input
+                      id="name"
+                      name="name"
+                      type="text"
+                      value={formData.name}
+                      onChange={handleInputChange}
+                      placeholder="输入新的用户昵称"
+                      className="mt-2"
+                    />
                   </div>
-                )}
-              </div>
 
-              {/* 编辑表单 */}
-              <div>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                <h3 className="text-sm font-semibold">修改信息</h3>
-                
-                <div>
-                  <Label htmlFor="name">用户昵称</Label>
-                  <Input
-                    id="name"
-                    name="name"
-                    type="text"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    placeholder="输入新的用户昵称"
-                    className="mt-2"
-                  />
+                  <div>
+                    <Label htmlFor="password">新密码 (可选)</Label>
+                    <Input
+                      id="password"
+                      name="password"
+                      type="password"
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      placeholder="留空表示不修改密码"
+                      className="mt-2"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      如果不想修改密码，请留空此字段
+                    </p>
+                  </div>
+
+                  <Button
+                    type="submit"
+                    disabled={isUpdating}
+                    className="w-full"
+                  >
+                    {isUpdating ? '保存中...' : '保存修改'}
+                  </Button>
+                </form>
                 </div>
-
-                <div>
-                  <Label htmlFor="password">新密码 (可选)</Label>
-                  <Input
-                    id="password"
-                    name="password"
-                    type="password"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    placeholder="留空表示不修改密码"
-                    className="mt-2"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    如果不想修改密码，请留空此字段
-                  </p>
-                </div>
-
-                <Button
-                  type="submit"
-                  disabled={isUpdating}
-                  className="w-full"
-                >
-                  {isUpdating ? '保存中...' : '保存修改'}
-                </Button>
-              </form>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       </div>
+
+      {/* Message Detail Dialog */}
+      <MessageDetailDialog
+        open={messageDetailOpen}
+        onOpenChange={setMessageDetailOpen}
+        messageUuid={selectedMessageUuid}
+      />
     </div>
   )
 }

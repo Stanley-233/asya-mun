@@ -205,10 +205,10 @@ export default function ProgressPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* 左侧：现有内容 */}
         <div className="space-y-6">
-        <div className="text-center mb-8">
+        {/* <div className="text-center mb-8">
           <h1 className="text-4xl font-bold mb-2">会议进程</h1>
           <p className="text-muted-foreground">查看当前会议和会期状态</p>
-        </div>
+        </div> */}
 
         {/* 当前游戏时间 */}
         <CurrentGameTimeCard 
@@ -313,10 +313,10 @@ export default function ProgressPage() {
 
         {/* 右侧：消息列表 */}
         <div className="space-y-6">
-          <div className="text-center">
+          {/* <div className="text-center">
             <h2 className="text-4xl font-bold mb-2">消息中心</h2>
             <p className="text-muted-foreground">查看会议相关消息</p>
-          </div>
+          </div> */}
           
           <MessageList
             onMessageClick={handleMessageClick}

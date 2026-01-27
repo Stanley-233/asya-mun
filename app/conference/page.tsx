@@ -508,10 +508,10 @@ export default function ConferencePage() {
               </form>
             ) : (
               <div className="space-y-4">
-                <div>
+                {/* <div>
                   <Label className="text-xs text-muted-foreground">会议ID</Label>
                   <p className="font-mono text-sm break-all">{conference.uuid}</p>
-                </div>
+                </div> */}
                 <div>
                   <Label className="text-xs text-muted-foreground">会议名称</Label>
                   <p className="text-sm font-medium">{conference.name}</p>

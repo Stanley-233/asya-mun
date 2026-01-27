@@ -24,12 +24,16 @@ const MSG_TYPE_LABELS = {
   EVENT: '事件',
   NEWS: '新闻',
   CRISIS: '危机',
+  WAR_REPORT: '战报',
+  SECRET_LETTER: '密函',
 } as const
 
 const MSG_TYPE_VARIANTS = {
   EVENT: 'default',
   NEWS: 'secondary',
   CRISIS: 'destructive',
+  WAR_REPORT: 'default',
+  SECRET_LETTER: 'secondary',
 } as const
 
 // 格式化游戏时间为人类可读格式
@@ -90,8 +94,8 @@ export function MessageDetailDialog({
   })()
 
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent size="default">
+    <AlertDialog open={open} onOpenChange={onOpenChange} >
+      <AlertDialogContent className="!max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         <AlertDialogHeader>
           <AlertDialogTitle className="text-2xl">
             {isLoading ? '加载中...' : message?.title || '消息详情'}
@@ -109,7 +113,10 @@ export function MessageDetailDialog({
             {/* Message Metadata */}
             <div className="flex flex-wrap gap-2">
               {message.msgType && (
-                <Badge variant={MSG_TYPE_VARIANTS[message.msgType] as any}>
+                <Badge 
+                  variant={MSG_TYPE_VARIANTS[message.msgType] as any}
+                  className={message.msgType === 'WAR_REPORT' ? 'bg-green-900/90 text-white hover:bg-green-900' : ''}
+                >
                   {MSG_TYPE_LABELS[message.msgType]}
                 </Badge>
               )}

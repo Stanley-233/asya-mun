@@ -14,12 +14,15 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { useCreate1, useUpdate } from '@/lib/api/endpoints/消息管理/消息管理'
+import { useGetUsers } from '@/lib/api/endpoints/会议管理/会议管理'
 import type {
   MessageResponse,
   MessageCreateRequest,
   MessageUpdateRequest,
+  UserInfoResponse,
 } from '@/lib/api/endpoints/asyaBackendAPI.schemas'
 import { useQueryClient } from '@tanstack/react-query'
+import { useAuth } from '@/lib/contexts/auth-context'
 
 interface MessageEditDialogProps {
   open: boolean
@@ -33,6 +36,8 @@ const MSG_TYPE_OPTIONS = [
   { value: 'EVENT', label: '事件' },
   { value: 'NEWS', label: '新闻' },
   { value: 'CRISIS', label: '危机' },
+  { value: 'WAR_REPORT', label: '战报' },
+  { value: 'SECRET_LETTER', label: '密函' },
 ]
 
 // 将友好格式转换为ISO 8601格式
@@ -69,18 +74,45 @@ export function MessageEditDialog({
   currentGameTime,
 }: MessageEditDialogProps) {
   const queryClient = useQueryClient()
+  const { user, canManageConference } = useAuth()
   const isEditing = !!message
 
   const [formData, setFormData] = useState({
     title: '',
     content: '',
     brief: '',
-    msgType: 'NEWS' as 'EVENT' | 'NEWS' | 'CRISIS',
+    msgType: 'NEWS' as 'EVENT' | 'NEWS' | 'CRISIS' | 'WAR_REPORT' | 'SECRET_LETTER',
     publishRealTime: '',
     publishGameTime: '',
     isSecret: false,
     sessionId: sessionId || '',
   })
+
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([])
+
+  // 获取会议的所有用户
+  const { data: usersData } = useGetUsers({
+    query: {
+      enabled: open && formData.isSecret && canManageConference,
+    },
+  })
+
+  const conferenceUsers = (() => {
+    try {
+      if (!usersData) return []
+      const responseData = (usersData as any).data
+      if (!responseData) return []
+      
+      const parsed = typeof responseData === 'string' 
+        ? JSON.parse(responseData) 
+        : responseData
+      
+      return (parsed.data || parsed) as UserInfoResponse[]
+    } catch (err) {
+      console.error('Failed to parse users data:', err)
+      return []
+    }
+  })()
 
   const createMutation = useCreate1({
     mutation: {
@@ -118,12 +150,14 @@ export function MessageEditDialog({
         title: message.title || '',
         content: message.content || '',
         brief: message.brief || '',
-        msgType: (message.msgType || 'NEWS') as 'EVENT' | 'NEWS' | 'CRISIS',
+        msgType: (message.msgType || 'NEWS') as 'EVENT' | 'NEWS' | 'CRISIS' | 'WAR_REPORT' | 'SECRET_LETTER',
         publishRealTime: message.publishRealTime || '',
         publishGameTime: message.publishGameTime || '',
         isSecret: message.isSecret || false,
         sessionId: message.sessionId || sessionId || '',
       })
+      // TODO: 如果需要编辑时显示已选择的用户，需要从消息详情接口获取
+      setSelectedUserIds([])
     } else if (!message && open) {
       // 只在创建时使用当前游戏时间作为默认值
       setFormData({
@@ -136,6 +170,7 @@ export function MessageEditDialog({
         isSecret: false,
         sessionId: sessionId || '',
       })
+      setSelectedUserIds([])
     }
     // 不包含currentGameTime，避免每次时间更新时重置表单
   }, [message, open, sessionId])
@@ -151,6 +186,7 @@ export function MessageEditDialog({
       isSecret: false,
       sessionId: sessionId || '',
     })
+    setSelectedUserIds([])
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -168,6 +204,11 @@ export function MessageEditDialog({
 
     if (!formData.publishGameTime.trim()) {
       alert('请输入发布游戏时间')
+      return
+    }
+
+    if (formData.isSecret && selectedUserIds.length === 0) {
+      alert('非对称消息必须至少选择一个接收用户')
       return
     }
 
@@ -199,6 +240,7 @@ export function MessageEditDialog({
         publishRealTime: formData.publishRealTime || undefined,
         publishGameTime: parseGameTimeToISO(formData.publishGameTime),
         isSecret: formData.isSecret,
+        receiverIds: formData.isSecret ? selectedUserIds : undefined,
       }
       createMutation.mutate({ data: createData })
     }
@@ -208,134 +250,202 @@ export function MessageEditDialog({
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent size="default">
-        <form onSubmit={handleSubmit}>
+      <AlertDialogContent className="!max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+        <form onSubmit={handleSubmit} className="flex flex-col h-full">
           <AlertDialogHeader>
             <AlertDialogTitle>
               {isEditing ? '编辑消息' : '创建消息'}
             </AlertDialogTitle>
           </AlertDialogHeader>
 
-          <div className="space-y-4 py-4">
-            {/* Title */}
-            <div className="space-y-2">
-              <Label htmlFor="title">标题 *</Label>
-              <Input
-                id="title"
-                value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                placeholder="请输入消息标题"
-                required
-              />
-            </div>
-
-            {/* Message Type */}
-            <div className="space-y-2">
-              <Label htmlFor="msgType">消息类型 *</Label>
-              <select
-                id="msgType"
-                value={formData.msgType}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    msgType: e.target.value as 'EVENT' | 'NEWS' | 'CRISIS',
-                  })
-                }
-                className="flex h-8 w-full items-center justify-between rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                required
-              >
-                {MSG_TYPE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Brief */}
-            <div className="space-y-2">
-              <Label htmlFor="brief">摘要</Label>
-              <Textarea
-                id="brief"
-                value={formData.brief}
-                onChange={(e) => setFormData({ ...formData, brief: e.target.value })}
-                placeholder="消息摘要（可选，默认截取内容前30字）"
-                rows={2}
-              />
-            </div>
-
-            {/* Content */}
-            <div className="space-y-2">
-              <Label htmlFor="content">内容 *</Label>
-              <Textarea
-                id="content"
-                value={formData.content}
-                onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                placeholder="请输入消息详细内容（支持富文本）"
-                rows={6}
-                required
-              />
-            </div>
-
-            {/* Game Time */}
-            <div className="space-y-2">
-              <Label htmlFor="publishGameTime">发布游戏时间 *</Label>
-              <Input
-                id="publishGameTime"
-                value={formData.publishGameTime}
-                onChange={(e) =>
-                  setFormData({ ...formData, publishGameTime: e.target.value })
-                }
-                placeholder="例如: 2024-01-15 10:00"
-                required
-              />
-            </div>
-
-            {/* Real Time */}
-            <div className="space-y-2">
-              <Label htmlFor="publishRealTime">发布现实时间（可选，留空则使用服务器时间）</Label>
-              <Input
-                id="publishRealTime"
-                type="datetime-local"
-                value={formData.publishRealTime}
-                onChange={(e) =>
-                  setFormData({ ...formData, publishRealTime: e.target.value })
-                }
-              />
-            </div>
-
-            {/* Session ID (only for create) */}
-            {!isEditing && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-4 overflow-y-auto flex-1 px-1">
+            {/* 左栏：基本信息 */}
+            <div className="space-y-4">
+              {/* Title */}
               <div className="space-y-2">
-                <Label htmlFor="sessionId">会期ID *</Label>
+                <Label htmlFor="title">标题 *</Label>
                 <Input
-                  id="sessionId"
-                  value={formData.sessionId}
-                  onChange={(e) => setFormData({ ...formData, sessionId: e.target.value })}
-                  placeholder="请输入会期UUID"
+                  id="title"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  placeholder="请输入消息标题"
                   required
                 />
               </div>
-            )}
 
-            {/* Is Secret */}
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="isSecret"
-                checked={formData.isSecret}
-                onChange={(e) =>
-                  setFormData({ ...formData, isSecret: e.target.checked })
-                }
-                className="w-4 h-4 rounded border-gray-300"
-              />
-              <Label htmlFor="isSecret" className="cursor-pointer">
-                是非对称消息？
-              </Label>
+              {/* Message Type */}
+              <div className="space-y-2">
+                <Label htmlFor="msgType">消息类型 *</Label>
+                <select
+                  id="msgType"
+                  value={formData.msgType}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      msgType: e.target.value as 'EVENT' | 'NEWS' | 'CRISIS' | 'WAR_REPORT' | 'SECRET_LETTER',
+                    })
+                  }
+                  className="flex h-8 w-full items-center justify-between rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                  required
+                >
+                  {MSG_TYPE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Brief */}
+              <div className="space-y-2">
+                <Label htmlFor="brief">摘要</Label>
+                <Textarea
+                  id="brief"
+                  value={formData.brief}
+                  onChange={(e) => setFormData({ ...formData, brief: e.target.value })}
+                  placeholder="消息摘要（可选，默认截取内容前30字）"
+                  rows={2}
+                />
+              </div>
+
+              {/* Content */}
+              <div className="space-y-2">
+                <Label htmlFor="content">内容 *</Label>
+                <Textarea
+                  id="content"
+                  value={formData.content}
+                  onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                  placeholder="请输入消息详细内容（支持富文本）"
+                  rows={10}
+                  required
+                />
+              </div>
+            </div>
+
+            {/* 右栏：发布设置和用户选择 */}
+            <div className="space-y-4">
+              {/* Game Time */}
+              <div className="space-y-2">
+                <Label htmlFor="publishGameTime">发布游戏时间 *</Label>
+                <Input
+                  id="publishGameTime"
+                  value={formData.publishGameTime}
+                  onChange={(e) =>
+                    setFormData({ ...formData, publishGameTime: e.target.value })
+                  }
+                  placeholder="例如: 2024-01-15 10:00"
+                  required
+                />
+              </div>
+
+              {/* Real Time */}
+              <div className="space-y-2">
+                <Label htmlFor="publishRealTime">发布现实时间（可选）</Label>
+                <Input
+                  id="publishRealTime"
+                  type="datetime-local"
+                  value={formData.publishRealTime}
+                  onChange={(e) =>
+                    setFormData({ ...formData, publishRealTime: e.target.value })
+                  }
+                />
+                <p className="text-xs text-muted-foreground">留空则使用服务器时间</p>
+              </div>
+
+              {/* Session ID (only for create) */}
+              {!isEditing && (
+                <div className="space-y-2">
+                  <Label htmlFor="sessionId">会期ID *</Label>
+                  <Input
+                    id="sessionId"
+                    value={formData.sessionId}
+                    onChange={(e) => setFormData({ ...formData, sessionId: e.target.value })}
+                    placeholder="请输入会期UUID"
+                    required
+                  />
+                </div>
+              )}
+
+              {/* Is Secret */}
+              <div className="flex items-center gap-2 pt-2">
+                <input
+                  type="checkbox"
+                  id="isSecret"
+                  checked={formData.isSecret}
+                  onChange={(e) => {
+                    setFormData({ ...formData, isSecret: e.target.checked })
+                    if (!e.target.checked) {
+                      setSelectedUserIds([])
+                    }
+                  }}
+                  className="w-4 h-4 rounded border-gray-300"
+                  disabled={!canManageConference}
+                />
+                <Label htmlFor="isSecret" className="cursor-pointer">
+                  是非对称消息？
+                </Label>
+              </div>
+
+              {/* User Selection for Secret Messages */}
+              {formData.isSecret && canManageConference && (
+                <div className="space-y-2 border rounded-lg p-4 bg-muted/50 flex-1">
+                  <div className="flex items-center justify-between">
+                    <Label>选择接收用户 *</Label>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedUserIds(conferenceUsers.map(u => u.uuid))}
+                        className="text-xs text-primary hover:underline"
+                      >
+                        全选
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedUserIds([])}
+                        className="text-xs text-primary hover:underline"
+                      >
+                        清空
+                      </button>
+                    </div>
+                  </div>
+                  <div className="max-h-96 overflow-y-auto space-y-2 border rounded p-2 bg-background">
+                    {conferenceUsers.length === 0 ? (
+                      <p className="text-sm text-muted-foreground p-2">加载用户列表...</p>
+                    ) : (
+                      conferenceUsers.map((conferenceUser) => (
+                        <div key={conferenceUser.uuid} className="flex items-center gap-2 hover:bg-muted/50 p-2 rounded">
+                          <input
+                            type="checkbox"
+                            id={`user-${conferenceUser.uuid}`}
+                            checked={selectedUserIds.includes(conferenceUser.uuid)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedUserIds([...selectedUserIds, conferenceUser.uuid])
+                              } else {
+                                setSelectedUserIds(selectedUserIds.filter(id => id !== conferenceUser.uuid))
+                              }
+                            }}
+                            className="w-4 h-4 rounded border-gray-300 flex-shrink-0"
+                          />
+                          <Label 
+                            htmlFor={`user-${conferenceUser.uuid}`} 
+                            className="cursor-pointer text-sm flex-1"
+                          >
+                            {conferenceUser.name} <span className="text-muted-foreground">({conferenceUser.role})</span>
+                          </Label>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2 font-medium">
+                    已选择 {selectedUserIds.length} / {conferenceUsers.length} 个用户
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
-          <AlertDialogFooter>
+          <AlertDialogFooter className="mt-4">
             <AlertDialogCancel type="button" disabled={isLoading}>
               取消
             </AlertDialogCancel>

@@ -76,6 +76,8 @@ export const MessageUpdateRequestMsgType = {
   EVENT: "EVENT",
   NEWS: "NEWS",
   CRISIS: "CRISIS",
+  SECRET_LETTER: "SECRET_LETTER",
+  WAR_REPORT: "WAR_REPORT",
 } as const;
 
 /**
@@ -108,6 +110,8 @@ export const MessageResponseMsgType = {
   EVENT: "EVENT",
   NEWS: "NEWS",
   CRISIS: "CRISIS",
+  SECRET_LETTER: "SECRET_LETTER",
+  WAR_REPORT: "WAR_REPORT",
 } as const;
 
 /**
@@ -388,7 +392,7 @@ export interface TimeJumpRequest {
 }
 
 /**
- * 消息类型: EVENT, NEWS, CRISIS
+ * 消息类型: EVENT, NEWS, CRISIS, SECRET_LETTER, WAR_REPORT
  */
 export type MessageCreateRequestMsgType =
   (typeof MessageCreateRequestMsgType)[keyof typeof MessageCreateRequestMsgType];
@@ -397,6 +401,8 @@ export const MessageCreateRequestMsgType = {
   EVENT: "EVENT",
   NEWS: "NEWS",
   CRISIS: "CRISIS",
+  SECRET_LETTER: "SECRET_LETTER",
+  WAR_REPORT: "WAR_REPORT",
 } as const;
 
 /**
@@ -411,7 +417,7 @@ export interface MessageCreateRequest {
   content: string;
   /** 摘要(可选, 默认截取前30字) */
   brief?: string;
-  /** 消息类型: EVENT, NEWS, CRISIS */
+  /** 消息类型: EVENT, NEWS, CRISIS, SECRET_LETTER, WAR_REPORT */
   msgType: MessageCreateRequestMsgType;
   /** 发布现实时间(可选，默认为服务器当前时间) */
   publishRealTime?: string;
@@ -419,6 +425,8 @@ export interface MessageCreateRequest {
   publishGameTime: string;
   /** 是否加密(默认为false) */
   isSecret: boolean;
+  /** 接收者ID列表(UUID), 当isSecret为true时有效 */
+  receiverIds?: string[];
 }
 
 /**
@@ -483,20 +491,20 @@ export interface Pageable {
 
 export interface Sortnull {
   empty?: boolean;
-  unsorted?: boolean;
   sorted?: boolean;
+  unsorted?: boolean;
 }
 
 export interface Pageablenull {
   offset?: number;
   sort?: Sortnull;
-  unpaged?: boolean;
   paged?: boolean;
   pageNumber?: number;
   pageSize?: number;
+  unpaged?: boolean;
 }
 
-export interface PageMessageResponse {
+export interface Pagenull {
   totalElements?: number;
   totalPages?: number;
   first?: boolean;
@@ -518,7 +526,7 @@ export interface ResultPageMessageResponse {
   code: number;
   /** 提示信息 */
   message: string;
-  data?: PageMessageResponse;
+  data?: Pagenull;
 }
 
 /**
@@ -555,5 +563,13 @@ export interface ResultListConferenceResponse {
 }
 
 export type GetAllParams = {
+  pageable: Pageable;
+};
+
+export type GetSecretMessagesParams = {
+  pageable: Pageable;
+};
+
+export type GetAllSecretInConferenceParams = {
   pageable: Pageable;
 };

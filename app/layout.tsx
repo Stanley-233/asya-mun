@@ -18,8 +18,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Asya - 模拟联合国联动系统",
-  description: "模拟联合国联动系统",
+  title: "ASYA - 模联联动系统",
+  description: "模拟联合国非对称联动自动化系统",
 };
 
 export default function RootLayout({
