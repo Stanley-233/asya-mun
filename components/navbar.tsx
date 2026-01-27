@@ -28,7 +28,10 @@ export function Navbar() {
         ? [
             { href: "/profile", label: "个人" },
             { href: "/progress", label: "会议" },
-            ...(canManageConference ? [{ href: "/conference", label: "会议管理" }] : []),
+            ...(canManageConference ? [
+              { href: "/conference", label: "会议管理" },
+              { href: "/directive-asymsg", label: "指令与非对称" }
+            ] : []),
             ...(isSysAdmin ? [{ href: "/admin", label: "系统管理" }] : []),
           ]
         : [{ href: "/login", label: "登录" }]

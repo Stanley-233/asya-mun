@@ -11,12 +11,14 @@ import { Plus, ChevronLeft, ChevronRight } from 'lucide-react'
 interface MessageListProps {
   onMessageClick?: (message: MessageResponse) => void
   onEditMessage?: (message: MessageResponse) => void
+  onDeleteMessage?: (message: MessageResponse) => void
   onCreateMessage?: () => void
 }
 
 export function MessageList({
   onMessageClick,
   onEditMessage,
+  onDeleteMessage,
   onCreateMessage,
 }: MessageListProps) {
   const { canManageConference } = useAuth()
@@ -104,6 +106,7 @@ export function MessageList({
                 message={message}
                 onClick={onMessageClick}
                 onEdit={onEditMessage}
+                onDelete={onDeleteMessage}
               />
             ))}
           </div>

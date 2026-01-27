@@ -13,7 +13,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
-import { useCreate1, useUpdate } from '@/lib/api/endpoints/消息管理/消息管理'
+import { useCreate1, useUpdate, useGetOne } from '@/lib/api/endpoints/消息管理/消息管理'
 import { useGetUsers } from '@/lib/api/endpoints/会议管理/会议管理'
 import type {
   MessageResponse,
@@ -77,6 +77,16 @@ export function MessageEditDialog({
   const { user, canManageConference } = useAuth()
   const isEditing = !!message
 
+  // 获取完整的消息详情（包含 content）
+  const { data: messageDetailData } = useGetOne(
+    message?.uuid || '',
+    {
+      query: {
+        enabled: open && isEditing && !!message?.uuid,
+      },
+    }
+  )
+
   const [formData, setFormData] = useState({
     title: '',
     content: '',
@@ -134,6 +144,7 @@ export function MessageEditDialog({
       onSuccess: () => {
         alert('消息更新成功')
         queryClient.invalidateQueries({ queryKey: ['/api/messages'] })
+        queryClient.invalidateQueries({ queryKey: ['/api/messages/secret/conference'] })
         onOpenChange(false)
         resetForm()
       },
@@ -146,15 +157,33 @@ export function MessageEditDialog({
 
   useEffect(() => {
     if (message && open) {
+      // 尝试从详情数据中获取完整信息
+      let fullMessage = message
+      
+      if (messageDetailData) {
+        try {
+          const responseData = (messageDetailData as any).data
+          if (responseData) {
+            const parsed = typeof responseData === 'string' 
+              ? JSON.parse(responseData) 
+              : responseData
+            const detailMsg = parsed.data || parsed
+            fullMessage = detailMsg
+          }
+        } catch (err) {
+          console.error('Failed to parse message detail:', err)
+        }
+      }
+      
       setFormData({
-        title: message.title || '',
-        content: message.content || '',
-        brief: message.brief || '',
-        msgType: (message.msgType || 'NEWS') as 'EVENT' | 'NEWS' | 'CRISIS' | 'WAR_REPORT' | 'SECRET_LETTER',
-        publishRealTime: message.publishRealTime || '',
-        publishGameTime: message.publishGameTime || '',
-        isSecret: message.isSecret || false,
-        sessionId: message.sessionId || sessionId || '',
+        title: fullMessage.title || '',
+        content: fullMessage.content || '',
+        brief: fullMessage.brief || '',
+        msgType: (fullMessage.msgType || 'NEWS') as 'EVENT' | 'NEWS' | 'CRISIS' | 'WAR_REPORT' | 'SECRET_LETTER',
+        publishRealTime: fullMessage.publishRealTime || '',
+        publishGameTime: fullMessage.publishGameTime || '',
+        isSecret: fullMessage.isSecret || false,
+        sessionId: fullMessage.sessionId || sessionId || '',
       })
       // TODO: 如果需要编辑时显示已选择的用户，需要从消息详情接口获取
       setSelectedUserIds([])
@@ -173,7 +202,7 @@ export function MessageEditDialog({
       setSelectedUserIds([])
     }
     // 不包含currentGameTime，避免每次时间更新时重置表单
-  }, [message, open, sessionId])
+  }, [message, open, sessionId, messageDetailData])
 
   const resetForm = () => {
     setFormData({
@@ -250,15 +279,15 @@ export function MessageEditDialog({
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="!max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
-        <form onSubmit={handleSubmit} className="flex flex-col h-full">
-          <AlertDialogHeader>
+      <AlertDialogContent className="!max-w-6xl max-h-[90vh] flex flex-col">
+        <form onSubmit={handleSubmit} className="flex flex-col h-full overflow-hidden">
+          <AlertDialogHeader className="flex-shrink-0">
             <AlertDialogTitle>
               {isEditing ? '编辑消息' : '创建消息'}
             </AlertDialogTitle>
           </AlertDialogHeader>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-4 overflow-y-auto flex-1 px-1">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-4 overflow-y-auto flex-1 px-1 -mx-1">
             {/* 左栏：基本信息 */}
             <div className="space-y-4">
               {/* Title */}
@@ -445,7 +474,7 @@ export function MessageEditDialog({
             </div>
           </div>
 
-          <AlertDialogFooter className="mt-4">
+          <AlertDialogFooter className="flex-shrink-0 mt-4">
             <AlertDialogCancel type="button" disabled={isLoading}>
               取消
             </AlertDialogCancel>

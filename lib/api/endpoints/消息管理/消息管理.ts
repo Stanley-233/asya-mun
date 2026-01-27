@@ -286,6 +286,100 @@ export const useUpdate = <TError = unknown, TContext = unknown>(
   return useMutation(getUpdateMutationOptions(options), queryClient);
 };
 /**
+ * DH、DM、SYS_ADMIN 可删除
+ * @summary 删除消息
+ */
+export type _deleteResponse200 = {
+  data: Blob;
+  status: 200;
+};
+
+export type _deleteResponseSuccess = _deleteResponse200 & {
+  headers: Headers;
+};
+export type _deleteResponse = _deleteResponseSuccess;
+
+export const getDeleteUrl = (uuid: string) => {
+  return `/api/messages/${uuid}`;
+};
+
+export const _delete = async (
+  uuid: string,
+  options?: RequestInit,
+): Promise<_deleteResponse> => {
+  return customInstance<_deleteResponse>(getDeleteUrl(uuid), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteMutationOptions = <
+  TError = unknown,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof _delete>>,
+    TError,
+    { uuid: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof _delete>>,
+  TError,
+  { uuid: string },
+  TContext
+> => {
+  const mutationKey = ["_delete"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof _delete>>,
+    { uuid: string }
+  > = (props) => {
+    const { uuid } = props ?? {};
+
+    return _delete(uuid, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type _DeleteMutationResult = NonNullable<
+  Awaited<ReturnType<typeof _delete>>
+>;
+
+export type _DeleteMutationError = unknown;
+
+/**
+ * @summary 删除消息
+ */
+export const useDelete = <TError = unknown, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof _delete>>,
+      TError,
+      { uuid: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof _delete>>,
+  TError,
+  { uuid: string },
+  TContext
+> => {
+  return useMutation(getDeleteMutationOptions(options), queryClient);
+};
+/**
  * 分页查询，列表项省略 content 字段。查看用户当前所属 Conference 下的消息。
  * @summary 查询用户关联会议的所有消息
  */
@@ -897,7 +991,7 @@ export function useGetSecretMessages<
 }
 
 /**
- * DH、DM、SYS_ADMIN 可查询自己关联的conference下的所有非对称消息（is_secret为true）
+ * DH、DM、SYS_ADMIN 可查询自己关联的conference下的所有非对称消息（is_secret为true）。可按senderId, receiverId, 标题keyword筛选
  * @summary 查询用户关联会议的所有非对称消息
  */
 export type getAllSecretInConferenceResponse200 = {

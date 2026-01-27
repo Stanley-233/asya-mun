@@ -12,11 +12,12 @@ import {
 } from '@/components/ui/card'
 import { useAuth } from '@/lib/contexts/auth-context'
 import type { MessageResponse } from '@/lib/api/endpoints/asyaBackendAPI.schemas'
-import { Edit2 } from 'lucide-react'
+import { Edit2, Trash2 } from 'lucide-react'
 
 interface MessageCardProps {
   message: MessageResponse
   onEdit?: (message: MessageResponse) => void
+  onDelete?: (message: MessageResponse) => void
   onClick?: (message: MessageResponse) => void
 }
 
@@ -64,7 +65,7 @@ function formatGameTime(isoString: string): string {
   }
 }
 
-export function MessageCard({ message, onEdit, onClick }: MessageCardProps) {
+export function MessageCard({ message, onEdit, onDelete, onClick }: MessageCardProps) {
   const { canManageConference } = useAuth()
 
   return (
@@ -85,24 +86,40 @@ export function MessageCard({ message, onEdit, onClick }: MessageCardProps) {
           )}
           {message.isSecret && <Badge variant="outline">非公开</Badge>}
         </CardDescription>
-        {canManageConference && onEdit && (
+        {canManageConference && (onEdit || onDelete) && (
           <CardAction>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={(e) => {
-                e.stopPropagation()
-                onEdit(message)
-              }}
-            >
-              <Edit2 />
-            </Button>
+            <div className="flex gap-1">
+              {onEdit && (
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onEdit(message)
+                  }}
+                >
+                  <Edit2 />
+                </Button>
+              )}
+              {onDelete && (
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onDelete(message)
+                  }}
+                >
+                  <Trash2 className="text-destructive" />
+                </Button>
+              )}
+            </div>
           </CardAction>
         )}
       </CardHeader>
       <CardContent className="space-y-2">
         <p className="text-sm text-muted-foreground line-clamp-2">
-          {message.brief || '暂无摘要'}
+          {message.brief ? `${message.brief}...` : '暂无摘要'}
         </p>
         <div className="flex flex-col gap-1 text-xs text-muted-foreground">
           <div className="flex justify-between">

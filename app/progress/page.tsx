@@ -10,9 +10,11 @@ import { useTimelineStream } from "@/lib/hooks/use-timeline-stream"
 import { useAuth } from "@/lib/contexts/auth-context"
 import { useGetMine, useGetCurrentSession } from "@/lib/api/endpoints/会议管理/会议管理"
 import { useGetLatest } from "@/lib/api/endpoints/时间轴管理/时间轴管理"
+import { useDelete } from "@/lib/api/endpoints/消息管理/消息管理"
 import type { ConferenceResponse, ConferenceSessionResponse, TimeAnchorResponse, MessageResponse } from "@/lib/api/endpoints/asyaBackendAPI.schemas"
 import { TimelineManager } from "@/components/timeline-manager"
 import { MessageList, MessageDetailDialog, MessageEditDialog } from "@/components/message"
+import { AlertDialogCancel } from "@/components/ui/alert-dialog"
 
 const statusLabels = {
   'PREPARING': '筹备中',
@@ -56,6 +58,7 @@ export default function ProgressPage() {
   const { data: conferenceData, isLoading: conferenceLoading } = useGetMine()
   const { data: currentSessionData, isLoading: sessionLoading } = useGetCurrentSession()
   const { data: latestAnchorData, isLoading: latestLoading, refetch: refetchLatest } = useGetLatest()
+  const { mutate: deleteMessage, isPending: isDeleting } = useDelete()
 
   const [conference, setConference] = useState<ConferenceResponse | null>(null)
   const [currentSession, setCurrentSession] = useState<ConferenceSessionResponse | null>(null)
@@ -70,6 +73,8 @@ export default function ProgressPage() {
   const [detailDialogOpen, setDetailDialogOpen] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [editingMessage, setEditingMessage] = useState<MessageResponse | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [messageToDelete, setMessageToDelete] = useState<MessageResponse | null>(null)
   
   // 使用共享的 hook 计算当前游戏时间
   const currentGameTime = useCurrentGameTime(latestAnchor)
@@ -199,6 +204,33 @@ export default function ProgressPage() {
     setEditDialogOpen(true)
   }
 
+  // 处理删除消息
+  const handleDeleteMessage = (message: MessageResponse) => {
+    setMessageToDelete(message)
+    setDeleteDialogOpen(true)
+  }
+
+  // 确认删除消息
+  const handleConfirmDelete = () => {
+    if (!messageToDelete) return
+    
+    deleteMessage(
+      { uuid: messageToDelete.uuid },
+      {
+        onSuccess: () => {
+          setDeleteDialogOpen(false)
+          setMessageToDelete(null)
+          // 刷新消息列表会自动完成（因为 MessageList 使用了 useGetAll）
+        },
+        onError: (error) => {
+          console.error('删除失败:', error)
+          setDeleteDialogOpen(false)
+          setMessageToDelete(null)
+        }
+      }
+    )
+  }
+
   return (
     <div className="container mx-auto px-4 py-8">
       {/* 两栏布局 */}
@@ -321,6 +353,7 @@ export default function ProgressPage() {
           <MessageList
             onMessageClick={handleMessageClick}
             onEditMessage={handleEditMessage}
+            onDeleteMessage={handleDeleteMessage}
             onCreateMessage={handleCreateMessage}
           />
         </div>
@@ -341,6 +374,24 @@ export default function ProgressPage() {
         sessionId={currentSession?.uuid || ''}
         currentGameTime={formatGameTimeForInput(currentGameTime)}
       />
+
+      {/* 删除确认弹窗 */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认删除消息</AlertDialogTitle>
+            <AlertDialogDescription>
+              你确定要删除消息「{messageToDelete?.title}」吗？此操作无法撤销。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete} disabled={isDeleting}>
+              {isDeleting ? '删除中...' : '确认删除'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

@@ -95,8 +95,8 @@ export function MessageDetailDialog({
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange} >
-      <AlertDialogContent className="!max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-        <AlertDialogHeader>
+      <AlertDialogContent className="!max-w-4xl max-h-[90vh] flex flex-col">
+        <AlertDialogHeader className="flex-shrink-0">
           <AlertDialogTitle className="text-2xl">
             {isLoading ? '加载中...' : message?.title || '消息详情'}
           </AlertDialogTitle>
@@ -109,7 +109,7 @@ export function MessageDetailDialog({
         )}
 
         {!isLoading && message && (
-          <div className="space-y-4">
+          <div className="space-y-4 overflow-y-auto flex-1 px-1 -mx-1">
             {/* Message Metadata */}
             <div className="flex flex-wrap gap-2">
               {message.msgType && (
@@ -159,17 +159,18 @@ export function MessageDetailDialog({
             {/* Message Content */}
             <div>
               <h3 className="text-sm font-semibold mb-2">详细内容</h3>
-              <div 
-                className="prose prose-sm dark:prose-invert max-w-none"
-                dangerouslySetInnerHTML={{ 
-                  __html: message.content || '<p class="text-muted-foreground">暂无内容</p>' 
-                }}
-              />
+              <div className="prose prose-sm dark:prose-invert max-w-none">
+                {message.content ? (
+                  <p className="whitespace-pre-wrap">{message.content}</p>
+                ) : (
+                  <p className="text-muted-foreground">暂无内容</p>
+                )}
+              </div>
             </div>
           </div>
         )}
 
-        <AlertDialogFooter>
+        <AlertDialogFooter className="flex-shrink-0">
           <AlertDialogCancel>关闭</AlertDialogCancel>
         </AlertDialogFooter>
       </AlertDialogContent>

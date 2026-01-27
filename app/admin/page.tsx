@@ -15,8 +15,18 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useAuth } from "@/lib/contexts/auth-context"
-import { useListAll, useUpdateUser } from "@/lib/api/endpoints/用户管理/用户管理"
+import { useListAll, useUpdateUser, useDeleteUser } from "@/lib/api/endpoints/用户管理/用户管理"
 import { useCreate, useListAll1, useAssignUser } from "@/lib/api/endpoints/会议管理/会议管理"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import type { UserInfoResponse, UserUpdateRequestRole, ConferenceRequestStatus, ConferenceResponse } from "@/lib/api/endpoints/asyaBackendAPI.schemas"
 
 const roleLabels: Record<string, string> = {
@@ -45,6 +55,7 @@ export default function AdminPage() {
   const { data: usersData, isLoading: usersLoading } = useListAll()
   const { data: conferencesData, isLoading: conferencesLoading } = useListAll1()
   const { mutate: updateUser, isPending: isUpdating } = useUpdateUser()
+  const { mutate: deleteUser, isPending: isDeleting } = useDeleteUser()
   const { mutate: createConference, isPending: isCreating } = useCreate()
   const { mutate: assignUser, isPending: isAssigning } = useAssignUser()
 
@@ -53,6 +64,8 @@ export default function AdminPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<Record<string, { name: string; role: UserUpdateRequestRole }>>({})
   const [showCreateConference, setShowCreateConference] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [userToDelete, setUserToDelete] = useState<UserInfoResponse | null>(null)
   const [conferenceForm, setConferenceForm] = useState({
     name: '',
     description: '',
@@ -266,6 +279,32 @@ export default function AdminPage() {
         },
         onError: () => {
           setMessage({ type: 'error', text: '关联失败，请重试' })
+        }
+      }
+    )
+  }
+
+  const handleDeleteUser = (user: UserInfoResponse) => {
+    setUserToDelete(user)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleConfirmDelete = () => {
+    if (!userToDelete) return
+    
+    deleteUser(
+      { uuid: userToDelete.uuid },
+      {
+        onSuccess: () => {
+          setMessage({ type: 'success', text: '用户删除成功' })
+          setDeleteDialogOpen(false)
+          setUserToDelete(null)
+          // 刷新用户列表会自动完成（因为 useListAll 会重新获取）
+        },
+        onError: () => {
+          setMessage({ type: 'error', text: '删除失败，请重试' })
+          setDeleteDialogOpen(false)
+          setUserToDelete(null)
         }
       }
     )
@@ -497,6 +536,9 @@ export default function AdminPage() {
                             <Button variant="outline" onClick={() => handleAssignUser(user.uuid)}>
                               关联会议
                             </Button>
+                            <Button variant="destructive" onClick={() => handleDeleteUser(user)}>
+                              删除
+                            </Button>
                           </div>
                         )}
                       </div>
@@ -509,6 +551,24 @@ export default function AdminPage() {
         )}
         </div>
       </div>
+      
+      {/* 删除确认弹窗 */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认删除用户</AlertDialogTitle>
+            <AlertDialogDescription>
+              你确定要删除用户「{userToDelete?.name}」(ID: {userToDelete?.uuid}) 吗？此操作无法撤销。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete} disabled={isDeleting}>
+              {isDeleting ? '删除中...' : '确认删除'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

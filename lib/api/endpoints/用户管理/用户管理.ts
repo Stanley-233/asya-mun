@@ -602,3 +602,98 @@ export function useGetCurrentUser<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * 仅系统管理员可执行
+ * @summary 删除用户
+ */
+export type deleteUserResponse200 = {
+  data: Blob;
+  status: 200;
+};
+
+export type deleteUserResponseSuccess = deleteUserResponse200 & {
+  headers: Headers;
+};
+export type deleteUserResponse = deleteUserResponseSuccess;
+
+export const getDeleteUserUrl = (uuid: string) => {
+  return `/api/users/${uuid}`;
+};
+
+export const deleteUser = async (
+  uuid: string,
+  options?: RequestInit,
+): Promise<deleteUserResponse> => {
+  return customInstance<deleteUserResponse>(getDeleteUserUrl(uuid), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteUserMutationOptions = <
+  TError = unknown,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteUser>>,
+    TError,
+    { uuid: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteUser>>,
+  TError,
+  { uuid: string },
+  TContext
+> => {
+  const mutationKey = ["deleteUser"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteUser>>,
+    { uuid: string }
+  > = (props) => {
+    const { uuid } = props ?? {};
+
+    return deleteUser(uuid, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteUserMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteUser>>
+>;
+
+export type DeleteUserMutationError = unknown;
+
+/**
+ * @summary 删除用户
+ */
+export const useDeleteUser = <TError = unknown, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof deleteUser>>,
+      TError,
+      { uuid: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof deleteUser>>,
+  TError,
+  { uuid: string },
+  TContext
+> => {
+  return useMutation(getDeleteUserMutationOptions(options), queryClient);
+};
