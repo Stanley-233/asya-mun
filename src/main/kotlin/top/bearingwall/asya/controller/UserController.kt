@@ -2,6 +2,7 @@ package top.bearingwall.asya.controller
 
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
+import io.jsonwebtoken.JwtException
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -105,21 +106,58 @@ class UserController(
             val token = extractBearer(authorization)
             val updated = userService.updateUser(uuid, token, request)
             ResponseEntity.ok(Result.success(updated))
-        } catch (e: IllegalArgumentException) {
-            ResponseEntity.status(HttpStatus.OK)
-                .body(Result.failure(BizCode.PARAM_ERROR, e.message ?: "参数错误"))
-        } catch (e: IllegalStateException) {
-            ResponseEntity.status(HttpStatus.OK)
-                .body(Result.failure(BizCode.USER_NOT_FOUND, e.message ?: "用户不存在"))
         } catch (e: Exception) {
-            ResponseEntity.status(HttpStatus.OK)
-                .body(Result.failure(BizCode.TOKEN_INVALID, e.message ?: "Token解析失败"))
+            if (e is JwtException) {
+                return ResponseEntity.status(HttpStatus.OK)
+                    .body(Result.failure(BizCode.TOKEN_INVALID, e.message ?: "Token失效"))
+            }
+            val status = if (e is IllegalArgumentException && e.message == "Permission denied") {
+                HttpStatus.FORBIDDEN
+            } else {
+                HttpStatus.OK
+            }
+            ResponseEntity.status(status)
+                .body(Result.failure(BizCode.PARAM_ERROR, e.message ?: "Update failed"))
+        }
+    }
+
+    @Operation(summary = "删除用户", description = "仅系统管理员可执行")
+    @DeleteMapping("/{uuid}")
+    fun deleteUser(
+        @PathVariable uuid: UUID,
+        @RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String
+    ): ResponseEntity<Result<Unit>> {
+        return try {
+            val token = extractBearer(authorization)
+            // 简单校验角色：从 token 中解析角色
+            val parsed = top.bearingwall.asya.util.JwtUtil.parseToken(token)
+            val role = parsed.claims["role"]?.toString()
+            if (role != UserRole.SYS_ADMIN.name) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Result.failure(BizCode.PERMISSION_DENIED, "需要管理员权限"))
+            }
+
+            userService.deleteUser(uuid)
+            ResponseEntity.ok(Result.success(Unit))
+        } catch (e: Exception) {
+            handleException(e)
         }
     }
 
     private fun extractBearer(authorization: String): String {
         val prefix = "Bearer "
-        require(authorization.startsWith(prefix)) { "Authorization header must start with 'Bearer '" }
+        if (!authorization.startsWith(prefix)) {
+            throw IllegalArgumentException("Authorization header must start with 'Bearer '")
+        }
         return authorization.substring(prefix.length)
+    }
+
+    private fun <T> handleException(e: Exception): ResponseEntity<Result<T>> {
+        if (e is JwtException) {
+            return ResponseEntity.status(HttpStatus.OK)
+                .body(Result.failure(BizCode.TOKEN_INVALID, e.message ?: "Token失效"))
+        }
+        return ResponseEntity.status(HttpStatus.OK)
+            .body(Result.failure(BizCode.PARAM_ERROR, e.message ?: "操作失败"))
     }
 }

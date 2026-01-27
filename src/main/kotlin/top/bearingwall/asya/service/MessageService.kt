@@ -81,6 +81,25 @@ class MessageService(
     }
 
     @Transactional(readOnly = true)
+    fun getSecretMessagesForConference(
+        conferenceUuid: UUID,
+        pageable: Pageable,
+        senderId: UUID? = null,
+        receiverId: UUID? = null,
+        keyword: String? = null
+    ): Page<MessageResponse> {
+        return messageRepository.findSecretMessagesForConferenceWithFilter(
+            conferenceUuid,
+            senderId,
+            receiverId,
+            keyword,
+            pageable
+        ).map {
+            it.toResponse(omitContent = true)
+        }
+    }
+
+    @Transactional(readOnly = true)
     fun getSecretMessagesForUser(userUuid: UUID, pageable: Pageable): Page<MessageResponse> {
         return messageRepository.findSecretMessagesForUser(userUuid, pageable).map {
             it.toResponse(omitContent = true)
@@ -131,4 +150,12 @@ class MessageService(
         publishGameTime = this.publishGameTime,
         isSecret = this.isSecret
     )
+
+    @Transactional
+    fun deleteMessage(uuid: UUID) {
+        if (!messageRepository.existsById(uuid)) {
+            throw IllegalArgumentException("Message not found: $uuid")
+        }
+        messageRepository.deleteById(uuid)
+    }
 }

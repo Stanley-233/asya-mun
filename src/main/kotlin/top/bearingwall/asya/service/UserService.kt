@@ -100,6 +100,16 @@ class UserService(
             }
     }
 
+    @Transactional
+    fun deleteUser(uuid: UUID) {
+        if (!userRepository.existsById(uuid)) {
+            throw IllegalArgumentException("User not found: $uuid")
+        }
+        // Potential: Handle associations (messages sent, messages received) if not handled by DB constraints/Cascades
+        // For now, relying on JPA/DB configuration.
+        userRepository.deleteById(uuid)
+    }
+
     // 通过 token 获取当前登录用户信息
     @Transactional(readOnly = true)
     fun getCurrentUserInfo(token: String): UserInfoResponse {

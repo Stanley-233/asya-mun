@@ -4,6 +4,8 @@ import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
+import org.springframework.data.domain.Sort
+import org.springframework.data.web.PageableDefault
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -65,7 +67,7 @@ class MessageController(
     @GetMapping
     fun getAll(
         @RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String,
-        pageable: Pageable
+        @PageableDefault(sort = ["publishRealTime"], direction = Sort.Direction.DESC) pageable: Pageable
     ): ResponseEntity<Result<Page<MessageResponse>>> {
         return try {
             val user = userService.getUserFromToken(extractBearer(authorization))
@@ -79,11 +81,45 @@ class MessageController(
         }
     }
 
+    @Operation(summary = "查询用户关联会议的所有非对称消息", description = "DH、DM、SYS_ADMIN 可查询自己关联的conference下的所有非对称消息（is_secret为true）。可按senderId, receiverId, 标题keyword筛选")
+    @GetMapping("/secret/conference")
+    fun getAllSecretInConference(
+        @RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String,
+        @RequestParam(required = false) senderId: UUID?,
+        @RequestParam(required = false) receiverId: UUID?,
+        @RequestParam(required = false) keyword: String?,
+        @PageableDefault(sort = ["publishRealTime"], direction = Sort.Direction.DESC) pageable: Pageable
+    ): ResponseEntity<Result<Page<MessageResponse>>> {
+        return try {
+            val user = userService.getUserFromToken(extractBearer(authorization))
+            if (user.role !in listOf(UserRole.DM, UserRole.DH, UserRole.SYS_ADMIN)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Result.failure(BizCode.PERMISSION_DENIED, "无权访问"))
+            }
+
+            val conference = user.conference
+            if (conference == null) {
+                return ResponseEntity.ok(Result.success(Page.empty()))
+            }
+
+            val page = messageService.getSecretMessagesForConference(
+                conference.uuid!!,
+                pageable,
+                senderId,
+                receiverId,
+                keyword
+            )
+            ResponseEntity.ok(Result.success(page))
+        } catch (e: Exception) {
+            handleException(e)
+        }
+    }
+
     @Operation(summary = "查询用户的非对称消息", description = "分页查询用户发送或接收的非对称消息。")
     @GetMapping("/secret")
     fun getSecretMessages(
         @RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String,
-        pageable: Pageable
+        @PageableDefault(sort = ["publishRealTime"], direction = Sort.Direction.DESC) pageable: Pageable
     ): ResponseEntity<Result<Page<MessageResponse>>> {
          return try {
             val user = userService.getUserFromToken(extractBearer(authorization))
@@ -121,6 +157,25 @@ class MessageController(
             ResponseEntity.ok(Result.success(response))
         } catch (e: Exception) {
            handleException(e)
+        }
+    }
+
+    @Operation(summary = "删除消息", description = "DH、DM、SYS_ADMIN 可删除")
+    @DeleteMapping("/{uuid}")
+    fun delete(
+        @RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String,
+        @PathVariable uuid: UUID
+    ): ResponseEntity<Result<Unit>> {
+        return try {
+            val user = userService.getUserFromToken(extractBearer(authorization))
+            if (user.role !in listOf(UserRole.DM, UserRole.DH, UserRole.SYS_ADMIN)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Result.failure(BizCode.PERMISSION_DENIED, "无权访问"))
+            }
+            messageService.deleteMessage(uuid)
+            ResponseEntity.ok(Result.success(Unit))
+        } catch (e: Exception) {
+            handleException(e)
         }
     }
 
