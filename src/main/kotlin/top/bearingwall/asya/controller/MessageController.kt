@@ -79,18 +79,48 @@ class MessageController(
         }
     }
 
-    @Operation(summary = "查询单条消息详情", description = "查看消息及完整内容。所有登录用户可查看。若消息为secret则抛出未实现错误。")
+    @Operation(summary = "查询用户的非对称消息", description = "分页查询用户发送或接收的非对称消息。")
+    @GetMapping("/secret")
+    fun getSecretMessages(
+        @RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String,
+        pageable: Pageable
+    ): ResponseEntity<Result<Page<MessageResponse>>> {
+         return try {
+            val user = userService.getUserFromToken(extractBearer(authorization))
+            val page = messageService.getSecretMessagesForUser(user.uuid!!, pageable)
+            ResponseEntity.ok(Result.success(page))
+        } catch (e: Exception) {
+           handleException(e)
+        }
+    }
+
+    @Operation(summary = "查询单条消息详情", description = "查看消息及完整内容。所有登录用户可查看。若消息为secret则检查请求者是否在receivers列表。")
     @GetMapping("/{uuid}")
     fun getOne(
         @RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String,
         @PathVariable uuid: UUID
     ): ResponseEntity<Result<MessageResponse>> {
         return try {
-            userService.getUserFromToken(extractBearer(authorization))
-            val response = messageService.getMessage(uuid)
+            val user = userService.getUserFromToken(extractBearer(authorization))
+            val response = messageService.getMessage(uuid, user.uuid!!)
             ResponseEntity.ok(Result.success(response))
         } catch (e: Exception) {
             handleException(e)
+        }
+    }
+
+    @Operation(summary = "查询消息可见用户", description = "查看某条消息能被哪些用户查看。")
+    @GetMapping("/{uuid}/receivers")
+    fun getReceivers(
+        @RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String,
+        @PathVariable uuid: UUID
+    ): ResponseEntity<Result<List<UserInfoResponse>>> {
+         return try {
+            userService.getUserFromToken(extractBearer(authorization))
+            val response = messageService.getMessageReceivers(uuid)
+            ResponseEntity.ok(Result.success(response))
+        } catch (e: Exception) {
+           handleException(e)
         }
     }
 
@@ -111,6 +141,8 @@ class MessageController(
                 .body(Result.failure(BizCode.PARAM_ERROR, e.message ?: "参数错误"))
             is IllegalStateException -> ResponseEntity.status(HttpStatus.OK)
                 .body(Result.failure(BizCode.PARAM_ERROR, e.message ?: "状态错误"))
+            is SecurityException -> ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(Result.failure(BizCode.PERMISSION_DENIED, e.message ?: "权限不足"))
             else -> ResponseEntity.status(HttpStatus.OK)
                 .body(Result.failure(BizCode.TOKEN_INVALID, e.message ?: "操作失败"))
         }

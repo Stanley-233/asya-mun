@@ -5,7 +5,7 @@ import java.time.LocalDateTime
 
 @Schema(description = "消息类型")
 enum class MessageType {
-    EVENT, NEWS, CRISIS
+    EVENT, NEWS, CRISIS, SECRET_LETTER, WAR_REPORT
 }
 
 @Schema(description = "创建消息请求")
@@ -22,7 +22,7 @@ data class MessageCreateRequest(
     @Schema(description = "摘要(可选, 默认截取前30字)")
     val brief: String?,
 
-    @Schema(description = "消息类型: EVENT, NEWS, CRISIS")
+    @Schema(description = "消息类型: EVENT, NEWS, CRISIS, SECRET_LETTER, WAR_REPORT")
     val msgType: MessageType,
 
     @Schema(description = "发布现实时间(可选，默认为服务器当前时间)")
@@ -32,7 +32,10 @@ data class MessageCreateRequest(
     val publishGameTime: LocalDateTime,
 
     @Schema(description = "是否加密(默认为false)")
-    val isSecret: Boolean = false
+    val isSecret: Boolean = false,
+
+    @Schema(description = "接收者ID列表(UUID), 当isSecret为true时有效")
+    val receiverIds: List<String>? = null
 )
 
 @Schema(description = "更新消息请求")
@@ -94,4 +97,3 @@ data class MessageResponse(
     @Schema(description = "是否加密")
     val isSecret: Boolean
 )
-

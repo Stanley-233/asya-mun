@@ -7,6 +7,7 @@ import org.springframework.transaction.annotation.Transactional
 import top.bearingwall.asya.dto.MessageCreateRequest
 import top.bearingwall.asya.dto.MessageResponse
 import top.bearingwall.asya.dto.MessageUpdateRequest
+import top.bearingwall.asya.dto.UserInfoResponse
 import top.bearingwall.asya.model.Message
 import top.bearingwall.asya.repository.ConferenceSessionRepository
 import top.bearingwall.asya.repository.MessageRepository
@@ -47,6 +48,11 @@ class MessageService(
             isSecret = request.isSecret
         )
 
+        if (request.isSecret && !request.receiverIds.isNullOrEmpty()) {
+            val receivers = userRepository.findAllById(request.receiverIds.map { UUID.fromString(it) })
+            message.receivers.addAll(receivers)
+        }
+
         return messageRepository.save(message).toResponse()
     }
 
@@ -69,22 +75,47 @@ class MessageService(
 
     @Transactional(readOnly = true)
     fun getMessagesForConference(conferenceId: UUID, pageable: Pageable): Page<MessageResponse> {
-        return messageRepository.findBySessionConferenceUuid(conferenceId, pageable).map {
+        return messageRepository.findBySessionConferenceUuidAndIsSecretFalse(conferenceId, pageable).map {
             it.toResponse(omitContent = true)
         }
     }
 
     @Transactional(readOnly = true)
-    fun getMessage(uuid: UUID): MessageResponse {
+    fun getSecretMessagesForUser(userUuid: UUID, pageable: Pageable): Page<MessageResponse> {
+        return messageRepository.findSecretMessagesForUser(userUuid, pageable).map {
+            it.toResponse(omitContent = true)
+        }
+    }
+
+    @Transactional(readOnly = true)
+    fun getMessage(uuid: UUID, requesterUuid: UUID): MessageResponse {
         val message = messageRepository.findById(uuid).orElseThrow {
             IllegalArgumentException("Message not found: $uuid")
         }
 
         if (message.isSecret) {
-            throw UnsupportedOperationException("Non-symmetric messages are not implemented yet")
+            val isReceiver = message.receivers.any { it.uuid == requesterUuid }
+            val isSender = message.sender?.uuid == requesterUuid
+            if (!isReceiver && !isSender) {
+                throw SecurityException("Access denied for secret message")
+            }
         }
 
         return message.toResponse(omitContent = false)
+    }
+
+    @Transactional(readOnly = true)
+    fun getMessageReceivers(uuid: UUID): List<UserInfoResponse> {
+        val message = messageRepository.findById(uuid).orElseThrow {
+            IllegalArgumentException("Message not found: $uuid")
+        }
+        return message.receivers.map {
+            UserInfoResponse(
+                uuid = it.uuid.toString(),
+                name = it.name,
+                role = it.role
+            )
+        }
     }
 
     private fun Message.toResponse(omitContent: Boolean = false) = MessageResponse(
