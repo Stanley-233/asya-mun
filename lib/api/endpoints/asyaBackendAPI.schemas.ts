@@ -57,6 +57,8 @@ export interface UserInfoResponse {
   displayName?: string;
   /** 用户角色 */
   role: UserInfoResponseRole;
+  /** 关联会议名称 */
+  conferenceName?: string;
 }
 
 /**
@@ -570,23 +572,23 @@ export interface Sortnull {
 export interface Pageablenull {
   offset?: number;
   sort?: Sortnull;
-  unpaged?: boolean;
   paged?: boolean;
   pageNumber?: number;
   pageSize?: number;
+  unpaged?: boolean;
 }
 
 export interface Pagenull {
-  totalElements?: number;
   totalPages?: number;
+  totalElements?: number;
   first?: boolean;
   last?: boolean;
   size?: number;
   content?: MessageResponse[];
   number?: number;
   sort?: Sortnull;
-  numberOfElements?: number;
   pageable?: Pageablenull;
+  numberOfElements?: number;
   empty?: boolean;
 }
 

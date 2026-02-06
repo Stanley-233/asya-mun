@@ -557,6 +557,24 @@ export default function AdminPage() {
     paddingRight: columnSpacing / 2
   }
 
+  const getUserConferenceLabel = (user: UserInfoResponse) => {
+    const userWithConference = user as UserInfoResponse & {
+      conferenceId?: string
+      conferenceUuid?: string
+      conferenceName?: string
+    }
+
+    if (userWithConference.conferenceName) {
+      return userWithConference.conferenceName
+    }
+
+    const conferenceId = userWithConference.conferenceId || userWithConference.conferenceUuid
+    if (!conferenceId) return '未关联'
+
+    const matched = conferences.find(conf => conf.uuid === conferenceId)
+    return matched?.name || '未关联'
+  }
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="space-y-6">
@@ -731,9 +749,9 @@ export default function AdminPage() {
                 <table className="min-w-full text-sm">
                   <thead className="bg-muted/50 text-muted-foreground">
                     <tr>
-                      <th style={cellPaddingStyle} className="py-3 text-left font-medium">用户ID</th>
                       <th style={cellPaddingStyle} className="py-3 text-left font-medium">用户昵称</th>
                       <th style={cellPaddingStyle} className="py-3 text-left font-medium">显示名称</th>
+                      <th style={cellPaddingStyle} className="py-3 text-left font-medium">关联会议</th>
                       <th style={cellPaddingStyle} className="py-3 text-left font-medium">用户角色</th>
                       <th style={cellPaddingStyle} className="py-3 text-right font-medium">操作</th>
                     </tr>
@@ -743,9 +761,6 @@ export default function AdminPage() {
                       <tr key={user.uuid} className="align-top">
                         {editingId === user.uuid ? (
                           <>
-                            <td style={cellPaddingStyle} className="py-4 font-mono text-xs text-muted-foreground break-all">
-                              {user.uuid}
-                            </td>
                             <td style={cellPaddingStyle} className="py-4">
                               <Input
                                 id={`name-${user.uuid}`}
@@ -762,6 +777,9 @@ export default function AdminPage() {
                                 onChange={(e) => handleFieldChange(user.uuid, 'displayName', e.target.value)}
                                 placeholder="用于展示的名称（可选）"
                               />
+                            </td>
+                            <td style={cellPaddingStyle} className="py-4 text-sm text-muted-foreground">
+                              {user.conferenceName || '未关联'}
                             </td>
                             <td style={cellPaddingStyle} className="py-4">
                               <Select
@@ -793,14 +811,14 @@ export default function AdminPage() {
                           </>
                         ) : (
                           <>
-                            <td style={cellPaddingStyle} className="py-4 font-mono text-xs text-muted-foreground break-all">
-                              {user.uuid}
-                            </td>
                             <td style={cellPaddingStyle} className="py-4 font-medium">
                               {user.name}
                             </td>
                             <td style={cellPaddingStyle} className="py-4">
                               {user.displayName || '—'}
+                            </td>
+                            <td style={cellPaddingStyle} className="py-4 text-sm text-muted-foreground">
+                              {user.conferenceName || '未关联'}
                             </td>
                             <td style={cellPaddingStyle} className="py-4">
                               {roleLabels[user.role] || user.role}
