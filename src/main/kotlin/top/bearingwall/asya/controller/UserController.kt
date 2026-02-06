@@ -13,6 +13,8 @@ import top.bearingwall.asya.dto.UserRegistrationRequest
 import top.bearingwall.asya.dto.UserResponse
 import top.bearingwall.asya.dto.UserInfoResponse
 import top.bearingwall.asya.dto.UserUpdateRequest
+import top.bearingwall.asya.dto.BatchRegisterRequest
+import top.bearingwall.asya.dto.BatchRegisterResponse
 import top.bearingwall.asya.model.UserRole
 import top.bearingwall.asya.service.SystemConfigService
 import top.bearingwall.asya.service.UserService
@@ -59,6 +61,27 @@ class UserController(
         } catch (_: IllegalArgumentException) {
             ResponseEntity.status(HttpStatus.OK)
                 .body(Result.failure(BizCode.PASSWORD_ERROR, BizCode.PASSWORD_ERROR.message))
+        }
+    }
+
+    @Operation(summary = "批量注册用户", description = "仅 SYS_ADMIN 可访问，批量注册代表并关联到会议")
+    @PostMapping("/batch")
+    fun batchRegister(
+        @RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String,
+        @RequestBody request: BatchRegisterRequest
+    ): ResponseEntity<Result<BatchRegisterResponse>> {
+        return try {
+            val token = extractBearer(authorization)
+            val parsed = top.bearingwall.asya.util.JwtUtil.parseToken(token)
+            val requesterUuid = UUID.fromString(parsed.subject)
+            val response = userService.batchRegister(requesterUuid, request)
+            ResponseEntity.ok(Result.success(response))
+        } catch (e: SecurityException) {
+            ResponseEntity.status(HttpStatus.FORBIDDEN).body(Result.failure(BizCode.TOKEN_INVALID, e.message ?: "Access Denied"))
+        } catch (e: IllegalArgumentException) {
+            ResponseEntity.status(HttpStatus.OK).body(Result.failure(BizCode.PARAM_ERROR, e.message ?: "参数错误"))
+        } catch (e: Exception) {
+            ResponseEntity.status(HttpStatus.OK).body(Result.failure(BizCode.TOKEN_INVALID, e.message ?: "Error"))
         }
     }
 

@@ -8,16 +8,20 @@ import top.bearingwall.asya.dto.UserRegistrationRequest
 import top.bearingwall.asya.dto.UserResponse
 import top.bearingwall.asya.dto.UserInfoResponse
 import top.bearingwall.asya.dto.UserUpdateRequest
+import top.bearingwall.asya.dto.BatchRegisterRequest
+import top.bearingwall.asya.dto.BatchRegisterResponse
 import top.bearingwall.asya.model.User
 import top.bearingwall.asya.model.UserRole
 import top.bearingwall.asya.repository.UserRepository
+import top.bearingwall.asya.repository.ConferenceRepository
 import top.bearingwall.asya.util.JwtUtil
 import java.util.UUID
 
 @Service
 class UserService(
     private val userRepository: UserRepository,
-    private val systemConfigService: SystemConfigService
+    private val systemConfigService: SystemConfigService,
+    private val conferenceRepository: ConferenceRepository
 ) {
 
     private val log = LoggerFactory.getLogger(UserService::class.java)
@@ -210,5 +214,46 @@ class UserService(
         }
         user.password = hashed
         userRepository.save(user)
+    }
+
+    @Transactional
+    fun batchRegister(requesterUuid: UUID, request: BatchRegisterRequest): BatchRegisterResponse {
+        val requester = userRepository.findById(requesterUuid).orElseThrow { IllegalArgumentException("Requester not found") }
+        if (requester.role != UserRole.SYS_ADMIN) {
+            throw SecurityException("Only SYS_ADMIN can perform batch registration")
+        }
+
+        val conferenceUuid = UUID.fromString(request.conferenceId)
+        val conference = conferenceRepository.findById(conferenceUuid).orElseThrow {
+            IllegalArgumentException("Conference not found: ${request.conferenceId}")
+        }
+
+        val createdUsers = mutableListOf<UserInfoResponse>()
+
+        for (item in request.users) {
+            if (userRepository.findByName(item.name) != null) {
+                throw IllegalArgumentException("User already exists: ${item.name}")
+            }
+
+            val hashedPassword: String = requireNotNull(passwordEncoder.encode(item.password)) {
+                "BCryptPasswordEncoder returned null hash"
+            }
+            val user = User(
+                name = item.name,
+                displayName = item.displayName,
+                password = hashedPassword,
+                role = UserRole.DELEGATE,
+                conference = conference
+            )
+            val saved = userRepository.save(user)
+            createdUsers.add(UserInfoResponse(
+                uuid = saved.uuid.toString(),
+                name = saved.name,
+                displayName = saved.displayName,
+                role = saved.role
+            ))
+        }
+
+        return BatchRegisterResponse(createdUsers.size, createdUsers)
     }
 }
