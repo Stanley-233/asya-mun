@@ -22,6 +22,8 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  ResetPasswordBody,
+  SetRegistrationSwitchParams,
   UserRegistrationRequest,
   UserUpdateRequest,
 } from "../asyaBackendAPI.schemas";
@@ -126,6 +128,389 @@ export const useUpdateUser = <TError = unknown, TContext = unknown>(
   TContext
 > => {
   return useMutation(getUpdateUserMutationOptions(options), queryClient);
+};
+/**
+ * 仅系统管理员可执行
+ * @summary 管理员重置用户密码
+ */
+export type resetPasswordResponse200 = {
+  data: Blob;
+  status: 200;
+};
+
+export type resetPasswordResponseSuccess = resetPasswordResponse200 & {
+  headers: Headers;
+};
+export type resetPasswordResponse = resetPasswordResponseSuccess;
+
+export const getResetPasswordUrl = (uuid: string) => {
+  return `/api/users/${uuid}/password-reset`;
+};
+
+export const resetPassword = async (
+  uuid: string,
+  resetPasswordBody: ResetPasswordBody,
+  options?: RequestInit,
+): Promise<resetPasswordResponse> => {
+  return customInstance<resetPasswordResponse>(getResetPasswordUrl(uuid), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(resetPasswordBody),
+  });
+};
+
+export const getResetPasswordMutationOptions = <
+  TError = unknown,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof resetPassword>>,
+    TError,
+    { uuid: string; data: ResetPasswordBody },
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof resetPassword>>,
+  TError,
+  { uuid: string; data: ResetPasswordBody },
+  TContext
+> => {
+  const mutationKey = ["resetPassword"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof resetPassword>>,
+    { uuid: string; data: ResetPasswordBody }
+  > = (props) => {
+    const { uuid, data } = props ?? {};
+
+    return resetPassword(uuid, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ResetPasswordMutationResult = NonNullable<
+  Awaited<ReturnType<typeof resetPassword>>
+>;
+export type ResetPasswordMutationBody = ResetPasswordBody;
+export type ResetPasswordMutationError = unknown;
+
+/**
+ * @summary 管理员重置用户密码
+ */
+export const useResetPassword = <TError = unknown, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof resetPassword>>,
+      TError,
+      { uuid: string; data: ResetPasswordBody },
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof resetPassword>>,
+  TError,
+  { uuid: string; data: ResetPasswordBody },
+  TContext
+> => {
+  return useMutation(getResetPasswordMutationOptions(options), queryClient);
+};
+/**
+ * @summary 查询当前是否允许注册
+ */
+export type getRegistrationSwitchResponse200 = {
+  data: Blob;
+  status: 200;
+};
+
+export type getRegistrationSwitchResponseSuccess =
+  getRegistrationSwitchResponse200 & {
+    headers: Headers;
+  };
+export type getRegistrationSwitchResponse =
+  getRegistrationSwitchResponseSuccess;
+
+export const getGetRegistrationSwitchUrl = () => {
+  return `/api/users/registration-switch`;
+};
+
+export const getRegistrationSwitch = async (
+  options?: RequestInit,
+): Promise<getRegistrationSwitchResponse> => {
+  return customInstance<getRegistrationSwitchResponse>(
+    getGetRegistrationSwitchUrl(),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetRegistrationSwitchQueryKey = () => {
+  return [`/api/users/registration-switch`] as const;
+};
+
+export const getGetRegistrationSwitchQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRegistrationSwitch>>,
+  TError = unknown,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<
+      Awaited<ReturnType<typeof getRegistrationSwitch>>,
+      TError,
+      TData
+    >
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetRegistrationSwitchQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getRegistrationSwitch>>
+  > = ({ signal }) => getRegistrationSwitch({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRegistrationSwitch>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetRegistrationSwitchQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRegistrationSwitch>>
+>;
+export type GetRegistrationSwitchQueryError = unknown;
+
+export function useGetRegistrationSwitch<
+  TData = Awaited<ReturnType<typeof getRegistrationSwitch>>,
+  TError = unknown,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getRegistrationSwitch>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getRegistrationSwitch>>,
+          TError,
+          Awaited<ReturnType<typeof getRegistrationSwitch>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetRegistrationSwitch<
+  TData = Awaited<ReturnType<typeof getRegistrationSwitch>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getRegistrationSwitch>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getRegistrationSwitch>>,
+          TError,
+          Awaited<ReturnType<typeof getRegistrationSwitch>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetRegistrationSwitch<
+  TData = Awaited<ReturnType<typeof getRegistrationSwitch>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getRegistrationSwitch>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary 查询当前是否允许注册
+ */
+
+export function useGetRegistrationSwitch<
+  TData = Awaited<ReturnType<typeof getRegistrationSwitch>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getRegistrationSwitch>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getGetRegistrationSwitchQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * 仅系统管理员可执行。true: 允许, false: 禁止
+ * @summary 设置是否允许注册
+ */
+export type setRegistrationSwitchResponse200 = {
+  data: Blob;
+  status: 200;
+};
+
+export type setRegistrationSwitchResponseSuccess =
+  setRegistrationSwitchResponse200 & {
+    headers: Headers;
+  };
+export type setRegistrationSwitchResponse =
+  setRegistrationSwitchResponseSuccess;
+
+export const getSetRegistrationSwitchUrl = (
+  params: SetRegistrationSwitchParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/users/registration-switch?${stringifiedParams}`
+    : `/api/users/registration-switch`;
+};
+
+export const setRegistrationSwitch = async (
+  params: SetRegistrationSwitchParams,
+  options?: RequestInit,
+): Promise<setRegistrationSwitchResponse> => {
+  return customInstance<setRegistrationSwitchResponse>(
+    getSetRegistrationSwitchUrl(params),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getSetRegistrationSwitchMutationOptions = <
+  TError = unknown,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setRegistrationSwitch>>,
+    TError,
+    { params: SetRegistrationSwitchParams },
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof setRegistrationSwitch>>,
+  TError,
+  { params: SetRegistrationSwitchParams },
+  TContext
+> => {
+  const mutationKey = ["setRegistrationSwitch"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof setRegistrationSwitch>>,
+    { params: SetRegistrationSwitchParams }
+  > = (props) => {
+    const { params } = props ?? {};
+
+    return setRegistrationSwitch(params, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SetRegistrationSwitchMutationResult = NonNullable<
+  Awaited<ReturnType<typeof setRegistrationSwitch>>
+>;
+
+export type SetRegistrationSwitchMutationError = unknown;
+
+/**
+ * @summary 设置是否允许注册
+ */
+export const useSetRegistrationSwitch = <TError = unknown, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof setRegistrationSwitch>>,
+      TError,
+      { params: SetRegistrationSwitchParams },
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof setRegistrationSwitch>>,
+  TError,
+  { params: SetRegistrationSwitchParams },
+  TContext
+> => {
+  return useMutation(
+    getSetRegistrationSwitchMutationOptions(options),
+    queryClient,
+  );
 };
 /**
  * 创建新用户。密码会使用 BCrypt 进行加密后存储。

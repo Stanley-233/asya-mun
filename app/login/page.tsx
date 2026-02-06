@@ -1,12 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { login, register } from "@/lib/api/endpoints/用户管理/用户管理"
+import { login, register, useGetRegistrationSwitch } from "@/lib/api/endpoints/用户管理/用户管理"
 import { UserRegistrationRequestRole } from "@/lib/api/endpoints/asyaBackendAPI.schemas"
 
 export default function LoginPage() {
@@ -15,6 +15,9 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [allowRegister, setAllowRegister] = useState(true)
+
+  const { data: registrationSwitchData } = useGetRegistrationSwitch()
 
   // 登录表单状态
   const [loginForm, setLoginForm] = useState({
@@ -29,6 +32,24 @@ export default function LoginPage() {
     confirmPassword: '',
     role: 'DM' as UserRegistrationRequestRole,
   })
+
+  useEffect(() => {
+    if (!registrationSwitchData) return
+    try {
+      const responseData = (registrationSwitchData as any).data
+      if (!responseData) return
+      const parsedData = typeof responseData === 'string' ? JSON.parse(responseData) : responseData
+      const allowed = typeof parsedData?.data === 'boolean' ? parsedData.data : parsedData
+      if (typeof allowed === 'boolean') {
+        setAllowRegister(allowed)
+        if (!allowed && tab === 'register') {
+          setTab('login')
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to parse registration switch:', err)
+    }
+  }, [registrationSwitchData, tab])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -171,7 +192,7 @@ export default function LoginPage() {
 
           <CardContent>
             {/* 选项卡按钮 */}
-            <div className="grid grid-cols-2 gap-2 mb-6">
+            <div className={`grid gap-2 mb-6 ${allowRegister ? 'grid-cols-2' : 'grid-cols-1'}`}>
               <button
                 type="button"
                 onClick={() => {
@@ -186,20 +207,22 @@ export default function LoginPage() {
               >
                 登录
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setTab('register')
-                  setError(null)
-                }}
-                className={`py-2 px-4 rounded-md font-medium transition-colors ${
-                  tab === 'register'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                }`}
-              >
-                注册
-              </button>
+              {allowRegister && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTab('register')
+                    setError(null)
+                  }}
+                  className={`py-2 px-4 rounded-md font-medium transition-colors ${
+                    tab === 'register'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                  }`}
+                >
+                  注册
+                </button>
+              )}
             </div>
 
             {/* 错误提示 */}
@@ -244,7 +267,7 @@ export default function LoginPage() {
             )}
 
             {/* 注册表单 */}
-            {tab === 'register' && (
+            {tab === 'register' && allowRegister && (
               <form onSubmit={handleRegister} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="register-name">用户昵称</Label>

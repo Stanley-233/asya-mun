@@ -282,6 +282,27 @@ export interface ResultConferenceSessionResponse {
 }
 
 /**
+ * 统一接口返回结构
+ */
+export interface ResultUnit {
+  /** 状态码 */
+  code: number;
+  /** 提示信息 */
+  message: string;
+}
+
+/**
+ * 统一接口返回结构
+ */
+export interface ResultBoolean {
+  /** 状态码 */
+  code: number;
+  /** 提示信息 */
+  message: string;
+  data?: boolean;
+}
+
+/**
  * 用户角色
  */
 export type UserRegistrationRequestRole =
@@ -491,17 +512,17 @@ export interface Pageable {
 
 export interface Sortnull {
   empty?: boolean;
-  unsorted?: boolean;
   sorted?: boolean;
+  unsorted?: boolean;
 }
 
 export interface Pageablenull {
   offset?: number;
   sort?: Sortnull;
-  unpaged?: boolean;
   paged?: boolean;
   pageNumber?: number;
   pageSize?: number;
+  unpaged?: boolean;
 }
 
 export interface Pagenull {
@@ -562,15 +583,11 @@ export interface ResultListConferenceResponse {
   data?: ConferenceResponse[];
 }
 
-/**
- * 统一接口返回结构
- */
-export interface ResultUnit {
-  /** 状态码 */
-  code: number;
-  /** 提示信息 */
-  message: string;
-}
+export type ResetPasswordBody = { [key: string]: string };
+
+export type SetRegistrationSwitchParams = {
+  allowed: boolean;
+};
 
 export type GetAllParams = {
   pageable: Pageable;

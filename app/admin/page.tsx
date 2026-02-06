@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useAuth } from "@/lib/contexts/auth-context"
-import { useListAll, useUpdateUser, useDeleteUser } from "@/lib/api/endpoints/用户管理/用户管理"
+import { useListAll, useUpdateUser, useDeleteUser, useGetRegistrationSwitch, useSetRegistrationSwitch, useResetPassword } from "@/lib/api/endpoints/用户管理/用户管理"
 import { useCreate, useListAll1, useAssignUser } from "@/lib/api/endpoints/会议管理/会议管理"
 import {
   AlertDialog,
@@ -32,14 +32,14 @@ import type { UserInfoResponse, UserUpdateRequestRole, ConferenceRequestStatus, 
 const roleLabels: Record<string, string> = {
   'SYS_ADMIN': '系统管理员',
   'DELEGATE': '代表',
-  'DM': '危机指导',
-  'DH': '主席'
+  'DM': '主席团成员',
+  'DH': '主席团指导'
 }
 
 const roleOptions = [
   { value: 'DELEGATE', label: '代表' },
-  { value: 'DM', label: '危机指导' },
-  { value: 'DH', label: '主席' },
+  { value: 'DM', label: '主席团成员' },
+  { value: 'DH', label: '主席团指导' },
   { value: 'SYS_ADMIN', label: '系统管理员' },
 ]
 
@@ -56,6 +56,9 @@ export default function AdminPage() {
   const { data: conferencesData, isLoading: conferencesLoading } = useListAll1()
   const { mutate: updateUser, isPending: isUpdating } = useUpdateUser()
   const { mutate: deleteUser, isPending: isDeleting } = useDeleteUser()
+  const { data: registrationSwitchData, isLoading: registrationSwitchLoading, refetch: refetchRegistrationSwitch } = useGetRegistrationSwitch()
+  const { mutate: setRegistrationSwitch, isPending: isSettingRegistrationSwitch } = useSetRegistrationSwitch()
+  const { mutate: resetPassword, isPending: isResettingPassword } = useResetPassword()
   const { mutate: createConference, isPending: isCreating } = useCreate()
   const { mutate: assignUser, isPending: isAssigning } = useAssignUser()
 
@@ -74,6 +77,10 @@ export default function AdminPage() {
   const [assigningUserId, setAssigningUserId] = useState<string | null>(null)
   const [selectedConferenceId, setSelectedConferenceId] = useState<string>('')
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [registrationAllowed, setRegistrationAllowed] = useState<boolean | null>(null)
+  const [resetDialogOpen, setResetDialogOpen] = useState(false)
+  const [userToReset, setUserToReset] = useState<UserInfoResponse | null>(null)
+  const [resetForm, setResetForm] = useState({ password: '', confirmPassword: '' })
 
   useEffect(() => {
     if (!authLoading && (!isAuthenticated || !isSysAdmin)) {
@@ -131,6 +138,21 @@ export default function AdminPage() {
       }
     }
   }, [conferencesData, conferencesLoading])
+
+  useEffect(() => {
+    if (!registrationSwitchData) return
+    try {
+      const responseData = (registrationSwitchData as any).data
+      if (!responseData) return
+      const parsedData = typeof responseData === 'string' ? JSON.parse(responseData) : responseData
+      const allowed = typeof parsedData?.data === 'boolean' ? parsedData.data : parsedData
+      if (typeof allowed === 'boolean') {
+        setRegistrationAllowed(allowed)
+      }
+    } catch (err) {
+      console.error('Failed to parse registration switch data:', err)
+    }
+  }, [registrationSwitchData])
 
   const handleEditStart = (userId: string) => {
     setEditingId(userId)
@@ -289,6 +311,62 @@ export default function AdminPage() {
     setDeleteDialogOpen(true)
   }
 
+  const handleToggleRegistration = (allowed: boolean) => {
+    setRegistrationSwitch(
+      { params: { allowed } },
+      {
+        onSuccess: () => {
+          setRegistrationAllowed(allowed)
+          refetchRegistrationSwitch()
+          setMessage({ type: 'success', text: allowed ? '已开启注册' : '已关闭注册' })
+        },
+        onError: () => {
+          setMessage({ type: 'error', text: '操作失败，请重试' })
+        }
+      }
+    )
+  }
+
+  const handleResetPasswordStart = (user: UserInfoResponse) => {
+    setUserToReset(user)
+    setResetForm({ password: '', confirmPassword: '' })
+    setResetDialogOpen(true)
+  }
+
+  const handleConfirmResetPassword = () => {
+    if (!userToReset) return
+
+    if (!resetForm.password || !resetForm.confirmPassword) {
+      setMessage({ type: 'error', text: '请填写新密码并确认' })
+      return
+    }
+
+    if (resetForm.password !== resetForm.confirmPassword) {
+      setMessage({ type: 'error', text: '两次输入的密码不一致' })
+      return
+    }
+
+    if (resetForm.password.length < 6) {
+      setMessage({ type: 'error', text: '密码长度不少于 6 个字符' })
+      return
+    }
+
+    resetPassword(
+      { uuid: userToReset.uuid, data: { password: resetForm.password } },
+      {
+        onSuccess: () => {
+          setMessage({ type: 'success', text: '密码重置成功' })
+          setResetDialogOpen(false)
+          setUserToReset(null)
+          setResetForm({ password: '', confirmPassword: '' })
+        },
+        onError: () => {
+          setMessage({ type: 'error', text: '重置失败，请重试' })
+        }
+      }
+    )
+  }
+
   const handleConfirmDelete = () => {
     if (!userToDelete) return
     
@@ -341,6 +419,40 @@ export default function AdminPage() {
             {message.text}
           </div>
         )}
+
+        {/* 注册开关 */}
+        <Card>
+          <CardHeader>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <CardTitle>注册开关</CardTitle>
+                <CardDescription>
+                  {registrationSwitchLoading || registrationAllowed === null
+                    ? '正在获取当前状态...'
+                    : registrationAllowed
+                      ? '当前允许注册'
+                      : '当前禁止注册'}
+                </CardDescription>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant={registrationAllowed ? 'outline' : 'default'}
+                  onClick={() => handleToggleRegistration(true)}
+                  disabled={registrationSwitchLoading || registrationAllowed === true || isSettingRegistrationSwitch}
+                >
+                  开启注册
+                </Button>
+                <Button
+                  variant={!registrationAllowed ? 'outline' : 'default'}
+                  onClick={() => handleToggleRegistration(false)}
+                  disabled={registrationSwitchLoading || registrationAllowed === false || isSettingRegistrationSwitch}
+                >
+                  关闭注册
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+        </Card>
 
         {/* 新建会议卡片 */}
         <Card>
@@ -533,6 +645,9 @@ export default function AdminPage() {
                             <Button onClick={() => handleEditStart(user.uuid)}>
                               编辑
                             </Button>
+                            <Button variant="secondary" onClick={() => handleResetPasswordStart(user)}>
+                              重置密码
+                            </Button>
                             <Button variant="outline" onClick={() => handleAssignUser(user.uuid)}>
                               关联会议
                             </Button>
@@ -565,6 +680,46 @@ export default function AdminPage() {
             <AlertDialogCancel>取消</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmDelete} disabled={isDeleting}>
               {isDeleting ? '删除中...' : '确认删除'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* 重置密码弹窗 */}
+      <AlertDialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>重置用户密码</AlertDialogTitle>
+            <AlertDialogDescription>
+              为用户「{userToReset?.name}」(ID: {userToReset?.uuid}) 设置新密码。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="reset-password">新密码</Label>
+              <Input
+                id="reset-password"
+                type="password"
+                value={resetForm.password}
+                onChange={(e) => setResetForm(prev => ({ ...prev, password: e.target.value }))}
+                placeholder="请输入新密码"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="reset-confirm-password">确认新密码</Label>
+              <Input
+                id="reset-confirm-password"
+                type="password"
+                value={resetForm.confirmPassword}
+                onChange={(e) => setResetForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                placeholder="再次输入新密码"
+              />
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmResetPassword} disabled={isResettingPassword}>
+              {isResettingPassword ? '重置中...' : '确认重置'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
