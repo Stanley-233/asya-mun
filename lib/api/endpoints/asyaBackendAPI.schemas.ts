@@ -24,6 +24,8 @@ export const UserUpdateRequestRole = {
 export interface UserUpdateRequest {
   /** 用户昵称 */
   name?: string;
+  /** 显示名称 */
+  displayName?: string;
   /** 用户密码 */
   password?: string;
   /** 用户角色 */
@@ -51,6 +53,8 @@ export interface UserInfoResponse {
   uuid: string;
   /** 用户昵称 */
   name: string;
+  /** 显示名称 */
+  displayName?: string;
   /** 用户角色 */
   role: UserInfoResponseRole;
 }
@@ -321,6 +325,8 @@ export const UserRegistrationRequestRole = {
 export interface UserRegistrationRequest {
   /** 用户昵称 */
   name: string;
+  /** 显示名称 */
+  displayName?: string;
   /** 用户密码 */
   password: string;
   /** 用户角色 */
@@ -348,6 +354,8 @@ export interface UserResponse {
   uuid: string;
   /** 用户昵称 */
   name: string;
+  /** 显示名称 */
+  displayName?: string;
   /** 用户角色 */
   role: UserResponseRole;
   /** JWT Token */
@@ -526,16 +534,16 @@ export interface Pageablenull {
 }
 
 export interface Pagenull {
-  totalElements?: number;
   totalPages?: number;
+  totalElements?: number;
   first?: boolean;
   last?: boolean;
   size?: number;
   content?: MessageResponse[];
   number?: number;
   sort?: Sortnull;
-  numberOfElements?: number;
   pageable?: Pageablenull;
+  numberOfElements?: number;
   empty?: boolean;
 }
 

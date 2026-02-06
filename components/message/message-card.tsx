@@ -16,6 +16,7 @@ import { Edit2, Trash2 } from 'lucide-react'
 
 interface MessageCardProps {
   message: MessageResponse
+  senderDisplayName?: string
   onEdit?: (message: MessageResponse) => void
   onDelete?: (message: MessageResponse) => void
   onClick?: (message: MessageResponse) => void
@@ -65,7 +66,16 @@ function formatGameTime(isoString: string): string {
   }
 }
 
-export function MessageCard({ message, onEdit, onDelete, onClick }: MessageCardProps) {
+function getSenderDisplayName(message: MessageResponse, senderDisplayName?: string): string {
+  const displayName = senderDisplayName?.trim()
+  if (displayName) return displayName
+  const fallbackDisplayName = (message as MessageResponse & { senderDisplayName?: string }).senderDisplayName?.trim()
+  if (fallbackDisplayName) return fallbackDisplayName
+  const senderName = message.senderName?.trim()
+  return senderName || '未知'
+}
+
+export function MessageCard({ message, senderDisplayName, onEdit, onDelete, onClick }: MessageCardProps) {
   const { canManageConference } = useAuth()
 
   return (
@@ -123,7 +133,7 @@ export function MessageCard({ message, onEdit, onDelete, onClick }: MessageCardP
         </p>
         <div className="flex flex-col gap-1 text-xs text-muted-foreground">
           <div className="flex justify-between">
-            <span>发布者: {message.senderName || '未知'}</span>
+            <span>发布者: {getSenderDisplayName(message, senderDisplayName)}</span>
             <span>游戏时间: {formatGameTime(message.publishGameTime)}</span>
           </div>
           <div className="text-right">

@@ -124,6 +124,11 @@ export function MessageEditDialog({
     }
   })()
 
+  const getUserLabel = (targetUser: UserInfoResponse) => {
+    const displayName = targetUser.displayName?.trim()
+    return displayName ? `${displayName}（${targetUser.name}）` : targetUser.name
+  }
+
   const createMutation = useCreate1({
     mutation: {
       onSuccess: () => {
@@ -460,7 +465,7 @@ export function MessageEditDialog({
                             htmlFor={`user-${conferenceUser.uuid}`} 
                             className="cursor-pointer text-sm flex-1"
                           >
-                            {conferenceUser.name} <span className="text-muted-foreground">({conferenceUser.role})</span>
+                            {getUserLabel(conferenceUser)} <span className="text-muted-foreground">({conferenceUser.role})</span>
                           </Label>
                         </div>
                       ))

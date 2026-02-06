@@ -109,6 +109,11 @@ export default function DirectiveAsymsgPage() {
       return []
     }
   })()
+
+  const getUserLabel = (targetUser: UserInfoResponse) => {
+    const displayName = targetUser.displayName?.trim()
+    return displayName ? `${displayName}（${targetUser.name}）` : targetUser.name
+  }
   
   // 解析消息数据
   const parsedMessagesData = (() => {
@@ -250,7 +255,7 @@ export default function DirectiveAsymsgPage() {
                     <option value="">全部发送者</option>
                     {users.map(user => (
                       <option key={user.uuid} value={user.uuid}>
-                        {user.name}
+                        {getUserLabel(user)}
                       </option>
                     ))}
                   </select>
@@ -268,7 +273,7 @@ export default function DirectiveAsymsgPage() {
                     <option value="">全部接收者</option>
                     {users.map(user => (
                       <option key={user.uuid} value={user.uuid}>
-                        {user.name}
+                        {getUserLabel(user)}
                       </option>
                     ))}
                   </select>

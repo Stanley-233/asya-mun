@@ -65,7 +65,7 @@ export default function AdminPage() {
   const [users, setUsers] = useState<UserInfoResponse[]>([])
   const [conferences, setConferences] = useState<ConferenceResponse[]>([])
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [editForm, setEditForm] = useState<Record<string, { name: string; role: UserUpdateRequestRole }>>({})
+  const [editForm, setEditForm] = useState<Record<string, { name: string; displayName: string; role: UserUpdateRequestRole }>>({})
   const [showCreateConference, setShowCreateConference] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [userToDelete, setUserToDelete] = useState<UserInfoResponse | null>(null)
@@ -103,10 +103,11 @@ export default function AdminPage() {
           setUsers(userArray)
 
           // 初始化编辑表单
-          const formData: Record<string, { name: string; role: UserUpdateRequestRole }> = {}
+          const formData: Record<string, { name: string; displayName: string; role: UserUpdateRequestRole }> = {}
           userArray.forEach((user: UserInfoResponse) => {
             formData[user.uuid] = {
               name: user.name,
+              displayName: user.displayName || '',
               role: user.role as UserUpdateRequestRole
             }
           })
@@ -163,7 +164,7 @@ export default function AdminPage() {
     setEditingId(null)
   }
 
-  const handleFieldChange = (userId: string, field: 'name' | 'role', value: string) => {
+  const handleFieldChange = (userId: string, field: 'name' | 'displayName' | 'role', value: string) => {
     setEditForm(prev => ({
       ...prev,
       [userId]: {
@@ -185,6 +186,7 @@ export default function AdminPage() {
         uuid: userId,
         data: {
           name: formData.name,
+          displayName: formData.displayName,
           role: formData.role
         }
       },
@@ -565,6 +567,17 @@ export default function AdminPage() {
                             />
                           </div>
                           <div>
+                            <Label htmlFor={`displayName-${user.uuid}`}>显示名称</Label>
+                            <Input
+                              id={`displayName-${user.uuid}`}
+                              type="text"
+                              value={editForm[user.uuid]?.displayName || ''}
+                              onChange={(e) => handleFieldChange(user.uuid, 'displayName', e.target.value)}
+                              className="mt-2"
+                              placeholder="用于展示的名称（可选）"
+                            />
+                          </div>
+                          <div>
                             <Label htmlFor={`role-${user.uuid}`}>用户角色</Label>
                             <Select
                               value={editForm[user.uuid]?.role || ''}
@@ -609,6 +622,10 @@ export default function AdminPage() {
                           <div>
                             <p className="text-xs text-muted-foreground mb-1">用户昵称</p>
                             <p className="text-sm font-medium">{user.name}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">显示名称</p>
+                            <p className="text-sm font-medium">{user.displayName || '—'}</p>
                           </div>
                           <div>
                             <p className="text-xs text-muted-foreground mb-1">用户角色</p>
@@ -673,7 +690,7 @@ export default function AdminPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>确认删除用户</AlertDialogTitle>
             <AlertDialogDescription>
-              你确定要删除用户「{userToDelete?.name}」(ID: {userToDelete?.uuid}) 吗？此操作无法撤销。
+              你确定要删除用户「{userToDelete?.displayName || userToDelete?.name}」(ID: {userToDelete?.uuid}) 吗？此操作无法撤销。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -691,7 +708,7 @@ export default function AdminPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>重置用户密码</AlertDialogTitle>
             <AlertDialogDescription>
-              为用户「{userToReset?.name}」(ID: {userToReset?.uuid}) 设置新密码。
+              为用户「{userToReset?.displayName || userToReset?.name}」(ID: {userToReset?.uuid}) 设置新密码。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-4 py-2">

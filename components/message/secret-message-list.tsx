@@ -2,8 +2,10 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { useAuth } from '@/lib/contexts/auth-context'
 import { useGetSecretMessages } from '@/lib/api/endpoints/消息管理/消息管理'
-import type { MessageResponse } from '@/lib/api/endpoints/asyaBackendAPI.schemas'
+import { useGetUsers } from '@/lib/api/endpoints/会议管理/会议管理'
+import type { MessageResponse, UserInfoResponse } from '@/lib/api/endpoints/asyaBackendAPI.schemas'
 import { MessageCard } from './message-card'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
@@ -14,8 +16,15 @@ interface SecretMessageListProps {
 export function SecretMessageList({
   onMessageClick,
 }: SecretMessageListProps) {
+  const { isAuthenticated } = useAuth()
   const [currentPage, setCurrentPage] = useState(0)
   const [pageSize] = useState(10)
+
+  const { data: usersData } = useGetUsers({
+    query: {
+      enabled: isAuthenticated,
+    },
+  })
 
   const { data, isLoading, error } = useGetSecretMessages(
     {
@@ -50,6 +59,33 @@ export function SecretMessageList({
   const isFirstPage = parsedData?.first ?? true
   const isLastPage = parsedData?.last ?? true
 
+  const users: UserInfoResponse[] = (() => {
+    try {
+      if (!usersData) return []
+      const responseData = (usersData as any).data
+      if (!responseData) return []
+
+      const parsed = typeof responseData === 'string'
+        ? JSON.parse(responseData)
+        : responseData
+
+      const usersList = parsed.data || parsed
+      return Array.isArray(usersList) ? usersList : []
+    } catch (err) {
+      console.error('Failed to parse users data:', err)
+      return []
+    }
+  })()
+
+  const senderDisplayNameMap = users.reduce<Record<string, string>>((acc, user) => {
+    const displayName = user.displayName?.trim()
+    const label = displayName || user.name || ''
+    if (user.uuid && label) {
+      acc[user.uuid] = label
+    }
+    return acc
+  }, {})
+
   if (error) {
     return (
       <div className="flex items-center justify-center p-8 text-destructive">
@@ -83,6 +119,7 @@ export function SecretMessageList({
               <MessageCard
                 key={message.uuid}
                 message={message}
+                senderDisplayName={message.senderId ? senderDisplayNameMap[message.senderId] : undefined}
                 onClick={onMessageClick}
               />
             ))}

@@ -63,6 +63,11 @@ const roleLabels: Record<string, string> = {
 export default function ConferencePage() {
   const router = useRouter()
   const { user, isLoading: authLoading, isAuthenticated } = useAuth()
+
+  const getUserLabel = (targetUser: UserInfoResponse) => {
+    const displayName = targetUser.displayName?.trim()
+    return displayName ? `${displayName}（${targetUser.name}）` : targetUser.name
+  }
   
   // 检查用户权限
   const canManageConference = user?.role === 'DM' || user?.role === 'DH' || user?.role === 'SYS_ADMIN'
@@ -560,7 +565,7 @@ export default function ConferencePage() {
                 {users.map((user) => (
                   <div key={user.uuid} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                     <div className="flex-1">
-                      <p className="font-medium">{user.name}</p>
+                      <p className="font-medium">{getUserLabel(user)}</p>
                       <p className="text-sm text-muted-foreground font-mono">{user.uuid}</p>
                     </div>
                     <div className="text-sm font-medium">

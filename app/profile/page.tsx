@@ -33,6 +33,7 @@ export default function ProfilePage() {
 
   const [formData, setFormData] = useState({
     name: '',
+    displayName: '',
     password: '',
   })
   const [conference, setConference] = useState<ConferenceResponse | null>(null)
@@ -50,6 +51,7 @@ export default function ProfilePage() {
     if (user) {
       setFormData({
         name: user.name || '',
+        displayName: user.displayName || '',
         password: '',
       })
     }
@@ -101,6 +103,7 @@ export default function ProfilePage() {
           uuid: user.uuid,
           data: {
             name: formData.name,
+            displayName: formData.displayName,
             ...(formData.password && { password: formData.password }),
           }
         },
@@ -182,6 +185,14 @@ export default function ProfilePage() {
                       <p className="font-mono text-sm break-all">{user.uuid}</p>
                     </div>
                     <div>
+                      <p className="text-xs text-muted-foreground mb-1">用户昵称</p>
+                      <p className="text-sm font-medium">{user.name}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">显示名称</p>
+                      <p className="text-sm font-medium">{user.displayName || '—'}</p>
+                    </div>
+                    <div>
                       <p className="text-xs text-muted-foreground mb-1">用户角色</p>
                       <p className="text-sm font-medium">
                         {roleLabels[user.role as keyof typeof roleLabels] || user.role}
@@ -235,6 +246,19 @@ export default function ProfilePage() {
                       value={formData.name}
                       onChange={handleInputChange}
                       placeholder="输入新的用户昵称"
+                      className="mt-2"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="displayName">显示名称</Label>
+                    <Input
+                      id="displayName"
+                      name="displayName"
+                      type="text"
+                      value={formData.displayName}
+                      onChange={handleInputChange}
+                      placeholder="用于展示的名称（可选）"
                       className="mt-2"
                     />
                   </div>
