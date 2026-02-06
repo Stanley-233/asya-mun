@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useAuth } from "@/lib/contexts/auth-context"
-import { useListAll, useUpdateUser, useDeleteUser, useGetRegistrationSwitch, useSetRegistrationSwitch, useResetPassword } from "@/lib/api/endpoints/用户管理/用户管理"
+import { useListAll, useUpdateUser, useDeleteUser, useGetRegistrationSwitch, useSetRegistrationSwitch, useResetPassword, useBatchRegister } from "@/lib/api/endpoints/用户管理/用户管理"
 import { useCreate, useListAll1, useAssignUser } from "@/lib/api/endpoints/会议管理/会议管理"
 import {
   AlertDialog,
@@ -27,7 +27,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import type { UserInfoResponse, UserUpdateRequestRole, ConferenceRequestStatus, ConferenceResponse } from "@/lib/api/endpoints/asyaBackendAPI.schemas"
+import type { UserInfoResponse, UserUpdateRequestRole, ConferenceRequestStatus, ConferenceResponse, BatchRegisterUserItem } from "@/lib/api/endpoints/asyaBackendAPI.schemas"
 
 const roleLabels: Record<string, string> = {
   'SYS_ADMIN': '系统管理员',
@@ -59,6 +59,7 @@ export default function AdminPage() {
   const { data: registrationSwitchData, isLoading: registrationSwitchLoading, refetch: refetchRegistrationSwitch } = useGetRegistrationSwitch()
   const { mutate: setRegistrationSwitch, isPending: isSettingRegistrationSwitch } = useSetRegistrationSwitch()
   const { mutate: resetPassword, isPending: isResettingPassword } = useResetPassword()
+  const { mutate: batchRegister, isPending: isBatchRegistering } = useBatchRegister()
   const { mutate: createConference, isPending: isCreating } = useCreate()
   const { mutate: assignUser, isPending: isAssigning } = useAssignUser()
 
@@ -81,6 +82,11 @@ export default function AdminPage() {
   const [resetDialogOpen, setResetDialogOpen] = useState(false)
   const [userToReset, setUserToReset] = useState<UserInfoResponse | null>(null)
   const [resetForm, setResetForm] = useState({ password: '', confirmPassword: '' })
+  const [columnSpacing, setColumnSpacing] = useState(24)
+  const [batchDialogOpen, setBatchDialogOpen] = useState(false)
+  const [batchConferenceId, setBatchConferenceId] = useState('')
+  const [batchUsers, setBatchUsers] = useState<BatchRegisterUserItem[]>([])
+  const [batchCsvError, setBatchCsvError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!authLoading && (!isAuthenticated || !isSysAdmin)) {
@@ -154,6 +160,106 @@ export default function AdminPage() {
       console.error('Failed to parse registration switch data:', err)
     }
   }, [registrationSwitchData])
+
+  const parseCsvLine = (line: string) => {
+    const result: string[] = []
+    let current = ''
+    let inQuotes = false
+
+    for (let i = 0; i < line.length; i += 1) {
+      const char = line[i]
+
+      if (char === '"') {
+        if (inQuotes && line[i + 1] === '"') {
+          current += '"'
+          i += 1
+        } else {
+          inQuotes = !inQuotes
+        }
+        continue
+      }
+
+      if (char === ',' && !inQuotes) {
+        result.push(current)
+        current = ''
+        continue
+      }
+
+      current += char
+    }
+
+    result.push(current)
+    return result.map(item => item.trim())
+  }
+
+  const parseCsvContent = (text: string): BatchRegisterUserItem[] => {
+    const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+    const lines = normalized.split('\n').map(line => line.trim()).filter(Boolean)
+    if (lines.length === 0) return []
+
+    const rows = lines.map(parseCsvLine)
+    const header = rows[0].map(item => item.toLowerCase())
+    const hasHeader = header.includes('name') && header.includes('password')
+
+    const dataRows = hasHeader ? rows.slice(1) : rows
+    const nameIndex = hasHeader ? header.indexOf('name') : 0
+    const displayNameIndex = hasHeader ? header.indexOf('displayname') : 1
+    const passwordIndex = hasHeader ? header.indexOf('password') : 2
+
+    return dataRows
+      .filter(row => row.some(cell => cell.trim().length > 0))
+      .map(row => ({
+        name: row[nameIndex]?.trim() || '',
+        displayName: row[displayNameIndex]?.trim() || '',
+        password: row[passwordIndex]?.trim() || '',
+      }))
+  }
+
+  const handleBatchCsvUpload = async (file?: File) => {
+    if (!file) return
+    setBatchCsvError(null)
+
+    try {
+      const text = await file.text()
+      const parsedUsers = parseCsvContent(text)
+      if (parsedUsers.length === 0) {
+        setBatchCsvError('未解析到有效的用户数据')
+        return
+      }
+      setBatchUsers(parsedUsers)
+    } catch (error) {
+      setBatchCsvError('读取 CSV 失败，请检查文件格式')
+    }
+  }
+
+  const handleAddBatchUser = () => {
+    setBatchUsers(prev => ([
+      ...prev,
+      { name: '', displayName: '', password: '' }
+    ]))
+  }
+
+  const handleRemoveBatchUser = (index: number) => {
+    setBatchUsers(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const handleBatchUserChange = (index: number, field: keyof BatchRegisterUserItem, value: string) => {
+    setBatchUsers(prev => prev.map((item, i) => (
+      i === index ? { ...item, [field]: value } : item
+    )))
+  }
+
+  const handleOpenBatchDialog = () => {
+    setBatchDialogOpen(true)
+    setBatchCsvError(null)
+  }
+
+  const handleCloseBatchDialog = () => {
+    setBatchDialogOpen(false)
+    setBatchConferenceId('')
+    setBatchUsers([])
+    setBatchCsvError(null)
+  }
 
   const handleEditStart = (userId: string) => {
     setEditingId(userId)
@@ -369,6 +475,48 @@ export default function AdminPage() {
     )
   }
 
+  const handleConfirmBatchRegister = () => {
+    if (!batchConferenceId) {
+      setMessage({ type: 'error', text: '请选择会议' })
+      return
+    }
+
+    if (batchUsers.length === 0) {
+      setMessage({ type: 'error', text: '请添加至少一位代表' })
+      return
+    }
+
+    const sanitizedUsers = batchUsers.map(user => ({
+      name: user.name.trim(),
+      displayName: user.displayName?.trim() || '',
+      password: user.password.trim(),
+    }))
+
+    const hasInvalid = sanitizedUsers.some(user => !user.name || !user.password)
+    if (hasInvalid) {
+      setMessage({ type: 'error', text: '用户昵称和密码不能为空' })
+      return
+    }
+
+    batchRegister(
+      {
+        data: {
+          conferenceId: batchConferenceId,
+          users: sanitizedUsers,
+        },
+      },
+      {
+        onSuccess: () => {
+          setMessage({ type: 'success', text: `批量注册成功（${sanitizedUsers.length} 人）` })
+          handleCloseBatchDialog()
+        },
+        onError: () => {
+          setMessage({ type: 'error', text: '批量注册失败，请重试' })
+        },
+      }
+    )
+  }
+
   const handleConfirmDelete = () => {
     if (!userToDelete) return
     
@@ -402,6 +550,11 @@ export default function AdminPage() {
 
   if (!isSysAdmin) {
     return null
+  }
+
+  const cellPaddingStyle = {
+    paddingLeft: columnSpacing / 2,
+    paddingRight: columnSpacing / 2
   }
 
   return (
@@ -536,6 +689,31 @@ export default function AdminPage() {
         <div>
           <h2 className="text-2xl font-bold mb-4">用户管理</h2>
 
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-sm text-muted-foreground">可调整列间距以适配屏幕</div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="flex items-center gap-3">
+                <Label htmlFor="column-spacing" className="text-sm">列间距</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="column-spacing"
+                    type="range"
+                    min={8}
+                    max={48}
+                    step={2}
+                    value={columnSpacing}
+                    onChange={(e) => setColumnSpacing(Number(e.target.value))}
+                    className="w-40"
+                  />
+                  <span className="text-xs text-muted-foreground w-10 text-right">{columnSpacing}px</span>
+                </div>
+              </div>
+              <Button onClick={handleOpenBatchDialog}>
+                批量注册代表
+              </Button>
+            </div>
+          </div>
+
         {usersLoading ? (
           <div className="flex justify-center items-center min-h-64">
             <p className="text-lg text-muted-foreground">加载用户列表中...</p>
@@ -549,141 +727,277 @@ export default function AdminPage() {
                 </CardContent>
               </Card>
             ) : (
-              users.map(user => (
-                <Card key={user.uuid}>
-                  <CardContent className="pt-6">
-                    {editingId === user.uuid ? (
-                      // 编辑模式
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <Label htmlFor={`name-${user.uuid}`}>用户昵称</Label>
-                            <Input
-                              id={`name-${user.uuid}`}
-                              type="text"
-                              value={editForm[user.uuid]?.name || ''}
-                              onChange={(e) => handleFieldChange(user.uuid, 'name', e.target.value)}
-                              className="mt-2"
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor={`displayName-${user.uuid}`}>显示名称</Label>
-                            <Input
-                              id={`displayName-${user.uuid}`}
-                              type="text"
-                              value={editForm[user.uuid]?.displayName || ''}
-                              onChange={(e) => handleFieldChange(user.uuid, 'displayName', e.target.value)}
-                              className="mt-2"
-                              placeholder="用于展示的名称（可选）"
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor={`role-${user.uuid}`}>用户角色</Label>
-                            <Select
-                              value={editForm[user.uuid]?.role || ''}
-                              onValueChange={(value) => handleFieldChange(user.uuid, 'role', value)}
-                            >
-                              <SelectTrigger id={`role-${user.uuid}`} className="mt-2">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {roleOptions.map(option => (
-                                  <SelectItem key={option.value} value={option.value}>
-                                    {option.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                        <div className="flex gap-2 justify-end">
-                          <Button
-                            variant="outline"
-                            onClick={handleEditCancel}
-                          >
-                            取消
-                          </Button>
-                          <Button
-                            onClick={() => handleSave(user.uuid)}
-                            disabled={isUpdating}
-                          >
-                            {isUpdating ? '保存中...' : '保存'}
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      // 显示模式
-                      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                        <div className="space-y-2">
-                          <div>
-                            <p className="text-xs text-muted-foreground mb-1">用户ID</p>
-                            <p className="font-mono text-sm break-all">{user.uuid}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground mb-1">用户昵称</p>
-                            <p className="text-sm font-medium">{user.name}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground mb-1">显示名称</p>
-                            <p className="text-sm font-medium">{user.displayName || '—'}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground mb-1">用户角色</p>
-                            <p className="text-sm font-medium">
-                              {roleLabels[user.role] || user.role}
-                            </p>
-                          </div>
-                        </div>
-                        {assigningUserId === user.uuid ? (
-                          <div className="flex flex-col gap-2">
-                            <Select value={selectedConferenceId} onValueChange={setSelectedConferenceId}>
-                              <SelectTrigger className="w-[200px]">
-                                <SelectValue placeholder="选择会议" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {conferences.map(conf => (
-                                  <SelectItem key={conf.uuid} value={conf.uuid}>
-                                    {conf.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <div className="flex gap-2">
-                              <Button size="sm" onClick={handleConfirmAssign} disabled={isAssigning}>
-                                {isAssigning ? '关联中...' : '确认'}
-                              </Button>
-                              <Button size="sm" variant="outline" onClick={handleCancelAssign}>
-                                取消
-                              </Button>
-                            </div>
-                          </div>
+              <div className="overflow-x-auto rounded-lg border">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-muted/50 text-muted-foreground">
+                    <tr>
+                      <th style={cellPaddingStyle} className="py-3 text-left font-medium">用户ID</th>
+                      <th style={cellPaddingStyle} className="py-3 text-left font-medium">用户昵称</th>
+                      <th style={cellPaddingStyle} className="py-3 text-left font-medium">显示名称</th>
+                      <th style={cellPaddingStyle} className="py-3 text-left font-medium">用户角色</th>
+                      <th style={cellPaddingStyle} className="py-3 text-right font-medium">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {users.map(user => (
+                      <tr key={user.uuid} className="align-top">
+                        {editingId === user.uuid ? (
+                          <>
+                            <td style={cellPaddingStyle} className="py-4 font-mono text-xs text-muted-foreground break-all">
+                              {user.uuid}
+                            </td>
+                            <td style={cellPaddingStyle} className="py-4">
+                              <Input
+                                id={`name-${user.uuid}`}
+                                type="text"
+                                value={editForm[user.uuid]?.name || ''}
+                                onChange={(e) => handleFieldChange(user.uuid, 'name', e.target.value)}
+                              />
+                            </td>
+                            <td style={cellPaddingStyle} className="py-4">
+                              <Input
+                                id={`displayName-${user.uuid}`}
+                                type="text"
+                                value={editForm[user.uuid]?.displayName || ''}
+                                onChange={(e) => handleFieldChange(user.uuid, 'displayName', e.target.value)}
+                                placeholder="用于展示的名称（可选）"
+                              />
+                            </td>
+                            <td style={cellPaddingStyle} className="py-4">
+                              <Select
+                                value={editForm[user.uuid]?.role || ''}
+                                onValueChange={(value) => handleFieldChange(user.uuid, 'role', value)}
+                              >
+                                <SelectTrigger id={`role-${user.uuid}`}>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {roleOptions.map(option => (
+                                    <SelectItem key={option.value} value={option.value}>
+                                      {option.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </td>
+                            <td style={cellPaddingStyle} className="py-4">
+                              <div className="flex flex-wrap justify-end gap-2">
+                                <Button variant="outline" onClick={handleEditCancel}>
+                                  取消
+                                </Button>
+                                <Button onClick={() => handleSave(user.uuid)} disabled={isUpdating}>
+                                  {isUpdating ? '保存中...' : '保存'}
+                                </Button>
+                              </div>
+                            </td>
+                          </>
                         ) : (
-                          <div className="flex gap-2">
-                            <Button onClick={() => handleEditStart(user.uuid)}>
-                              编辑
-                            </Button>
-                            <Button variant="secondary" onClick={() => handleResetPasswordStart(user)}>
-                              重置密码
-                            </Button>
-                            <Button variant="outline" onClick={() => handleAssignUser(user.uuid)}>
-                              关联会议
-                            </Button>
-                            <Button variant="destructive" onClick={() => handleDeleteUser(user)}>
-                              删除
-                            </Button>
-                          </div>
+                          <>
+                            <td style={cellPaddingStyle} className="py-4 font-mono text-xs text-muted-foreground break-all">
+                              {user.uuid}
+                            </td>
+                            <td style={cellPaddingStyle} className="py-4 font-medium">
+                              {user.name}
+                            </td>
+                            <td style={cellPaddingStyle} className="py-4">
+                              {user.displayName || '—'}
+                            </td>
+                            <td style={cellPaddingStyle} className="py-4">
+                              {roleLabels[user.role] || user.role}
+                            </td>
+                            <td style={cellPaddingStyle} className="py-4">
+                              {assigningUserId === user.uuid ? (
+                                <div className="flex flex-col gap-2 items-end">
+                                  <Select value={selectedConferenceId} onValueChange={setSelectedConferenceId}>
+                                    <SelectTrigger className="w-[200px]">
+                                      <SelectValue placeholder="选择会议" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {conferences.map(conf => (
+                                        <SelectItem key={conf.uuid} value={conf.uuid}>
+                                          {conf.name}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                  <div className="flex gap-2">
+                                    <Button size="sm" onClick={handleConfirmAssign} disabled={isAssigning}>
+                                      {isAssigning ? '关联中...' : '确认'}
+                                    </Button>
+                                    <Button size="sm" variant="outline" onClick={handleCancelAssign}>
+                                      取消
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="flex flex-wrap justify-end gap-2">
+                                  <Button onClick={() => handleEditStart(user.uuid)}>
+                                    编辑
+                                  </Button>
+                                  <Button variant="secondary" onClick={() => handleResetPasswordStart(user)}>
+                                    重置密码
+                                  </Button>
+                                  <Button variant="outline" onClick={() => handleAssignUser(user.uuid)}>
+                                    关联会议
+                                  </Button>
+                                  <Button variant="destructive" onClick={() => handleDeleteUser(user)}>
+                                    删除
+                                  </Button>
+                                </div>
+                              )}
+                            </td>
+                          </>
                         )}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         )}
         </div>
       </div>
       
+      {/* 批量注册代表弹窗 */}
+      <AlertDialog
+        open={batchDialogOpen}
+        onOpenChange={(open) => {
+          if (open) {
+            setBatchDialogOpen(true)
+          } else {
+            handleCloseBatchDialog()
+          }
+        }}
+      >
+        <AlertDialogContent className="!max-w-5xl !max-h-[90vh] overflow-hidden">
+          <AlertDialogHeader>
+            <AlertDialogTitle>批量注册代表</AlertDialogTitle>
+            <AlertDialogDescription>
+              选择会议并填写代表信息，可从 CSV 导入并在表格中调整。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="space-y-4 py-2 max-h-[70vh] overflow-auto px-1 -mx-1">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="batch-conference">关联会议</Label>
+                <Select value={batchConferenceId} onValueChange={setBatchConferenceId}>
+                  <SelectTrigger id="batch-conference" className="mt-2">
+                    <SelectValue placeholder="请选择会议" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {conferences.map(conf => (
+                      <SelectItem key={conf.uuid} value={conf.uuid}>
+                        {conf.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="batch-csv">导入 CSV</Label>
+                <Input
+                  id="batch-csv"
+                  type="file"
+                  accept=".csv,text/csv"
+                  onChange={(e) => handleBatchCsvUpload(e.target.files?.[0])}
+                  className="mt-2"
+                />
+                <p className="text-xs text-muted-foreground mt-2">CSV 列：name, displayName, password（可带表头）</p>
+                {batchCsvError && (
+                  <p className="text-xs text-red-600 mt-1">{batchCsvError}</p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={handleAddBatchUser}>
+                添加一行
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setBatchUsers([])}
+                disabled={batchUsers.length === 0}
+              >
+                清空
+              </Button>
+              <span className="text-xs text-muted-foreground">共 {batchUsers.length} 人</span>
+            </div>
+
+            <div className="overflow-x-auto rounded-lg border">
+              <table className="min-w-full text-sm">
+                <thead className="bg-muted/50 text-muted-foreground">
+                  <tr>
+                    <th className="!py-3 !px-4 text-left font-medium">用户昵称</th>
+                    <th className="!py-3 !px-4 text-left font-medium">显示名称</th>
+                    <th className="!py-3 !px-4 text-left font-medium">密码</th>
+                    <th className="!py-3 !px-4 text-right font-medium">操作</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {batchUsers.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="!py-4 !px-4 text-center text-muted-foreground">
+                        暂无数据，可手动添加或从 CSV 导入
+                      </td>
+                    </tr>
+                  ) : (
+                    batchUsers.map((user, index) => (
+                      <tr key={`batch-user-${index}`}>
+                        <td className="!py-3 !px-4">
+                          <Input
+                            type="text"
+                            value={user.name}
+                            onChange={(e) => handleBatchUserChange(index, 'name', e.target.value)}
+                            placeholder="delegate1"
+                          />
+                        </td>
+                        <td className="!py-3 !px-4">
+                          <Input
+                            type="text"
+                            value={user.displayName || ''}
+                            onChange={(e) => handleBatchUserChange(index, 'displayName', e.target.value)}
+                            placeholder="显示名称（可选）"
+                          />
+                        </td>
+                        <td className="!py-3 !px-4">
+                          <Input
+                            type="text"
+                            value={user.password}
+                            onChange={(e) => handleBatchUserChange(index, 'password', e.target.value)}
+                            placeholder="至少 6 位"
+                          />
+                        </td>
+                        <td className="!py-3 !px-4 text-right">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRemoveBatchUser(index)}
+                          >
+                            移除
+                          </Button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCloseBatchDialog}>取消</AlertDialogCancel>
+            <Button onClick={handleConfirmBatchRegister} disabled={isBatchRegistering}>
+              {isBatchRegistering ? '提交中...' : '确认批量注册'}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* 删除确认弹窗 */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>

@@ -373,6 +373,49 @@ export interface ResultUserResponse {
   data?: UserResponse;
 }
 
+/**
+ * 批量注册用户请求
+ */
+export interface BatchRegisterUserItem {
+  /** 用户昵称 */
+  name: string;
+  /** 显示名称 */
+  displayName?: string;
+  /** 用户密码 */
+  password: string;
+}
+
+/**
+ * 批量注册请求
+ */
+export interface BatchRegisterRequest {
+  /** 关联会议ID */
+  conferenceId: string;
+  /** 用户列表 */
+  users: BatchRegisterUserItem[];
+}
+
+/**
+ * 批量注册响应
+ */
+export interface BatchRegisterResponse {
+  /** 成功注册的用户数量 */
+  successCount: number;
+  /** 注册成功的用户列表 */
+  createdUsers: UserInfoResponse[];
+}
+
+/**
+ * 统一接口返回结构
+ */
+export interface ResultBatchRegisterResponse {
+  /** 状态码 */
+  code: number;
+  /** 提示信息 */
+  message: string;
+  data?: BatchRegisterResponse;
+}
+
 export interface TimeUpdateRequest {
   /** 会期ID */
   sessionId: string;
@@ -520,30 +563,30 @@ export interface Pageable {
 
 export interface Sortnull {
   empty?: boolean;
-  sorted?: boolean;
   unsorted?: boolean;
+  sorted?: boolean;
 }
 
 export interface Pageablenull {
   offset?: number;
   sort?: Sortnull;
+  unpaged?: boolean;
   paged?: boolean;
   pageNumber?: number;
   pageSize?: number;
-  unpaged?: boolean;
 }
 
 export interface Pagenull {
-  totalPages?: number;
   totalElements?: number;
+  totalPages?: number;
   first?: boolean;
   last?: boolean;
   size?: number;
   content?: MessageResponse[];
   number?: number;
   sort?: Sortnull;
-  pageable?: Pageablenull;
   numberOfElements?: number;
+  pageable?: Pageablenull;
   empty?: boolean;
 }
 

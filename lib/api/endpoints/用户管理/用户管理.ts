@@ -22,6 +22,7 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  BatchRegisterRequest,
   ResetPasswordBody,
   SetRegistrationSwitchParams,
   UserRegistrationRequest,
@@ -696,6 +697,102 @@ export const useLogin = <TError = unknown, TContext = unknown>(
   TContext
 > => {
   return useMutation(getLoginMutationOptions(options), queryClient);
+};
+/**
+ * 仅 SYS_ADMIN 可访问，批量注册代表并关联到会议
+ * @summary 批量注册用户
+ */
+export type batchRegisterResponse200 = {
+  data: Blob;
+  status: 200;
+};
+
+export type batchRegisterResponseSuccess = batchRegisterResponse200 & {
+  headers: Headers;
+};
+export type batchRegisterResponse = batchRegisterResponseSuccess;
+
+export const getBatchRegisterUrl = () => {
+  return `/api/users/batch`;
+};
+
+export const batchRegister = async (
+  batchRegisterRequest: BatchRegisterRequest,
+  options?: RequestInit,
+): Promise<batchRegisterResponse> => {
+  return customInstance<batchRegisterResponse>(getBatchRegisterUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(batchRegisterRequest),
+  });
+};
+
+export const getBatchRegisterMutationOptions = <
+  TError = unknown,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof batchRegister>>,
+    TError,
+    { data: BatchRegisterRequest },
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof batchRegister>>,
+  TError,
+  { data: BatchRegisterRequest },
+  TContext
+> => {
+  const mutationKey = ["batchRegister"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof batchRegister>>,
+    { data: BatchRegisterRequest }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return batchRegister(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type BatchRegisterMutationResult = NonNullable<
+  Awaited<ReturnType<typeof batchRegister>>
+>;
+export type BatchRegisterMutationBody = BatchRegisterRequest;
+export type BatchRegisterMutationError = unknown;
+
+/**
+ * @summary 批量注册用户
+ */
+export const useBatchRegister = <TError = unknown, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof batchRegister>>,
+      TError,
+      { data: BatchRegisterRequest },
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof batchRegister>>,
+  TError,
+  { data: BatchRegisterRequest },
+  TContext
+> => {
+  return useMutation(getBatchRegisterMutationOptions(options), queryClient);
 };
 /**
  * 仅系统管理员可访问

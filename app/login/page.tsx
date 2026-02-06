@@ -28,6 +28,7 @@ export default function LoginPage() {
   // 注册表单状态
   const [registerForm, setRegisterForm] = useState({
     name: '',
+    displayName: '',
     password: '',
     confirmPassword: '',
     role: 'DM' as UserRegistrationRequestRole,
@@ -124,6 +125,7 @@ export default function LoginPage() {
       // 先注册
       await register({
         name: registerForm.name,
+        displayName: registerForm.displayName?.trim() || undefined,
         password: registerForm.password,
         role: registerForm.role,
       })
@@ -141,7 +143,7 @@ export default function LoginPage() {
       if (token) {
         localStorage.setItem('token', token)
         localStorage.setItem('user', JSON.stringify(loginData))
-        setRegisterForm({ name: '', password: '', confirmPassword: '', role: 'DM' })
+        setRegisterForm({ name: '', displayName: '', password: '', confirmPassword: '', role: 'DM' })
         setSuccess(true)
         // 强制刷新页面以更新 appbar
         setTimeout(() => {
@@ -278,6 +280,18 @@ export default function LoginPage() {
                     onChange={(e) => setRegisterForm({ ...registerForm, name: e.target.value })}
                     disabled={loading}
                     autoComplete="username"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="register-display-name">显示名称（可选）</Label>
+                  <Input
+                    id="register-display-name"
+                    placeholder="请输入显示名称"
+                    value={registerForm.displayName}
+                    onChange={(e) => setRegisterForm({ ...registerForm, displayName: e.target.value })}
+                    disabled={loading}
+                    autoComplete="nickname"
                   />
                 </div>
 
