@@ -54,6 +54,7 @@ class UserService(
 
         val user = User(
             name = request.name,
+            displayName = request.displayName,
             password = hashedPassword,
             role = request.role
         )
@@ -71,6 +72,7 @@ class UserService(
         return UserResponse(
             uuid = userId.toString(),
             name = savedUser.name,
+            displayName = savedUser.displayName,
             role = savedUser.role,
             token = token
         )
@@ -97,6 +99,7 @@ class UserService(
         return UserResponse(
             uuid = userId.toString(),
             name = user.name,
+            displayName = user.displayName,
             role = user.role,
             token = token
         )
@@ -110,6 +113,7 @@ class UserService(
                 UserInfoResponse(
                     uuid = u.uuid?.toString() ?: "",
                     name = u.name,
+                    displayName = u.displayName,
                     role = u.role
                 )
             }
@@ -136,6 +140,7 @@ class UserService(
         return UserInfoResponse(
             uuid = user.uuid?.toString() ?: "",
             name = user.name,
+            displayName = user.displayName,
             role = user.role
         )
     }
@@ -162,6 +167,9 @@ class UserService(
             require(existed == null || existed.uuid == target.uuid) { "User name already exists" }
             target.name = newName
         }
+        request.displayName?.let { newDisplayName ->
+            target.displayName = newDisplayName
+        }
         request.password?.let { newPassword ->
             val hashed: String = requireNotNull(passwordEncoder.encode(newPassword)) {
                 "BCryptPasswordEncoder returned null hash"
@@ -178,6 +186,7 @@ class UserService(
         return UserInfoResponse(
             uuid = saved.uuid?.toString() ?: "",
             name = saved.name,
+            displayName = saved.displayName,
             role = saved.role
         )
     }

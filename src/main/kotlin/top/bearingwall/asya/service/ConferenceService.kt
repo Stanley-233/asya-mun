@@ -65,6 +65,7 @@ class ConferenceService(
             UserInfoResponse(
                 uuid = u.uuid?.toString() ?: "",
                 name = u.name,
+                displayName = u.displayName,
                 role = u.role
             )
         }
@@ -90,6 +91,7 @@ class ConferenceService(
         return UserInfoResponse(
             uuid = saved.uuid?.toString() ?: "",
             name = saved.name,
+            displayName = saved.displayName,
             role = saved.role
         )
     }

@@ -132,6 +132,7 @@ class MessageService(
             UserInfoResponse(
                 uuid = it.uuid.toString(),
                 name = it.name,
+                displayName = it.displayName,
                 role = it.role
             )
         }

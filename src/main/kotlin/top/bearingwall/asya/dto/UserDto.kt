@@ -7,6 +7,8 @@ import top.bearingwall.asya.model.UserRole
 data class UserRegistrationRequest(
     @Schema(description = "用户昵称", example = "Asya")
     val name: String,
+    @Schema(description = "显示名称", example = "Asya Display")
+    val displayName: String? = null,
     @Schema(description = "用户密码", example = "securePassword123")
     val password: String,
     @Schema(description = "用户角色", example = "DELEGATE")
@@ -19,6 +21,8 @@ data class UserResponse(
     val uuid: String,
     @Schema(description = "用户昵称", example = "Asya")
     val name: String,
+    @Schema(description = "显示名称", example = "Asya Display")
+    val displayName: String?,
     @Schema(description = "用户角色", example = "DELEGATE")
     val role: UserRole,
     @Schema(description = "JWT Token", example = "eyJhbGciOiJIUzI1NiJ9...")
