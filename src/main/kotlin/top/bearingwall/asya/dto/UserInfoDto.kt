@@ -12,7 +12,9 @@ data class UserInfoResponse(
     @Schema(description = "显示名称")
     val displayName: String?,
     @Schema(description = "用户角色")
-    val role: UserRole
+    val role: UserRole,
+    @Schema(description = "关联会议名称")
+    val conferenceName: String? = null
 )
 
 @Schema(description = "用户更新请求")
