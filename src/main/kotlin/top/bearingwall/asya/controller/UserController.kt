@@ -14,6 +14,7 @@ import top.bearingwall.asya.dto.UserResponse
 import top.bearingwall.asya.dto.UserInfoResponse
 import top.bearingwall.asya.dto.UserUpdateRequest
 import top.bearingwall.asya.model.UserRole
+import top.bearingwall.asya.service.SystemConfigService
 import top.bearingwall.asya.service.UserService
 import java.util.UUID
 
@@ -21,7 +22,8 @@ import java.util.UUID
 @RequestMapping("/api/users")
 @Tag(name = "用户管理", description = "用户注册等相关接口")
 class UserController(
-    private val userService: UserService
+    private val userService: UserService,
+    private val systemConfigService: SystemConfigService
 ) {
     @Operation(
         summary = "用户注册",
@@ -121,6 +123,35 @@ class UserController(
         }
     }
 
+    @Operation(summary = "管理员重置用户密码", description = "仅系统管理员可执行")
+    @PostMapping("/{uuid}/password-reset")
+    fun resetPassword(
+        @PathVariable uuid: UUID,
+        @RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String,
+        @RequestBody body: Map<String, String>
+    ): ResponseEntity<Result<Unit>> {
+        return try {
+            val token = extractBearer(authorization)
+            val parsed = top.bearingwall.asya.util.JwtUtil.parseToken(token)
+            val role = parsed.claims["role"]?.toString()
+            if (role != UserRole.SYS_ADMIN.name) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Result.failure(BizCode.PERMISSION_DENIED, "需要管理员权限"))
+            }
+
+            val newPassword = body["password"]
+            if (newPassword.isNullOrBlank()) {
+                throw IllegalArgumentException("密码不能为空")
+            }
+
+            userService.resetPassword(uuid, newPassword)
+
+            ResponseEntity.ok(Result.success(Unit))
+        } catch (e: Exception) {
+            handleException(e)
+        }
+    }
+
     @Operation(summary = "删除用户", description = "仅系统管理员可执行")
     @DeleteMapping("/{uuid}")
     fun deleteUser(
@@ -139,6 +170,40 @@ class UserController(
 
             userService.deleteUser(uuid)
             ResponseEntity.ok(Result.success(Unit))
+        } catch (e: Exception) {
+            handleException(e)
+        }
+    }
+
+    @Operation(summary = "设置是否允许注册", description = "仅系统管理员可执行。true: 允许, false: 禁止")
+    @PostMapping("/registration-switch")
+    fun setRegistrationSwitch(
+        @RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String,
+        @RequestParam allowed: Boolean
+    ): ResponseEntity<Result<Boolean>> {
+        return try {
+            val token = extractBearer(authorization)
+            // 简单校验角色：从 token 中解析角色
+            val parsed = top.bearingwall.asya.util.JwtUtil.parseToken(token)
+            val role = parsed.claims["role"]?.toString()
+            if (role != UserRole.SYS_ADMIN.name) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Result.failure(BizCode.PERMISSION_DENIED, "需要管理员权限"))
+            }
+
+            systemConfigService.setRegistrationAllowed(allowed)
+            ResponseEntity.ok(Result.success(allowed))
+        } catch (e: Exception) {
+            handleException(e)
+        }
+    }
+
+    @Operation(summary = "查询当前是否允许注册")
+    @GetMapping("/registration-switch")
+    fun getRegistrationSwitch(): ResponseEntity<Result<Boolean>> {
+        return try {
+            val allowed = systemConfigService.isRegistrationAllowed()
+            ResponseEntity.ok(Result.success(allowed))
         } catch (e: Exception) {
             handleException(e)
         }

@@ -16,7 +16,8 @@ import java.util.UUID
 
 @Service
 class UserService(
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val systemConfigService: SystemConfigService
 ) {
 
     private val log = LoggerFactory.getLogger(UserService::class.java)
@@ -25,6 +26,20 @@ class UserService(
     @Transactional
     fun registerUser(request: UserRegistrationRequest): UserResponse {
         log.info("Registering user, name={}, role={}", request.name, request.role)
+
+        // 检查全局注册开关 (如果是为了注册管理员，且系统还没有管理员，通常应该允许，但这里简单处理，如果想禁止一切注册就禁止)
+        // 实际上：如果系统还没有任何管理员，应该允许注册第一个管理员，否则死锁。
+        // 代码后面有 "if (request.role == UserRole.SYS_ADMIN && userRepository.existsByRole(UserRole.SYS_ADMIN))"
+        // 这意味着如果不允许重名，第一个管理员可以注册。
+        // 但如果开关是 "关闭" 的，是否还允许第一个管理员注册？
+        // 逻辑上：如果开关关了，没人能注册。除非是系统初始化。
+        // 但如果系统已经初始化了，开关关了，就不应该允许任何人注册。
+        // 为了安全，如果开关关闭，直接禁止所有注册。
+        // *特例*：如果没有管理员账号，系统可能不可用，所以如果 `existsByRole(SYS_ADMIN)` 为 false，则忽略开关强制允许（初始化阶段）。
+
+        if (!systemConfigService.isRegistrationAllowed() && userRepository.existsByRole(UserRole.SYS_ADMIN)) {
+            throw IllegalStateException("系统当前禁止新用户注册")
+        }
 
         val existing = userRepository.findByName(request.name)
         require(existing == null) { $$"User already exists: ${request.name}" }
@@ -174,5 +189,17 @@ class UserService(
         return userRepository.findById(userId).orElseThrow {
             IllegalStateException("User not found by token subject")
         }
+    }
+
+    @Transactional
+    fun resetPassword(uuid: UUID, newPassword: String) {
+        val user = userRepository.findById(uuid).orElseThrow {
+            IllegalArgumentException("User not found: $uuid")
+        }
+        val hashed: String = requireNotNull(passwordEncoder.encode(newPassword)) {
+            "BCryptPasswordEncoder returned null hash"
+        }
+        user.password = hashed
+        userRepository.save(user)
     }
 }
