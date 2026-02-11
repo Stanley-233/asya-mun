@@ -75,7 +75,7 @@ class MessageService(
 
     @Transactional(readOnly = true)
     fun getMessagesForConference(conferenceId: UUID, pageable: Pageable): Page<MessageResponse> {
-        return messageRepository.findBySessionConferenceUuidAndIsSecretFalse(conferenceId, pageable).map {
+        return messageRepository.findPublicMessagesByConference(conferenceId, pageable).map {
             it.toResponse(omitContent = true)
         }
     }
@@ -113,10 +113,17 @@ class MessageService(
         }
 
         if (message.isSecret) {
-            val isReceiver = message.receivers.any { it.uuid == requesterUuid }
-            val isSender = message.sender?.uuid == requesterUuid
-            if (!isReceiver && !isSender) {
-                throw SecurityException("Access denied for secret message")
+            val requester = userRepository.findById(requesterUuid).orElseThrow {
+                IllegalArgumentException("User not found: $requesterUuid")
+            }
+            val isPrivileged = requester.role in listOf(top.bearingwall.asya.model.UserRole.DH, top.bearingwall.asya.model.UserRole.DM, top.bearingwall.asya.model.UserRole.SYS_ADMIN)
+
+            if (!isPrivileged) {
+                val isReceiver = message.receivers.any { it.uuid == requesterUuid }
+                val isSender = message.sender?.uuid == requesterUuid
+                if (!isReceiver && !isSender) {
+                    throw SecurityException("Access denied for secret message")
+                }
             }
         }
 
