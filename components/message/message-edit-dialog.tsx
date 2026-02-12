@@ -223,7 +223,35 @@ export function MessageEditDialog({
     setSelectedUserIds([])
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const copyMessageContentToClipboard = async (content: string) => {
+    if (!content) return
+
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(content)
+        return
+      }
+    } catch (err) {
+      console.error('Failed to copy message content:', err)
+    }
+
+    try {
+      if (typeof document === 'undefined') return
+      const textarea = document.createElement('textarea')
+      textarea.value = content
+      textarea.setAttribute('readonly', 'true')
+      textarea.style.position = 'absolute'
+      textarea.style.left = '-9999px'
+      document.body.appendChild(textarea)
+      textarea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textarea)
+    } catch (err) {
+      console.error('Fallback copy failed:', err)
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!formData.title.trim()) {
@@ -245,6 +273,8 @@ export function MessageEditDialog({
       alert('非对称消息必须至少选择一个接收用户')
       return
     }
+
+    await copyMessageContentToClipboard(formData.content)
 
     if (isEditing && message) {
       // 更新消息
