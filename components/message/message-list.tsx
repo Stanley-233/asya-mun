@@ -45,25 +45,51 @@ export function MessageList({
   // 解析响应数据
   const parsedData = (() => {
     try {
-      if (!data) return null
+      if (!data) {
+        console.log('⚠️ data 为空')
+        return null
+      }
+      
+      console.log('📦 完整响应数据:', data)
+      
       const responseData = (data as any).data
-      if (!responseData) return null
+      if (!responseData) {
+        console.log('⚠️ responseData 为空')
+        return null
+      }
+      
+      console.log('📦 responseData 类型:', typeof responseData)
+      console.log('📦 responseData 内容:', responseData)
       
       const parsed = typeof responseData === 'string' 
         ? JSON.parse(responseData) 
         : responseData
       
-      return parsed.data || parsed
+      console.log('📦 parsed 结构:', parsed)
+      console.log('📦 parsed.data 存在?', !!parsed.data)
+      
+      const finalData = parsed.data || parsed
+      console.log('📦 最终分页数据:', finalData)
+      console.log('📦 totalPages:', finalData?.totalPages || finalData?.page?.totalPages)
+      console.log('📦 totalElements:', finalData?.totalElements || finalData?.page?.totalElements)
+      console.log('📦 content length:', finalData?.content?.length)
+      
+      return finalData
     } catch (err) {
-      console.error('Failed to parse message data:', err)
+      console.error('❌ 解析消息数据失败:', err)
       return null
     }
   })()
 
   const messages = parsedData?.content || []
-  const totalPages = parsedData?.totalPages || 0
-  const isFirstPage = parsedData?.first ?? true
-  const isLastPage = parsedData?.last ?? true
+  // 支持两种分页数据结构：Spring Boot 默认格式 (page 对象) 和扁平格式
+  const totalPages = parsedData?.totalPages || parsedData?.page?.totalPages || 0
+  const totalElements = parsedData?.totalElements || parsedData?.page?.totalElements || 0
+  const currentPageNumber = parsedData?.number ?? parsedData?.page?.number ?? currentPage
+  const isFirstPage = currentPageNumber === 0
+  const isLastPage = totalPages > 0 ? currentPageNumber >= totalPages - 1 : true
+  
+  console.log(`📄 分页信息: 当前页=${currentPage}, 页码=${currentPageNumber}, 总页数=${totalPages}, 总消息数=${totalElements}, 当前页消息数=${messages.length}`)
 
   const users: UserInfoResponse[] = (() => {
     try {
@@ -146,34 +172,36 @@ export function MessageList({
             ))}
           </div>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between border-t pt-4">
-              <div className="text-sm text-muted-foreground">
-                第 {currentPage + 1} 页，共 {totalPages} 页
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage((p) => p - 1)}
-                  disabled={isFirstPage}
-                >
-                  <ChevronLeft />
-                  上一页
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage((p) => p + 1)}
-                  disabled={isLastPage}
-                >
-                  下一页
-                  <ChevronRight />
-                </Button>
-              </div>
+          {/* Pagination - 始终显示，方便调试 */}
+          <div className="flex items-center justify-between border-t pt-4">
+            <div className="text-sm text-muted-foreground">
+              {totalPages > 0 ? (
+                <>第 {currentPage + 1} 页，共 {totalPages} 页 · 共 {totalElements} 条消息</>
+              ) : (
+                <>共 {messages.length} 条消息</>
+              )}
             </div>
-          )}
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((p) => p - 1)}
+                disabled={isFirstPage || currentPage === 0}
+              >
+                <ChevronLeft />
+                上一页
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((p) => p + 1)}
+                disabled={isLastPage}
+              >
+                下一页
+                <ChevronRight />
+              </Button>
+            </div>
+          </div>
         </>
       )}
     </div>
