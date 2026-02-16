@@ -53,6 +53,7 @@ export default function DirectiveAsymsgPage() {
   // 分页状态
   const [currentPage, setCurrentPage] = useState(0)
   const [pageSize] = useState(10)
+  const [pageIndexBase, setPageIndexBase] = useState<0 | 1>(0)
   
   // 对话框状态
   const [selectedMessageUuid, setSelectedMessageUuid] = useState<string | null>(null)
@@ -69,6 +70,8 @@ export default function DirectiveAsymsgPage() {
     }
   })
   
+  const requestPage = currentPage + pageIndexBase
+
   // 获取非对称消息列表
   const { data: messagesData, isLoading: messagesLoading, refetch } = useGetAllSecretInConference(
     {
@@ -76,7 +79,7 @@ export default function DirectiveAsymsgPage() {
       receiverId: receiverId || undefined,
       keyword: keyword || undefined,
       pageable: {
-        page: currentPage,
+        page: requestPage,
         size: pageSize,
         sort: ['publishRealTime,desc'],
       },
@@ -134,9 +137,76 @@ export default function DirectiveAsymsgPage() {
   })()
   
   const messages = parsedMessagesData?.content || []
-  const totalPages = parsedMessagesData?.totalPages || 0
-  const isFirstPage = parsedMessagesData?.first ?? true
-  const isLastPage = parsedMessagesData?.last ?? true
+  const rawTotalPages =
+    parsedMessagesData?.totalPages ??
+    parsedMessagesData?.totalPage ??
+    parsedMessagesData?.page?.totalPages ??
+    0
+  const totalElements =
+    parsedMessagesData?.totalElements ??
+    parsedMessagesData?.total ??
+    parsedMessagesData?.page?.totalElements ??
+    0
+  const sizeFromApi =
+    parsedMessagesData?.size ??
+    parsedMessagesData?.pageable?.pageSize ??
+    parsedMessagesData?.page?.size
+  const computedTotalPages =
+    rawTotalPages && rawTotalPages > 0
+      ? rawTotalPages
+      : totalElements && sizeFromApi
+        ? Math.ceil(totalElements / sizeFromApi)
+        : 0
+  const totalPages = computedTotalPages
+  const pageNumber =
+    parsedMessagesData?.number ??
+    parsedMessagesData?.pageable?.pageNumber ??
+    parsedMessagesData?.page?.number
+  const isFirstPage =
+    parsedMessagesData?.first ??
+    (typeof pageNumber === 'number' ? pageNumber <= 0 : true)
+  const isLastPage =
+    parsedMessagesData?.last ??
+    (typeof pageNumber === 'number' && totalPages > 0
+      ? pageNumber >= totalPages - 1
+      : true)
+
+  useEffect(() => {
+    if (!parsedMessagesData) return
+    if (typeof pageNumber !== 'number') return
+    if (currentPage !== 0) return
+    setPageIndexBase(pageNumber === 0 ? 0 : 1)
+  }, [parsedMessagesData, pageNumber, currentPage])
+
+  useEffect(() => {
+    if (!messagesData) return
+    console.log('[directive-asymsg] messagesData raw:', messagesData)
+    console.log('[directive-asymsg] parsedMessagesData:', parsedMessagesData)
+    console.log('[directive-asymsg] pagination:', {
+      currentPage,
+      requestPage,
+      pageSize,
+      totalPages,
+      totalElements,
+      rawTotalPages,
+      sizeFromApi,
+      pageNumber,
+      isFirstPage,
+      isLastPage,
+      contentLength: messages.length,
+    })
+  }, [messagesData])
+
+  useEffect(() => {
+    if (!parsedMessagesData) return
+    if (totalPages === 0 && currentPage !== 0) {
+      setCurrentPage(0)
+      return
+    }
+    if (totalPages > 0 && currentPage > totalPages - 1) {
+      setCurrentPage(totalPages - 1)
+    }
+  }, [parsedMessagesData, totalPages, currentPage])
   
   // 权限检查
   useEffect(() => {
@@ -315,6 +385,35 @@ export default function DirectiveAsymsgPage() {
                 </Button>
               </div>
             </div>
+
+            {/* 分页 */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between border-t pt-4">
+                <div className="text-sm text-muted-foreground">
+                  第 {currentPage + 1} 页，共 {totalPages} 页
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((p) => Math.max(0, p - 1))}
+                    disabled={isFirstPage}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    上一页
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages - 1, p + 1))}
+                    disabled={isLastPage}
+                  >
+                    下一页
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
             
             {/* 消息列表 */}
             {messagesLoading ? (
@@ -339,35 +438,6 @@ export default function DirectiveAsymsgPage() {
                     />
                   ))}
                 </div>
-                
-                {/* 分页 */}
-                {totalPages > 1 && (
-                  <div className="flex items-center justify-between border-t pt-4">
-                    <div className="text-sm text-muted-foreground">
-                      第 {currentPage + 1} 页，共 {totalPages} 页
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setCurrentPage((p) => p - 1)}
-                        disabled={isFirstPage}
-                      >
-                        <ChevronLeft className="w-4 h-4" />
-                        上一页
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setCurrentPage((p) => p + 1)}
-                        disabled={isLastPage}
-                      >
-                        下一页
-                        <ChevronRight className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
               </>
             )}
           </CardContent>

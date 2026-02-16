@@ -536,48 +536,6 @@ export default function ConferencePage() {
           </CardContent>
         </Card>
 
-        {/* 会议关联用户卡片 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>会议关联用户</CardTitle>
-            <CardDescription>查看参与当前会议的所有用户</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {!conference ? (
-              <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
-                <p className="text-sm text-yellow-900">请先创建或关联会议</p>
-              </div>
-            ) : usersLoading ? (
-              <p className="text-sm text-muted-foreground">加载中...</p>
-            ) : usersError ? (
-              <div className="bg-red-50 border border-red-200 p-4 rounded-lg">
-                <p className="text-sm text-red-900 font-semibold mb-2">加载用户失败</p>
-                <p className="text-xs text-red-800">
-                  {String(usersError).includes('no session') 
-                    ? '后端数据库会话错误，请联系管理员检查后端服务配置' 
-                    : String(usersError)}
-                </p>
-              </div>
-            ) : users.length === 0 ? (
-              <p className="text-sm text-muted-foreground">当前会议暂无关联用户</p>
-            ) : (
-              <div className="space-y-3">
-                {users.map((user) => (
-                  <div key={user.uuid} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                    <div className="flex-1">
-                      <p className="font-medium">{getUserLabel(user)}</p>
-                      <p className="text-sm text-muted-foreground font-mono">{user.uuid}</p>
-                    </div>
-                    <div className="text-sm font-medium">
-                      {roleLabels[user.role as keyof typeof roleLabels] || user.role}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
         {/* 会期管理卡片 */}
         <Card>
           <CardHeader>
@@ -711,6 +669,48 @@ export default function ConferencePage() {
               </div>
             )}
               </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* 会议关联用户卡片 */}
+        <Card>
+          <CardHeader>
+            <CardTitle>会议关联用户</CardTitle>
+            <CardDescription>查看参与当前会议的所有用户</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {!conference ? (
+              <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
+                <p className="text-sm text-yellow-900">请先创建或关联会议</p>
+              </div>
+            ) : usersLoading ? (
+              <p className="text-sm text-muted-foreground">加载中...</p>
+            ) : usersError ? (
+              <div className="bg-red-50 border border-red-200 p-4 rounded-lg">
+                <p className="text-sm text-red-900 font-semibold mb-2">加载用户失败</p>
+                <p className="text-xs text-red-800">
+                  {String(usersError).includes('no session') 
+                    ? '后端数据库会话错误，请联系管理员检查后端服务配置' 
+                    : String(usersError)}
+                </p>
+              </div>
+            ) : users.length === 0 ? (
+              <p className="text-sm text-muted-foreground">当前会议暂无关联用户</p>
+            ) : (
+              <div className="space-y-3">
+                {users.map((user) => (
+                  <div key={user.uuid} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                    <div className="flex-1">
+                      <p className="font-medium">{getUserLabel(user)}</p>
+                      <p className="text-sm text-muted-foreground font-mono">{user.uuid}</p>
+                    </div>
+                    <div className="text-sm font-medium">
+                      {roleLabels[user.role as keyof typeof roleLabels] || user.role}
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </CardContent>
         </Card>

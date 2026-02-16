@@ -139,6 +139,39 @@ export function MessageList({
         )}
       </div>
 
+      {/* Pagination - 标题下方 */}
+      {!isLoading && messages.length > 0 && (
+        <div className="flex items-center justify-between border-t pt-4">
+          <div className="text-sm text-muted-foreground">
+            {totalPages > 0 ? (
+              <>第 {currentPage + 1} 页，共 {totalPages} 页 · 共 {totalElements} 条消息</>
+            ) : (
+              <>共 {messages.length} 条消息</>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((p) => p - 1)}
+              disabled={isFirstPage || currentPage === 0}
+            >
+              <ChevronLeft />
+              上一页
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((p) => p + 1)}
+              disabled={isLastPage}
+            >
+              下一页
+              <ChevronRight />
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Loading State */}
       {isLoading && (
         <div className="flex items-center justify-center p-8 text-muted-foreground">
@@ -172,36 +205,6 @@ export function MessageList({
             ))}
           </div>
 
-          {/* Pagination - 始终显示，方便调试 */}
-          <div className="flex items-center justify-between border-t pt-4">
-            <div className="text-sm text-muted-foreground">
-              {totalPages > 0 ? (
-                <>第 {currentPage + 1} 页，共 {totalPages} 页 · 共 {totalElements} 条消息</>
-              ) : (
-                <>共 {messages.length} 条消息</>
-              )}
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage((p) => p - 1)}
-                disabled={isFirstPage || currentPage === 0}
-              >
-                <ChevronLeft />
-                上一页
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage((p) => p + 1)}
-                disabled={isLastPage}
-              >
-                下一页
-                <ChevronRight />
-              </Button>
-            </div>
-          </div>
         </>
       )}
     </div>
