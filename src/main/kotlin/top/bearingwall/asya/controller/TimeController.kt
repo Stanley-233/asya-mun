@@ -31,7 +31,10 @@ class TimeController(
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Result.failure(BizCode.PERMISSION_DENIED, "无权访问"))
             }
-            val list = timeService.getAllTimeAnchors()
+            val conferenceId = user.conference?.uuid ?: return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(Result.failure(BizCode.PARAM_ERROR, "未加入任何会议"))
+
+            val list = timeService.getAllTimeAnchors(conferenceId)
             ResponseEntity.ok(Result.success(list))
         } catch (e: Exception) {
             handleException(e)
@@ -44,8 +47,11 @@ class TimeController(
         @RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String
     ): ResponseEntity<Result<TimeAnchorResponse>> {
         return try {
-            userService.getUserFromToken(extractBearer(authorization))
-            val latest = timeService.getLatestTimeAnchor()
+            val user = userService.getUserFromToken(extractBearer(authorization))
+            val conferenceId = user.conference?.uuid ?: return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(Result.failure(BizCode.PARAM_ERROR, "未加入任何会议"))
+
+            val latest = timeService.getLatestTimeAnchor(conferenceId)
             if (latest != null) {
                 ResponseEntity.ok(Result.success(latest))
             } else {
@@ -62,8 +68,9 @@ class TimeController(
         @RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String
     ): SseEmitter {
         // 验证用户身份
-        userService.getUserFromToken(extractBearer(authorization))
-        return timeService.subscribe()
+        val user = userService.getUserFromToken(extractBearer(authorization))
+        val conferenceId = user.conference?.uuid ?: throw IllegalArgumentException("未加入任何会议")
+        return timeService.subscribe(conferenceId)
     }
 
     private fun extractBearer(authorization: String): String {
@@ -97,8 +104,11 @@ class TimeController(
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Result.failure(BizCode.PERMISSION_DENIED, "无权访问"))
             }
+            // 确保用户已加入会议
+            val conferenceId = user.conference?.uuid ?: return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(Result.failure(BizCode.PARAM_ERROR, "未加入任何会议"))
 
-            val resp = timeService.updateTimeAnchor(request)
+            val resp = timeService.updateTimeAnchor(request, conferenceId)
             ResponseEntity.ok(Result.success(resp))
         } catch (e: Exception) {
             handleException(e)
@@ -118,7 +128,10 @@ class TimeController(
                     .body(Result.failure(BizCode.PERMISSION_DENIED, "无权访问"))
             }
 
-            val resp = timeService.jumpTimeAnchor(request)
+            val conferenceId = user.conference?.uuid ?: return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(Result.failure(BizCode.PARAM_ERROR, "未加入任何会议"))
+
+            val resp = timeService.jumpTimeAnchor(request, conferenceId)
             ResponseEntity.ok(Result.success(resp))
         } catch (e: Exception) {
             handleException(e)
@@ -131,8 +144,11 @@ class TimeController(
         @RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String
     ): ResponseEntity<Result<CurrentTimeResponse>> {
         return try {
-            userService.getUserFromToken(extractBearer(authorization))
-            val time = timeService.getCurrentGameTime()
+            val user = userService.getUserFromToken(extractBearer(authorization))
+            val conferenceId = user.conference?.uuid ?: return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(Result.failure(BizCode.PARAM_ERROR, "未加入任何会议"))
+
+            val time = timeService.getCurrentGameTime(conferenceId)
             if (time != null) {
                 ResponseEntity.ok(Result.success(CurrentTimeResponse(time)))
             } else {

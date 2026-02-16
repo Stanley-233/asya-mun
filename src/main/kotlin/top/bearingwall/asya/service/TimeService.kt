@@ -9,6 +9,7 @@ import top.bearingwall.asya.dto.TimeAnchorResponse
 import top.bearingwall.asya.dto.TimeUpdateRequest
 import top.bearingwall.asya.dto.TimeJumpRequest
 import top.bearingwall.asya.model.TimeAnchor
+import top.bearingwall.asya.repository.ConferenceRepository
 import top.bearingwall.asya.repository.ConferenceSessionRepository
 import top.bearingwall.asya.repository.TimeAnchorRepository
 import java.io.IOException
@@ -20,53 +21,61 @@ import java.util.concurrent.CopyOnWriteArrayList
 @Service
 class TimeService(
     private val timeAnchorRepository: TimeAnchorRepository,
-    private val conferenceSessionRepository: ConferenceSessionRepository
+    private val conferenceSessionRepository: ConferenceSessionRepository,
+    private val conferenceRepository: ConferenceRepository
 ) {
     private val log = LoggerFactory.getLogger(TimeService::class.java)
-    private val emitters = CopyOnWriteArrayList<SseEmitter>()
+    private val emitters = java.util.concurrent.ConcurrentHashMap<UUID, CopyOnWriteArrayList<SseEmitter>>()
 
     @Transactional(readOnly = true)
-    fun getAllTimeAnchors(): List<TimeAnchorResponse> {
-        return timeAnchorRepository.findAll().map { it.toResponse() }
+    fun getAllTimeAnchors(conferenceUuid: UUID): List<TimeAnchorResponse> {
+        return timeAnchorRepository.findAllBySessionConferenceUuid(conferenceUuid).map { it.toResponse() }
     }
 
     @Transactional(readOnly = true)
-    fun getLatestTimeAnchor(): TimeAnchorResponse? {
-        // First try to find the one marked as current
-        val current = timeAnchorRepository.findByIsCurrentTrue()
-        if (current != null) {
-            return current.toResponse()
-        }
-        // Fallback to the most recent one by ID
-        return timeAnchorRepository.findFirstByOrderByIdDesc()?.toResponse()
+    fun getLatestTimeAnchor(conferenceUuid: UUID): TimeAnchorResponse? {
+        val conference = conferenceRepository.findById(conferenceUuid).orElse(null) ?: return null
+        val currentSession = conference.currentSession ?: return null
+
+        return (timeAnchorRepository.findFirstBySessionUuidAndIsCurrentTrue(currentSession.uuid!!)
+            ?: timeAnchorRepository.findFirstBySessionUuidOrderByIdDesc(currentSession.uuid!!))
+            ?.toResponse()
     }
 
     @Transactional(readOnly = true)
-    fun subscribe(): SseEmitter {
+    fun subscribe(conferenceUuid: UUID): SseEmitter {
         val emitter = SseEmitter(Long.MAX_VALUE)
-        emitters.add(emitter)
+        emitters.computeIfAbsent(conferenceUuid) { CopyOnWriteArrayList() }.add(emitter)
+
+        val removeEmitter = {
+            log.debug("Removing emitter for conference {}", conferenceUuid)
+            emitters[conferenceUuid]?.remove(emitter)
+            if (emitters[conferenceUuid]?.isEmpty() == true) {
+                emitters.remove(conferenceUuid)
+            }
+        }
 
         emitter.onCompletion {
             log.debug("Emitter completed")
-            emitters.remove(emitter)
+            removeEmitter()
         }
         emitter.onTimeout {
             log.debug("Emitter timed out")
-            emitters.remove(emitter)
+            removeEmitter()
         }
         emitter.onError {
             log.debug("Emitter error")
-            emitters.remove(emitter)
+            removeEmitter()
         }
 
         // Immediately send the latest state if available?
         // Often good practice for SSE to send initial state.
-        val latest = getLatestTimeAnchor()
+        val latest = getLatestTimeAnchor(conferenceUuid)
         if (latest != null) {
             try {
                 emitter.send(SseEmitter.event().name("init").data(latest))
             } catch (_: IOException) {
-                emitters.remove(emitter)
+                removeEmitter()
             }
         }
 
@@ -74,23 +83,28 @@ class TimeService(
     }
 
     fun broadcast(anchor: TimeAnchor, eventName: String = "TIME_UPDATE") {
+        val conferenceUuid = anchor.session?.conference?.uuid ?: return
+        val conferenceEmitters = emitters[conferenceUuid] ?: return
         val response = anchor.toResponse()
         val deadEmitters = mutableListOf<SseEmitter>()
-        emitters.forEach { emitter ->
+        conferenceEmitters.forEach { emitter ->
             try {
                 emitter.send(SseEmitter.event().name(eventName).data(response))
             } catch (_: IOException) {
                 deadEmitters.add(emitter)
             }
         }
-        emitters.removeAll(deadEmitters.toSet())
+        conferenceEmitters.removeAll(deadEmitters.toSet())
     }
 
     @Transactional
-    fun updateTimeAnchor(request: TimeUpdateRequest): TimeAnchorResponse {
+    fun updateTimeAnchor(request: TimeUpdateRequest, conferenceUuid: UUID): TimeAnchorResponse {
         val sessionUuid = UUID.fromString(request.sessionId)
         val session = conferenceSessionRepository.findById(sessionUuid).orElseThrow {
             IllegalArgumentException("Session not found: ${request.sessionId}")
+        }
+        if (session.conference.uuid != conferenceUuid) {
+            throw IllegalArgumentException("Session not found in current conference")
         }
 
         // 1. Find latest anchor
@@ -151,10 +165,13 @@ class TimeService(
     }
 
     @Transactional
-    fun jumpTimeAnchor(request: TimeJumpRequest): TimeAnchorResponse {
+    fun jumpTimeAnchor(request: TimeJumpRequest, conferenceUuid: UUID): TimeAnchorResponse {
         val sessionUuid = UUID.fromString(request.sessionId)
         val session = conferenceSessionRepository.findById(sessionUuid).orElseThrow {
             IllegalArgumentException("Session not found: ${request.sessionId}")
+        }
+        if (session.conference.uuid != conferenceUuid) {
+            throw IllegalArgumentException("Session not found in current conference")
         }
         val now = LocalDateTime.now()
 
@@ -183,9 +200,12 @@ class TimeService(
     }
 
     @Transactional(readOnly = true)
-    fun getCurrentGameTime(): LocalDateTime? {
-        val anchor = timeAnchorRepository.findByIsCurrentTrue()
-            ?: timeAnchorRepository.findFirstByOrderByIdDesc()
+    fun getCurrentGameTime(conferenceUuid: UUID): LocalDateTime? {
+        val conference = conferenceRepository.findById(conferenceUuid).orElse(null) ?: return null
+        val currentSession = conference.currentSession ?: return null
+
+        val anchor = timeAnchorRepository.findFirstBySessionUuidAndIsCurrentTrue(currentSession.uuid!!)
+            ?: timeAnchorRepository.findFirstBySessionUuidOrderByIdDesc(currentSession.uuid!!)
             ?: return null
 
         if (anchor.session?.status == SessionStatus.PAUSED) {
