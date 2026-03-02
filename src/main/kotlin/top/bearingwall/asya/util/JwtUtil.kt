@@ -1,7 +1,6 @@
 package top.bearingwall.asya.util
 
 import io.jsonwebtoken.Jwts
-import io.jsonwebtoken.SignatureAlgorithm
 import io.jsonwebtoken.security.Keys
 import io.jsonwebtoken.security.WeakKeyException
 import java.nio.charset.StandardCharsets
@@ -34,21 +33,21 @@ object JwtUtil {
     fun generateToken(subject: String, claims: Map<String, Any> = emptyMap()): String {
         val now = Instant.now()
         return Jwts.builder()
-            .setSubject(subject)
-            .addClaims(claims)
-            .setIssuedAt(Date.from(now))
-            .setExpiration(Date.from(now.plusSeconds(EXPIRATION_SECONDS)))
-            .signWith(key, SignatureAlgorithm.HS256)
+            .subject(subject)
+            .claims(claims)
+            .issuedAt(Date.from(now))
+            .expiration(Date.from(now.plusSeconds(EXPIRATION_SECONDS)))
+            .signWith(key, Jwts.SIG.HS256)
             .compact()
     }
 
     // Parse JWT and return subject and claims. Throws if invalid/expired.
     fun parseToken(token: String): ParsedToken {
-        val jwt = Jwts.parserBuilder()
-            .setSigningKey(key)
+        val claims = Jwts.parser()
+            .verifyWith(key)
             .build()
-            .parseClaimsJws(token)
-        val claims = jwt.body
+            .parseSignedClaims(token)
+            .payload
         return ParsedToken(
             subject = claims.subject,
             claims = claims

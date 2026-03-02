@@ -70,5 +70,5 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
             cd /home/ubuntu/asya-backend
-            systemctl restart asya-backend.service
+            sudo systemctl restart asya-backend.service
             
