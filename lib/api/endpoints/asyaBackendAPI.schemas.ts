@@ -126,8 +126,8 @@ export const MessageResponseMsgType = {
 export interface MessageResponse {
   /** 消息UUID */
   uuid: string;
-  /** 会期UUID */
-  sessionId: string;
+  /** 会议UUID */
+  conferenceId: string;
   /** 发送者UUID */
   senderId?: string;
   /** 发送者名称 */
@@ -196,35 +196,6 @@ export const ConferenceResponseStatus = {
 } as const;
 
 /**
- * 会期状态
- */
-export type ConferenceSessionResponseStatus =
-  (typeof ConferenceSessionResponseStatus)[keyof typeof ConferenceSessionResponseStatus];
-
-export const ConferenceSessionResponseStatus = {
-  PREPARE: "PREPARE",
-  RUNNING: "RUNNING",
-  PAUSED: "PAUSED",
-  ENDED: "ENDED",
-} as const;
-
-/**
- * 会期响应信息
- */
-export interface ConferenceSessionResponse {
-  /** 会期ID */
-  uuid: string;
-  /** 所属会议ID */
-  conferenceId: string;
-  /** 会期名称 */
-  name: string;
-  /** 会期描述 */
-  description?: string;
-  /** 会期状态 */
-  status: ConferenceSessionResponseStatus;
-}
-
-/**
  * 会议信息响应
  */
 export interface ConferenceResponse {
@@ -236,8 +207,6 @@ export interface ConferenceResponse {
   description: string;
   /** 会议状态 */
   status: ConferenceResponseStatus;
-  /** 当前会期 */
-  currentSession?: ConferenceSessionResponse;
 }
 
 /**
@@ -249,42 +218,6 @@ export interface ResultConferenceResponse {
   /** 提示信息 */
   message: string;
   data?: ConferenceResponse;
-}
-
-/**
- * 会期状态
- */
-export type ConferenceSessionRequestStatus =
-  (typeof ConferenceSessionRequestStatus)[keyof typeof ConferenceSessionRequestStatus];
-
-export const ConferenceSessionRequestStatus = {
-  PREPARE: "PREPARE",
-  RUNNING: "RUNNING",
-  PAUSED: "PAUSED",
-  ENDED: "ENDED",
-} as const;
-
-/**
- * 创建/修改会期请求
- */
-export interface ConferenceSessionRequest {
-  /** 会期名称 */
-  name: string;
-  /** 会期描述 */
-  description?: string;
-  /** 会期状态 */
-  status: ConferenceSessionRequestStatus;
-}
-
-/**
- * 统一接口返回结构
- */
-export interface ResultConferenceSessionResponse {
-  /** 状态码 */
-  code: number;
-  /** 提示信息 */
-  message: string;
-  data?: ConferenceSessionResponse;
 }
 
 /**
@@ -419,8 +352,6 @@ export interface ResultBatchRegisterResponse {
 }
 
 export interface TimeUpdateRequest {
-  /** 会期ID */
-  sessionId: string;
   /** 时间流速 */
   timeRatio: number;
 }
@@ -431,8 +362,8 @@ export interface TimeUpdateRequest {
 export interface TimeAnchorResponse {
   /** ID */
   id: number;
-  /** 会期ID */
-  sessionId?: string;
+  /** 会议ID */
+  conferenceId?: string;
   /** 更新时间 */
   updateTime?: string;
   /** 锚点物理时间 */
@@ -457,8 +388,6 @@ export interface ResultTimeAnchorResponse {
 }
 
 export interface TimeJumpRequest {
-  /** 会期ID */
-  sessionId: string;
   /** 目标游戏时间 */
   targetGameTime: string;
   /** 时间流速 */
@@ -483,8 +412,6 @@ export const MessageCreateRequestMsgType = {
  * 创建消息请求
  */
 export interface MessageCreateRequest {
-  /** 会期ID(UUID) */
-  sessionId: string;
   /** 标题 */
   title: string;
   /** 内容(富文本) */
@@ -535,10 +462,6 @@ export interface ResultListTimeAnchorResponse {
   data?: TimeAnchorResponse[];
 }
 
-export interface SseEmitter {
-  timeout?: number;
-}
-
 export interface CurrentTimeResponse {
   /** 当前游戏时间 */
   currentGameTime: string;
@@ -565,8 +488,8 @@ export interface Pageable {
 
 export interface Sortnull {
   empty?: boolean;
-  unsorted?: boolean;
   sorted?: boolean;
+  unsorted?: boolean;
 }
 
 export interface Pageablenull {
@@ -579,16 +502,16 @@ export interface Pageablenull {
 }
 
 export interface Pagenull {
-  totalPages?: number;
   totalElements?: number;
+  totalPages?: number;
   first?: boolean;
   last?: boolean;
   size?: number;
   content?: MessageResponse[];
   number?: number;
   sort?: Sortnull;
-  pageable?: Pageablenull;
   numberOfElements?: number;
+  pageable?: Pageablenull;
   empty?: boolean;
 }
 
@@ -612,17 +535,6 @@ export interface ResultString {
   /** 提示信息 */
   message: string;
   data?: string;
-}
-
-/**
- * 统一接口返回结构
- */
-export interface ResultListConferenceSessionResponse {
-  /** 状态码 */
-  code: number;
-  /** 提示信息 */
-  message: string;
-  data?: ConferenceSessionResponse[];
 }
 
 /**

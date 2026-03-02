@@ -9,16 +9,16 @@ import { Label } from "@/components/ui/label"
 import { CurrentGameTimeCard } from "@/components/current-game-time-card"
 import { useCurrentGameTime } from "@/lib/hooks/use-current-game-time"
 import { useGetAll1, useGetLatest, useJump, useUpdate2 } from "@/lib/api/endpoints/时间轴管理/时间轴管理"
-import type { TimeAnchorResponse, ConferenceSessionResponse } from "@/lib/api/endpoints/asyaBackendAPI.schemas"
+import type { TimeAnchorResponse } from "@/lib/api/endpoints/asyaBackendAPI.schemas"
 
 interface TimelineManagerProps {
-  currentSession: ConferenceSessionResponse | null
+  currentSession?: { uuid?: string } | null
 }
 
 // 游戏开始时间：公元前450年1月1日
 const GAME_START_DATE = new Date(-450, 0, 1)
 
-export function TimelineManager({ currentSession }: TimelineManagerProps) {
+export function TimelineManager({ currentSession: _currentSession }: TimelineManagerProps) {
   const { data: allAnchorsData, isLoading: anchorsLoading, refetch: refetchAnchors } = useGetAll1()
   const { data: latestAnchorData, isLoading: latestLoading, refetch: refetchLatest } = useGetLatest()
   const jumpMutation = useJump()
@@ -91,11 +91,6 @@ export function TimelineManager({ currentSession }: TimelineManagerProps) {
 
   // 处理时间跳跃
   const handleTimeJump = async () => {
-    if (!currentSession?.uuid) {
-      alert('请先选择当前会期')
-      return
-    }
-
     try {
       // 构造目标时间字符串（LocalDateTime格式，不带时区）
       // 格式: YYYY-MM-DDTHH:mm:ss
@@ -124,13 +119,11 @@ export function TimelineManager({ currentSession }: TimelineManagerProps) {
         minute,
         second,
         targetGameTime,
-        timeRatio,
-        sessionId: currentSession.uuid
+        timeRatio
       })
 
       await jumpMutation.mutateAsync({
         data: {
-          sessionId: currentSession.uuid,
           targetGameTime,
           timeRatio
         }
@@ -149,15 +142,9 @@ export function TimelineManager({ currentSession }: TimelineManagerProps) {
 
   // 处理时间轴更新（启动/恢复/变速）
   const handleTimeUpdate = async (newRatio: number) => {
-    if (!currentSession?.uuid) {
-      alert('请先选择当前会期')
-      return
-    }
-
     try {
       await updateMutation.mutateAsync({
         data: {
-          sessionId: currentSession.uuid,
           timeRatio: newRatio
         }
       })
@@ -208,22 +195,6 @@ export function TimelineManager({ currentSession }: TimelineManagerProps) {
     } catch {
       return '未知'
     }
-  }
-
-  if (!currentSession) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>时间轴管理</CardTitle>
-          <CardDescription>管理游戏时间流动</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground text-center py-4">
-            请先选择当前会期才能管理时间轴
-          </p>
-        </CardContent>
-      </Card>
-    )
   }
 
   return (
@@ -448,7 +419,7 @@ export function TimelineManager({ currentSession }: TimelineManagerProps) {
         </CardContent>
       </Card>
 
-      {/* 所有时间锚点列表 */}
+      {/* 所有时间锚点列表
       <Card>
         <CardHeader>
           <CardTitle>时间锚点历史</CardTitle>
@@ -511,7 +482,7 @@ export function TimelineManager({ currentSession }: TimelineManagerProps) {
             </div>
           )}
         </CardContent>
-      </Card>
+      </Card> */}
     </div>
   )
 }

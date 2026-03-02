@@ -396,30 +396,10 @@ export type getAllResponse = getAllResponseSuccess;
 export const getGetAllUrl = (params: GetAllParams) => {
   const normalizedParams = new URLSearchParams();
 
-  const appendPageable = (pageable?: GetAllParams["pageable"]) => {
-    if (!pageable) return;
-    if (pageable.page !== undefined) {
-      normalizedParams.append("page", pageable.page.toString());
-    }
-    if (pageable.size !== undefined) {
-      normalizedParams.append("size", pageable.size.toString());
-    }
-    if (pageable.sort && Array.isArray(pageable.sort)) {
-      pageable.sort.forEach((sortItem) => {
-        if (sortItem !== undefined && sortItem !== null) {
-          normalizedParams.append("sort", sortItem.toString());
-        }
-      });
-    }
-  };
-
   Object.entries(params || {}).forEach(([key, value]) => {
-    if (value === undefined) return;
-    if (key === "pageable" && typeof value === "object" && value !== null) {
-      appendPageable(value as GetAllParams["pageable"]);
-      return;
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
     }
-    normalizedParams.append(key, value === null ? "null" : value.toString());
   });
 
   const stringifiedParams = normalizedParams.toString();
@@ -819,7 +799,7 @@ export function useGetReceivers<
 }
 
 /**
- * 分页查询用户发送或接收的非对称消息。
+ * 分页查询用户作为接收者的非对称消息。
  * @summary 查询用户的非对称消息
  */
 export type getSecretMessagesResponse200 = {
@@ -835,30 +815,10 @@ export type getSecretMessagesResponse = getSecretMessagesResponseSuccess;
 export const getGetSecretMessagesUrl = (params: GetSecretMessagesParams) => {
   const normalizedParams = new URLSearchParams();
 
-  const appendPageable = (pageable?: GetSecretMessagesParams["pageable"]) => {
-    if (!pageable) return;
-    if (pageable.page !== undefined) {
-      normalizedParams.append("page", pageable.page.toString());
-    }
-    if (pageable.size !== undefined) {
-      normalizedParams.append("size", pageable.size.toString());
-    }
-    if (pageable.sort && Array.isArray(pageable.sort)) {
-      pageable.sort.forEach((sortItem) => {
-        if (sortItem !== undefined && sortItem !== null) {
-          normalizedParams.append("sort", sortItem.toString());
-        }
-      });
-    }
-  };
-
   Object.entries(params || {}).forEach(([key, value]) => {
-    if (value === undefined) return;
-    if (key === "pageable" && typeof value === "object" && value !== null) {
-      appendPageable(value as GetSecretMessagesParams["pageable"]);
-      return;
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
     }
-    normalizedParams.append(key, value === null ? "null" : value.toString());
   });
 
   const stringifiedParams = normalizedParams.toString();
@@ -1051,32 +1011,10 @@ export const getGetAllSecretInConferenceUrl = (
 ) => {
   const normalizedParams = new URLSearchParams();
 
-  const appendPageable = (
-    pageable?: GetAllSecretInConferenceParams["pageable"],
-  ) => {
-    if (!pageable) return;
-    if (pageable.page !== undefined) {
-      normalizedParams.append("page", pageable.page.toString());
-    }
-    if (pageable.size !== undefined) {
-      normalizedParams.append("size", pageable.size.toString());
-    }
-    if (pageable.sort && Array.isArray(pageable.sort)) {
-      pageable.sort.forEach((sortItem) => {
-        if (sortItem !== undefined && sortItem !== null) {
-          normalizedParams.append("sort", sortItem.toString());
-        }
-      });
-    }
-  };
-
   Object.entries(params || {}).forEach(([key, value]) => {
-    if (value === undefined) return;
-    if (key === "pageable" && typeof value === "object" && value !== null) {
-      appendPageable(value as GetAllSecretInConferenceParams["pageable"]);
-      return;
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
     }
-    normalizedParams.append(key, value === null ? "null" : value.toString());
   });
 
   const stringifiedParams = normalizedParams.toString();

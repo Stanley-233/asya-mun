@@ -8,10 +8,10 @@ import { CurrentGameTimeCard } from "@/components/current-game-time-card"
 import { useCurrentGameTime } from "@/lib/hooks/use-current-game-time"
 import { useTimelineStream } from "@/lib/hooks/use-timeline-stream"
 import { useAuth } from "@/lib/contexts/auth-context"
-import { useGetMine, useGetCurrentSession } from "@/lib/api/endpoints/会议管理/会议管理"
+import { useGetMine } from "@/lib/api/endpoints/会议管理/会议管理"
 import { useGetLatest } from "@/lib/api/endpoints/时间轴管理/时间轴管理"
 import { useDelete } from "@/lib/api/endpoints/消息管理/消息管理"
-import type { ConferenceResponse, ConferenceSessionResponse, TimeAnchorResponse, MessageResponse } from "@/lib/api/endpoints/asyaBackendAPI.schemas"
+import type { ConferenceResponse, TimeAnchorResponse, MessageResponse } from "@/lib/api/endpoints/asyaBackendAPI.schemas"
 import { TimelineManager } from "@/components/timeline-manager"
 import { MessageList, MessageDetailDialog, MessageEditDialog } from "@/components/message"
 import { AlertDialogCancel } from "@/components/ui/alert-dialog"
@@ -20,13 +20,6 @@ const statusLabels = {
   'PREPARING': '筹备中',
   'RUNNING': '进行中',
   'COMPLETED': '已结束'
-}
-
-const sessionStatusLabels = {
-  'PREPARE': '准备中',
-  'RUNNING': '进行中',
-  'PAUSED': '暂停',
-  'ENDED': '已结束'
 }
 
 // 格式化游戏时间为表单输入格式
@@ -56,12 +49,10 @@ function formatGameTimeForInput(date: Date | null): string {
 export default function ProgressPage() {
   const { isLoading: authLoading, isAuthenticated } = useAuth()
   const { data: conferenceData, isLoading: conferenceLoading } = useGetMine()
-  const { data: currentSessionData, isLoading: sessionLoading } = useGetCurrentSession()
-  const { data: latestAnchorData, isLoading: latestLoading, refetch: refetchLatest } = useGetLatest()
+  const { data: latestAnchorData, isLoading: latestLoading } = useGetLatest()
   const { mutate: deleteMessage, isPending: isDeleting } = useDelete()
 
   const [conference, setConference] = useState<ConferenceResponse | null>(null)
-  const [currentSession, setCurrentSession] = useState<ConferenceSessionResponse | null>(null)
   const [latestAnchor, setLatestAnchor] = useState<TimeAnchorResponse | null>(null)
   
   // 弹窗状态
@@ -126,25 +117,6 @@ export default function ProgressPage() {
       }
     }
   }, [conferenceData, conferenceLoading])
-
-  useEffect(() => {
-    if (currentSessionData && !sessionLoading) {
-      try {
-        const responseData = (currentSessionData as any).data
-        if (responseData) {
-          const parsedData = typeof responseData === 'string'
-            ? JSON.parse(responseData)
-            : responseData
-
-          const sessionInfo = parsedData.data || parsedData
-          setCurrentSession(sessionInfo)
-        }
-      } catch (err) {
-        console.error('Failed to parse session data:', err)
-        setCurrentSession(null)
-      }
-    }
-  }, [currentSessionData, sessionLoading])
 
   // 解析最新锚点数据
   useEffect(() => {
@@ -297,48 +269,6 @@ export default function ProgressPage() {
               )}
             </div>
 
-            {/* 分割线 */}
-            <div className="border-t"></div>
-
-            {/* 当前会期信息 */}
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-lg font-semibold text-muted-foreground">当前会期</h3>
-                {currentSession && (
-                  <Badge 
-                    variant={currentSession.status === 'RUNNING' ? 'default' : 'secondary'}
-                    className={`text-sm px-3 py-1 ${
-                      currentSession.status === 'RUNNING'
-                        ? 'bg-green-600 hover:bg-green-700'
-                        : currentSession.status === 'PAUSED'
-                        ? 'bg-yellow-600 hover:bg-yellow-700'
-                        : currentSession.status === 'ENDED'
-                        ? 'bg-gray-600 hover:bg-gray-700'
-                        : 'bg-blue-600 hover:bg-blue-700'
-                    }`}
-                  >
-                    {sessionStatusLabels[currentSession.status as keyof typeof sessionStatusLabels] || currentSession.status}
-                  </Badge>
-                )}
-              </div>
-              {sessionLoading ? (
-                <div className="bg-muted/50 p-6 rounded-lg text-center">
-                  <p className="text-muted-foreground">加载中...</p>
-                </div>
-              ) : !currentSession ? (
-                <div className="bg-muted/50 p-6 rounded-lg text-center">
-                  <p className="text-muted-foreground">当前没有进行中的会期</p>
-                  <p className="text-sm text-muted-foreground mt-2">请等待会议管理员设置当前会期</p>
-                </div>
-              ) : (
-                <div className="bg-primary/5 border border-primary/20 p-4 rounded-lg">
-                  <h4 className="text-xl font-bold mb-2">{currentSession.name}</h4>
-                  {currentSession.description && (
-                    <p className="text-muted-foreground">{currentSession.description}</p>
-                  )}
-                </div>
-              )}
-            </div>
           </CardContent>
         </Card>
         </div>
@@ -371,7 +301,6 @@ export default function ProgressPage() {
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
         message={editingMessage}
-        sessionId={currentSession?.uuid || ''}
         currentGameTime={formatGameTimeForInput(currentGameTime)}
       />
 

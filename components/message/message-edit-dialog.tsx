@@ -28,7 +28,6 @@ interface MessageEditDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   message?: MessageResponse | null
-  sessionId?: string
   currentGameTime?: string
 }
 
@@ -70,7 +69,6 @@ export function MessageEditDialog({
   open,
   onOpenChange,
   message,
-  sessionId,
   currentGameTime,
 }: MessageEditDialogProps) {
   const queryClient = useQueryClient()
@@ -95,7 +93,6 @@ export function MessageEditDialog({
     publishRealTime: '',
     publishGameTime: '',
     isSecret: false,
-    sessionId: sessionId || '',
   })
 
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([])
@@ -188,7 +185,6 @@ export function MessageEditDialog({
         publishRealTime: fullMessage.publishRealTime || '',
         publishGameTime: fullMessage.publishGameTime || '',
         isSecret: fullMessage.isSecret || false,
-        sessionId: fullMessage.sessionId || sessionId || '',
       })
       // TODO: 如果需要编辑时显示已选择的用户，需要从消息详情接口获取
       setSelectedUserIds([])
@@ -202,12 +198,11 @@ export function MessageEditDialog({
         publishRealTime: '',
         publishGameTime: currentGameTime || '',
         isSecret: false,
-        sessionId: sessionId || '',
       })
       setSelectedUserIds([])
     }
     // 不包含currentGameTime，避免每次时间更新时重置表单
-  }, [message, open, sessionId, messageDetailData])
+  }, [message, open, messageDetailData])
 
   const resetForm = () => {
     setFormData({
@@ -218,7 +213,6 @@ export function MessageEditDialog({
       publishRealTime: '',
       publishGameTime: currentGameTime || '',
       isSecret: false,
-      sessionId: sessionId || '',
     })
     setSelectedUserIds([])
   }
@@ -290,13 +284,7 @@ export function MessageEditDialog({
       updateMutation.mutate({ uuid: message.uuid, data: updateData })
     } else {
       // 创建消息
-      if (!formData.sessionId) {
-        alert('会期ID不能为空')
-        return
-      }
-
       const createData: MessageCreateRequest = {
-        sessionId: formData.sessionId,
         title: formData.title,
         content: formData.content,
         brief: formData.brief || undefined,
@@ -417,19 +405,6 @@ export function MessageEditDialog({
               </div>
 
               {/* Session ID (only for create) */}
-              {!isEditing && (
-                <div className="space-y-2">
-                  <Label htmlFor="sessionId">会期ID *</Label>
-                  <Input
-                    id="sessionId"
-                    value={formData.sessionId}
-                    onChange={(e) => setFormData({ ...formData, sessionId: e.target.value })}
-                    placeholder="请输入会期UUID"
-                    required
-                  />
-                </div>
-              )}
-
               {/* Is Secret */}
               <div className="flex items-center gap-2 pt-2">
                 <input

@@ -180,9 +180,9 @@ export default function DirectiveAsymsgPage() {
 
   useEffect(() => {
     if (!messagesData) return
-    console.log('[directive-asymsg] messagesData raw:', messagesData)
-    console.log('[directive-asymsg] parsedMessagesData:', parsedMessagesData)
-    console.log('[directive-asymsg] pagination:', {
+    console.log('[asymsg] messagesData raw:', messagesData)
+    console.log('[asymsg] parsedMessagesData:', parsedMessagesData)
+    console.log('[asymsg] pagination:', {
       currentPage,
       requestPage,
       pageSize,

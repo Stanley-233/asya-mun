@@ -30,7 +30,7 @@ export function Navbar() {
             { href: "/progress", label: "会议" },
             ...(canManageConference ? [
               { href: "/conference", label: "会议管理" },
-              { href: "/directive-asymsg", label: "指令与非对称" }
+              { href: "/asymsg", label: "指令与非对称" }
             ] : []),
             ...(isSysAdmin ? [{ href: "/admin", label: "系统管理" }] : []),
           ]
