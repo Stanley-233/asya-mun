@@ -62,17 +62,6 @@ class TimeController(
         }
     }
 
-    @Operation(summary = "订阅时间轴变化", description = "SSE流")
-    @GetMapping("/stream", produces = [MediaType.TEXT_EVENT_STREAM_VALUE])
-    fun stream(
-        @RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String
-    ): SseEmitter {
-        // 验证用户身份
-        val user = userService.getUserFromToken(extractBearer(authorization))
-        val conferenceId = user.conference?.uuid ?: throw IllegalArgumentException("未加入任何会议")
-        return timeService.subscribe(conferenceId)
-    }
-
     private fun extractBearer(authorization: String): String {
         val prefix = "Bearer "
         if (!authorization.startsWith(prefix)) {

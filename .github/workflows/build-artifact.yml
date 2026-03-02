@@ -36,39 +36,39 @@ jobs:
           build/libs/*.jar
           !build/libs/*-plain.jar
 
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download deployment package
-        uses: actions/download-artifact@v4
-        with:
-          name: executable-jar
-          path: build/libs
-
-      - name: Prepare deployment jar
-        run: |
-          set -euo pipefail
-          JAR_PATH=$(ls -1 build/libs/*.jar | grep -v -- '-plain.jar' | head -n 1)
-          cp "$JAR_PATH" build/libs/asya-backend.jar
-
-      - name: Upload to Server
-        uses: appleboy/scp-action@master
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          source: build/libs/asya-backend.jar
-          target: /home/ubuntu/asya-backend/
-          strip_components: 2
-
-      - name: Deploy
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          script: |
-            cd /home/ubuntu/asya-backend
-            sudo systemctl restart asya-backend.service
-            
+#  deploy:
+#    needs: build
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Download deployment package
+#        uses: actions/download-artifact@v4
+#        with:
+#          name: executable-jar
+#          path: build/libs
+#
+#      - name: Prepare deployment jar
+#        run: |
+#          set -euo pipefail
+#          JAR_PATH=$(ls -1 build/libs/*.jar | grep -v -- '-plain.jar' | head -n 1)
+#          cp "$JAR_PATH" build/libs/asya-backend.jar
+#
+#      - name: Upload to Server
+#        uses: appleboy/scp-action@master
+#        with:
+#          host: ${{ secrets.SERVER_HOST }}
+#          username: ${{ secrets.SERVER_USER }}
+#          key: ${{ secrets.SERVER_SSH_KEY }}
+#          source: build/libs/asya-backend.jar
+#          target: /home/ubuntu/asya-backend/
+#          strip_components: 2
+#
+#      - name: Deploy
+#        uses: appleboy/ssh-action@master
+#        with:
+#          host: ${{ secrets.SERVER_HOST }}
+#          username: ${{ secrets.SERVER_USER }}
+#          key: ${{ secrets.SERVER_SSH_KEY }}
+#          script: |
+#            cd /home/ubuntu/asya-backend
+#            sudo systemctl restart asya-backend.service
+#

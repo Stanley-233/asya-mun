@@ -12,7 +12,7 @@ interface MessageRepository : JpaRepository<Message, UUID> {
     @Query("SELECT m FROM Message m WHERE m.session.conference.uuid = :conferenceUuid AND m.isSecret = false")
     fun findPublicMessagesByConference(conferenceUuid: UUID, pageable: Pageable): Page<Message>
 
-    @Query("SELECT DISTINCT m FROM Message m LEFT JOIN m.receivers r WHERE m.isSecret = true AND (m.sender.uuid = :userUuid OR r.uuid = :userUuid)")
+    @Query("SELECT DISTINCT m FROM Message m JOIN m.receivers r WHERE m.isSecret = true AND r.uuid = :userUuid")
     fun findSecretMessagesForUser(userUuid: UUID, pageable: Pageable): Page<Message>
 
     @Query("""

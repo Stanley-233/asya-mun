@@ -113,9 +113,7 @@ class MessageController(
         } catch (e: Exception) {
             handleException(e)
         }
-    }
-
-    @Operation(summary = "查询用户的非对称消息", description = "分页查询用户发送或接收的非对称消息。")
+    }@Operation(summary = "查询用户的非对称消息", description = "分页查询用户作为接收者的非对称消息。")
     @GetMapping("/secret")
     fun getSecretMessages(
         @RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String,
