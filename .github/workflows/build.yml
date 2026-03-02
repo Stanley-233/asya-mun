@@ -101,4 +101,4 @@ jobs:
             cd /home/ubuntu/asya-build
             rm -rf public
             tar -xzf deployment.tar.gz
-            systemctl restart asya-build.service
+            sudo systemctl restart asya-build.service
