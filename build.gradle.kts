@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "top.bearingwall"
-version = "0.2.3-SNAPSHOT"
+version = "0.3.0-SNAPSHOT"
 
 java {
     toolchain {
@@ -42,7 +42,8 @@ dependencies {
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     // 数据库全家桶
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
-    runtimeOnly("org.xerial:sqlite-jdbc")
+    // runtimeOnly("org.xerial:sqlite-jdbc")
+    runtimeOnly("org.postgresql:postgresql")
     // 2. Hibernate 社区方言包 (Spring Boot 3 + Hibernate 6 必需
     implementation("org.hibernate.orm:hibernate-community-dialects")
     // 开发体验工具
@@ -61,7 +62,7 @@ dependencies {
     implementation("org.springframework.security:spring-security-crypto")
     // JWT
     implementation("io.jsonwebtoken:jjwt-api:0.11.5")
-    runtimeOnly("io.jsonwebtoken:jjwt-impl:0.11.5")
+    runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.6")
     runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.11.5")
 }
 

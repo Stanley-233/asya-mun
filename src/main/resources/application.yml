@@ -1,12 +1,11 @@
 spring:
   datasource:
-    url: jdbc:sqlite:data.db
-    driver-class-name: org.sqlite.JDBC
-    username: Stanley
-    password: Stanley
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/asya}
+    driver-class-name: org.postgresql.Driver
+    username: ${DB_USERNAME:asya}
+    password: ${DB_PASSWORD}
   jpa:
-    database-platform: org.hibernate.community.dialect.SQLiteDialect
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
       ddl-auto: update
     open-in-view: false
-    show-sql: true

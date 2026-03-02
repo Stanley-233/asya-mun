@@ -28,7 +28,7 @@ class Message(
     var brief: String? = null,
 
     @Lob
-    @Column(name = "msg_content", columnDefinition = "LONGTEXT")
+    @Column(name = "msg_content", columnDefinition = "TEXT")
     var content: String? = null,
 
     @Enumerated(EnumType.STRING)
