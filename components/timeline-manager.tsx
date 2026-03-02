@@ -10,6 +10,7 @@ import { CurrentGameTimeCard } from "@/components/current-game-time-card"
 import { useCurrentGameTime } from "@/lib/hooks/use-current-game-time"
 import { useGetAll1, useGetLatest, useJump, useUpdate2 } from "@/lib/api/endpoints/时间轴管理/时间轴管理"
 import type { TimeAnchorResponse } from "@/lib/api/endpoints/asyaBackendAPI.schemas"
+import { toast } from 'react-toastify'
 
 interface TimelineManagerProps {
   currentSession?: { uuid?: string } | null
@@ -130,13 +131,13 @@ export function TimelineManager({ currentSession: _currentSession }: TimelineMan
       })
 
       console.log('✅ [时间跳跃] 提交成功')
-      alert('时间跳跃成功')
+      toast.success('时间跳跃成功')
       // 刷新数据
       refetchAnchors()
       refetchLatest()
     } catch (err) {
       console.error('Time jump failed:', err)
-      alert('时间跳跃失败')
+      toast.error('时间跳跃失败')
     }
   }
 
@@ -149,13 +150,13 @@ export function TimelineManager({ currentSession: _currentSession }: TimelineMan
         }
       })
 
-      alert(`时间流速已调整为 ${newRatio}x`)
+      toast.success(`时间流速已调整为 ${newRatio}x`)
       // 刷新数据
       refetchAnchors()
       refetchLatest()
     } catch (err) {
       console.error('Time update failed:', err)
-      alert('时间轴更新失败')
+      toast.error('时间轴更新失败')
     }
   }
 

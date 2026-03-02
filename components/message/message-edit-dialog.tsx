@@ -23,6 +23,7 @@ import type {
 } from '@/lib/api/endpoints/asyaBackendAPI.schemas'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/lib/contexts/auth-context'
+import { toast } from 'react-toastify'
 
 interface MessageEditDialogProps {
   open: boolean
@@ -129,14 +130,14 @@ export function MessageEditDialog({
   const createMutation = useCreate1({
     mutation: {
       onSuccess: () => {
-        alert('消息创建成功')
+        toast.success('消息创建成功')
         queryClient.invalidateQueries({ queryKey: ['/api/messages'] })
         onOpenChange(false)
         resetForm()
       },
       onError: (error) => {
         console.error('Create message error:', error)
-        alert('消息创建失败，请稍后重试')
+        toast.error('消息创建失败，请稍后重试')
       },
     },
   })
@@ -144,7 +145,7 @@ export function MessageEditDialog({
   const updateMutation = useUpdate({
     mutation: {
       onSuccess: () => {
-        alert('消息更新成功')
+        toast.success('消息更新成功')
         queryClient.invalidateQueries({ queryKey: ['/api/messages'] })
         queryClient.invalidateQueries({ queryKey: ['/api/messages/secret/conference'] })
         onOpenChange(false)
@@ -152,7 +153,7 @@ export function MessageEditDialog({
       },
       onError: (error) => {
         console.error('Update message error:', error)
-        alert('消息更新失败，请稍后重试')
+        toast.error('消息更新失败，请稍后重试')
       },
     },
   })
@@ -249,22 +250,22 @@ export function MessageEditDialog({
     e.preventDefault()
 
     if (!formData.title.trim()) {
-      alert('请输入标题')
+      toast.warning('请输入标题')
       return
     }
 
     if (!formData.content.trim()) {
-      alert('请输入内容')
+      toast.warning('请输入内容')
       return
     }
 
     if (!formData.publishGameTime.trim()) {
-      alert('请输入发布游戏时间')
+      toast.warning('请输入发布游戏时间')
       return
     }
 
     if (formData.isSecret && selectedUserIds.length === 0) {
-      alert('非对称消息必须至少选择一个接收用户')
+      toast.warning('非对称消息必须至少选择一个接收用户')
       return
     }
 

@@ -4,6 +4,8 @@ import "./globals.css";
 import { QueryProvider } from "@/lib/api/query-provider";
 import { AuthProvider } from "@/lib/contexts/auth-context";
 import { LayoutContent } from "@/components/layout-content";
+import { ToastProvider } from "@/components/ui/toast-provider";
+import 'react-toastify/dist/ReactToastify.css';
 
 const inter = Inter({subsets:['latin'],variable:'--font-sans'});
 
@@ -35,6 +37,7 @@ export default function RootLayout({
         <QueryProvider>
           <AuthProvider>
             <LayoutContent>{children}</LayoutContent>
+            <ToastProvider />
           </AuthProvider>
         </QueryProvider>
       </body>

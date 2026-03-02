@@ -24,6 +24,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { useQueryClient } from '@tanstack/react-query'
+import { toast } from 'react-toastify'
 
 const msgTypeLabels = {
   'EVENT': '事件',
@@ -34,6 +36,7 @@ const msgTypeLabels = {
 }
 
 export default function DirectiveAsymsgPage() {
+  const queryClient = useQueryClient()
   const router = useRouter()
   const { user, isLoading: authLoading, isAuthenticated } = useAuth()
   
@@ -262,12 +265,16 @@ export default function DirectiveAsymsgPage() {
       { uuid: messageToDelete.uuid },
       {
         onSuccess: () => {
+          toast.success('消息删除成功')
           setIsDeleteDialogOpen(false)
           setMessageToDelete(null)
+          queryClient.invalidateQueries({ queryKey: ['/api/messages'] })
+          queryClient.invalidateQueries({ queryKey: ['/api/messages/secret/conference'] })
           refetch()
         },
         onError: (error) => {
           console.error('删除失败:', error)
+          toast.error('消息删除失败，请稍后重试')
           setIsDeleteDialogOpen(false)
           setMessageToDelete(null)
         }

@@ -15,6 +15,8 @@ import type { ConferenceResponse, TimeAnchorResponse, MessageResponse } from "@/
 import { TimelineManager } from "@/components/timeline-manager"
 import { MessageList, MessageDetailDialog, MessageEditDialog } from "@/components/message"
 import { AlertDialogCancel } from "@/components/ui/alert-dialog"
+import { useQueryClient } from '@tanstack/react-query'
+import { toast } from 'react-toastify'
 
 const statusLabels = {
   'PREPARING': '筹备中',
@@ -47,6 +49,7 @@ function formatGameTimeForInput(date: Date | null): string {
 }
 
 export default function ProgressPage() {
+  const queryClient = useQueryClient()
   const { isLoading: authLoading, isAuthenticated } = useAuth()
   const { data: conferenceData, isLoading: conferenceLoading } = useGetMine()
   const { data: latestAnchorData, isLoading: latestLoading } = useGetLatest()
@@ -190,12 +193,15 @@ export default function ProgressPage() {
       { uuid: messageToDelete.uuid },
       {
         onSuccess: () => {
+          toast.success('消息删除成功')
           setDeleteDialogOpen(false)
           setMessageToDelete(null)
-          // 刷新消息列表会自动完成（因为 MessageList 使用了 useGetAll）
+          queryClient.invalidateQueries({ queryKey: ['/api/messages'] })
+          queryClient.invalidateQueries({ queryKey: ['/api/messages/secret/conference'] })
         },
         onError: (error) => {
           console.error('删除失败:', error)
+          toast.error('消息删除失败，请稍后重试')
           setDeleteDialogOpen(false)
           setMessageToDelete(null)
         }
