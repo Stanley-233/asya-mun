@@ -9,7 +9,7 @@ import java.util.UUID
 
 interface MessageRepository : JpaRepository<Message, UUID> {
 
-    @Query("SELECT m FROM Message m WHERE m.session.conference.uuid = :conferenceUuid AND m.isSecret = false")
+    @Query("SELECT m FROM Message m WHERE m.conference.uuid = :conferenceUuid AND m.isSecret = false")
     fun findPublicMessagesByConference(conferenceUuid: UUID, pageable: Pageable): Page<Message>
 
     @Query("SELECT DISTINCT m FROM Message m JOIN m.receivers r WHERE m.isSecret = true AND r.uuid = :userUuid")
@@ -18,7 +18,7 @@ interface MessageRepository : JpaRepository<Message, UUID> {
     @Query("""
         SELECT DISTINCT m FROM Message m 
         LEFT JOIN m.receivers r 
-        WHERE m.session.conference.uuid = :conferenceUuid 
+        WHERE m.conference.uuid = :conferenceUuid 
         AND m.isSecret = true
         AND (:senderUuid IS NULL OR m.sender.uuid = :senderUuid)
         AND (:receiverUuid IS NULL OR r.uuid = :receiverUuid)

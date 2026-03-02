@@ -10,9 +10,6 @@ enum class MessageType {
 
 @Schema(description = "创建消息请求")
 data class MessageCreateRequest(
-    @Schema(description = "会期ID(UUID)")
-    val sessionId: String,
-
     @Schema(description = "标题")
     val title: String,
 
@@ -67,8 +64,8 @@ data class MessageResponse(
     @Schema(description = "消息UUID")
     val uuid: String,
 
-    @Schema(description = "会期UUID")
-    val sessionId: String,
+    @Schema(description = "会议UUID")
+    val conferenceId: String,
 
     @Schema(description = "发送者UUID")
     val senderId: String?,

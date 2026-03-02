@@ -9,7 +9,6 @@ import top.bearingwall.asya.dto.MessageResponse
 import top.bearingwall.asya.dto.MessageUpdateRequest
 import top.bearingwall.asya.dto.UserInfoResponse
 import top.bearingwall.asya.model.Message
-import top.bearingwall.asya.repository.ConferenceSessionRepository
 import top.bearingwall.asya.repository.MessageRepository
 import top.bearingwall.asya.repository.UserRepository
 import java.util.UUID
@@ -17,18 +16,15 @@ import java.util.UUID
 @Service
 class MessageService(
     private val messageRepository: MessageRepository,
-    private val conferenceSessionRepository: ConferenceSessionRepository,
     private val userRepository: UserRepository
 ) {
 
     @Transactional
     fun createMessage(request: MessageCreateRequest, senderUuid: UUID): MessageResponse {
-        val session = conferenceSessionRepository.findById(UUID.fromString(request.sessionId)).orElseThrow {
-            IllegalArgumentException("Session not found: ${request.sessionId}")
-        }
         val sender = userRepository.findById(senderUuid).orElseThrow {
             IllegalArgumentException("User not found: $senderUuid")
         }
+        val conference = sender.conference ?: throw IllegalStateException("Sender not associated with any conference")
 
         val brief = if (!request.brief.isNullOrBlank()) {
             request.brief
@@ -37,7 +33,7 @@ class MessageService(
         }
 
         val message = Message(
-            session = session,
+            conference = conference,
             sender = sender,
             title = request.title,
             brief = brief,
@@ -147,7 +143,7 @@ class MessageService(
 
     private fun Message.toResponse(omitContent: Boolean = false) = MessageResponse(
         uuid = this.uuid.toString(),
-        sessionId = this.session?.uuid.toString(),
+        conferenceId = this.conference?.uuid.toString(),
         senderId = this.sender?.uuid.toString(),
         senderName = this.sender?.name,
         title = this.title,

@@ -14,8 +14,8 @@ class Message(
     var uuid: UUID? = null,
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "session_id")
-    var session: ConferenceSession? = null,
+    @JoinColumn(name = "conference_id")
+    var conference: Conference? = null,
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "sender_id")

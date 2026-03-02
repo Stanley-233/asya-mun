@@ -13,8 +13,8 @@ class TimeAnchor(
     var id: Long? = null,
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "session_id", nullable = true)
-    var session: ConferenceSession? = null,
+    @JoinColumn(name = "conference_id", nullable = false)
+    var conference: Conference? = null,
 
     @Column(name = "update_time")
     var updateTime: LocalDateTime? = null,

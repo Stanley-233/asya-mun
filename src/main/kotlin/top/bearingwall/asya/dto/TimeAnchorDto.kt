@@ -9,8 +9,8 @@ data class TimeAnchorResponse(
     @Schema(description = "ID")
     val id: Long,
 
-    @Schema(description = "会期ID")
-    val sessionId: String?,
+    @Schema(description = "会议ID")
+    val conferenceId: String?,
 
     @Schema(description = "更新时间")
     val updateTime: LocalDateTime?,
@@ -29,17 +29,11 @@ data class TimeAnchorResponse(
 )
 
 data class TimeUpdateRequest(
-    @Schema(description = "会期ID")
-    val sessionId: String,
-
     @Schema(description = "时间流速")
     val timeRatio: BigDecimal
 )
 
 data class TimeJumpRequest(
-    @Schema(description = "会期ID")
-    val sessionId: String,
-
     @Schema(description = "目标游戏时间")
     val targetGameTime: LocalDateTime,
 

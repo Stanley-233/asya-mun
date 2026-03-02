@@ -21,12 +21,5 @@ class Conference(
     var status: ConferenceStatus = ConferenceStatus.PREPARING,
 
     @OneToMany(mappedBy = "conference", fetch = FetchType.LAZY)
-    var users: MutableSet<User> = mutableSetOf(),
-
-    @OneToMany(mappedBy = "conference", fetch = FetchType.LAZY, cascade = [CascadeType.ALL])
-    var sessions: MutableSet<ConferenceSession> = mutableSetOf(),
-
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "current_session_id")
-    var currentSession: ConferenceSession? = null
+    var users: MutableSet<User> = mutableSetOf()
 )
