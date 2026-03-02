@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { login, register, useGetRegistrationSwitch } from "@/lib/api/endpoints/用户管理/用户管理"
 import { UserRegistrationRequestRole } from "@/lib/api/endpoints/asyaBackendAPI.schemas"
+import { TermsDialog } from "@/components/terms-dialog"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -380,6 +381,11 @@ export default function LoginPage() {
               </button>
             </p>
           )}
+        </div>
+
+        {/* 使用条款 */}
+        <div className="flex justify-center mt-4">
+          <TermsDialog variant="link" />
         </div>
       </div>
     </div>

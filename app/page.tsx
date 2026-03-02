@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { ChevronDown } from "lucide-react"
+import { TermsDialog } from "@/components/terms-dialog"
 
 export function WelcomeComponent() {
   const router = useRouter()
@@ -73,6 +74,15 @@ export function WelcomeComponent() {
           >
             用于模拟联合国联动体系的一站式解决方案
           </p>
+
+          {/* Terms Link */}
+          <div 
+            className={`flex justify-center transition-all duration-1000 delay-700 ${
+              mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+            }`}
+          >
+            <TermsDialog variant="ghost" />
+          </div>
         </div>
 
         {/* Scroll Hint */}

@@ -42,5 +42,3 @@ next-env.d.ts
 
 # # API 自动生成的文件
 # lib/api/endpoints/
-
-docs/
