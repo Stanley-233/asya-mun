@@ -107,7 +107,7 @@ export function SecretMessageList({
       {!isLoading && messages.length === 0 && (
         <div className="flex flex-col items-center justify-center p-12 text-muted-foreground">
           <p className="text-lg">暂无非对称消息</p>
-          <p className="text-sm mt-2">您发送或接收的私密消息将显示在这里</p>
+          <p className="text-sm mt-2">您接收的私密消息将显示在这里</p>
         </div>
       )}
 

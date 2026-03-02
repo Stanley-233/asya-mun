@@ -149,7 +149,7 @@ export default function ProfilePage() {
           <Card>
             <CardHeader>
               <CardTitle>我的非对称消息</CardTitle>
-              <CardDescription>查看您发送或接收的私密消息</CardDescription>
+              <CardDescription>查看您接收的私密消息</CardDescription>
             </CardHeader>
             <CardContent>
               <SecretMessageList onMessageClick={handleMessageClick} />
