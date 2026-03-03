@@ -15,8 +15,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useAuth } from "@/lib/contexts/auth-context"
-import { useListAll, useUpdateUser, useDeleteUser, useGetRegistrationSwitch, useSetRegistrationSwitch, useResetPassword, useBatchRegister } from "@/lib/api/endpoints/用户管理/用户管理"
-import { useCreate, useListAll1, useAssignUser } from "@/lib/api/endpoints/会议管理/会议管理"
+import { useListAll1, useUpdateUser, useDeleteUser, useGetRegistrationSwitch, useSetRegistrationSwitch, useResetPassword, useBatchRegister } from "@/lib/api/endpoints/用户管理/用户管理"
+import { useCreate, useListAll2, useAssignUser } from "@/lib/api/endpoints/会议管理/会议管理"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -52,8 +52,8 @@ const statusOptions = [
 export default function AdminPage() {
   const router = useRouter()
   const { isLoading: authLoading, isSysAdmin, isAuthenticated } = useAuth()
-  const { data: usersData, isLoading: usersLoading } = useListAll()
-  const { data: conferencesData, isLoading: conferencesLoading } = useListAll1()
+  const { data: usersData, isLoading: usersLoading } = useListAll1()
+  const { data: conferencesData, isLoading: conferencesLoading } = useListAll2()
   const { mutate: updateUser, isPending: isUpdating } = useUpdateUser()
   const { mutate: deleteUser, isPending: isDeleting } = useDeleteUser()
   const { data: registrationSwitchData, isLoading: registrationSwitchLoading, refetch: refetchRegistrationSwitch } = useGetRegistrationSwitch()
@@ -706,31 +706,6 @@ export default function AdminPage() {
         {/* 用户管理 */}
         <div>
           <h2 className="text-2xl font-bold mb-4">用户管理</h2>
-
-          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div className="text-sm text-muted-foreground">可调整列间距以适配屏幕</div>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <div className="flex items-center gap-3">
-                <Label htmlFor="column-spacing" className="text-sm">列间距</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    id="column-spacing"
-                    type="range"
-                    min={8}
-                    max={48}
-                    step={2}
-                    value={columnSpacing}
-                    onChange={(e) => setColumnSpacing(Number(e.target.value))}
-                    className="w-40"
-                  />
-                  <span className="text-xs text-muted-foreground w-10 text-right">{columnSpacing}px</span>
-                </div>
-              </div>
-              <Button onClick={handleOpenBatchDialog}>
-                批量注册代表
-              </Button>
-            </div>
-          </div>
 
         {usersLoading ? (
           <div className="flex justify-center items-center min-h-64">

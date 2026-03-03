@@ -9,13 +9,12 @@ import { Label } from "@/components/ui/label"
 import { login, register, useGetRegistrationSwitch } from "@/lib/api/endpoints/用户管理/用户管理"
 import { UserRegistrationRequestRole } from "@/lib/api/endpoints/asyaBackendAPI.schemas"
 import { TermsDialog } from "@/components/terms-dialog"
+import { toast } from 'react-toastify'
 
 export default function LoginPage() {
   const router = useRouter()
   const [tab, setTab] = useState<'login' | 'register'>('login')
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState(false)
   const [allowRegister, setAllowRegister] = useState(true)
 
   const { data: registrationSwitchData } = useGetRegistrationSwitch()
@@ -55,10 +54,9 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError(null)
 
     if (!loginForm.name || !loginForm.password) {
-      setError('请填写所有字段')
+      toast.warning('请填写所有字段')
       return
     }
 
@@ -80,14 +78,17 @@ export default function LoginPage() {
       if (token) {
         localStorage.setItem('token', token)
         localStorage.setItem('user', JSON.stringify(responseData))
-        setSuccess(true)
-        // 强制刷新页面以更新 appbar
-        setTimeout(() => {
-          window.location.href = '/'
-        }, 1000)
+        toast.success('登录成功，正在跳转到主页...', {
+          closeOnClick: false,
+          draggable: false,
+          onClose: () => {
+            // Toast 结束后再跳转，确保提示完整展示
+            window.location.href = '/'
+          },
+        })
       } else {
         console.warn('未找到 token，响应数据:', responseData)
-        setError('登录成功但未获取到 Token')
+        toast.error('登录成功但未获取到 Token')
       }
     } catch (err: any) {
       // 调试：打印错误信息
@@ -96,7 +97,7 @@ export default function LoginPage() {
       
       // 优先使用错误对象的 message，然后是响应中的 message
       const message = err.message || err.response?.data?.message || '登录失败，请检查用户昵称和密码'
-      setError(message)
+      toast.error(message)
     } finally {
       setLoading(false)
     }
@@ -104,20 +105,19 @@ export default function LoginPage() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError(null)
 
     if (!registerForm.name || !registerForm.password || !registerForm.confirmPassword) {
-      setError('请填写所有字段')
+      toast.warning('请填写所有字段')
       return
     }
 
     if (registerForm.password !== registerForm.confirmPassword) {
-      setError('两次输入的密码不一致')
+      toast.warning('两次输入的密码不一致')
       return
     }
 
     if (registerForm.password.length < 6) {
-      setError('密码长度不少于 6 个字符')
+      toast.warning('密码长度不少于 6 个字符')
       return
     }
 
@@ -145,19 +145,22 @@ export default function LoginPage() {
         localStorage.setItem('token', token)
         localStorage.setItem('user', JSON.stringify(loginData))
         setRegisterForm({ name: '', displayName: '', password: '', confirmPassword: '', role: 'DM' })
-        setSuccess(true)
-        // 强制刷新页面以更新 appbar
-        setTimeout(() => {
-          window.location.href = '/'
-        }, 1000)
+        toast.success('注册成功，正在跳转到主页...', {
+          closeOnClick: false,
+          draggable: false,
+          onClose: () => {
+            // Toast 结束后再跳转，确保提示完整展示
+            window.location.href = '/'
+          },
+        })
       } else {
-        setError('注册成功，但自动登录失败，请手动登录')
+        toast.warning('注册成功，但自动登录失败，请手动登录')
         setTab('login')
       }
     } catch (err: any) {
       // 优先使用错误对象的 message，然后是响应中的 message
       const message = err.message || err.response?.data?.message || '注册失败，请重试'
-      setError(message)
+      toast.error(message)
     } finally {
       setLoading(false)
     }
@@ -165,25 +168,6 @@ export default function LoginPage() {
 
   return (
     <div className="container mx-auto px-4 py-16 min-h-screen flex items-center justify-center">
-      {/* 成功弹窗 */}
-      {success && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-background border rounded-lg p-6 shadow-lg max-w-sm mx-4 animate-in fade-in zoom-in duration-200">
-            <div className="flex items-center gap-3">
-              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="font-semibold text-lg">{tab === 'login' ? '登录成功' : '注册成功'}</h3>
-                <p className="text-sm text-muted-foreground">正在跳转到主页...</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="w-full max-w-md">
         <Card>
           <CardHeader className="text-center">
@@ -200,7 +184,6 @@ export default function LoginPage() {
                 type="button"
                 onClick={() => {
                   setTab('login')
-                  setError(null)
                 }}
                 className={`py-2 px-4 rounded-md font-medium transition-colors ${
                   tab === 'login'
@@ -215,7 +198,6 @@ export default function LoginPage() {
                   type="button"
                   onClick={() => {
                     setTab('register')
-                    setError(null)
                   }}
                   className={`py-2 px-4 rounded-md font-medium transition-colors ${
                     tab === 'register'
@@ -227,14 +209,6 @@ export default function LoginPage() {
                 </button>
               )}
             </div>
-
-            {/* 错误提示 */}
-            {error && (
-              <div className="mb-4 p-3 bg-destructive/10 text-destructive text-sm rounded-md border border-destructive/20">
-                {error}
-              </div>
-            )}
-
             {/* 登录表单 */}
             {tab === 'login' && (
               <form onSubmit={handleLogin} className="space-y-4">
@@ -359,7 +333,6 @@ export default function LoginPage() {
                 type="button"
                 onClick={() => {
                   setTab('register')
-                  setError(null)
                 }}
                 className="text-primary hover:underline font-medium"
               >
@@ -373,7 +346,6 @@ export default function LoginPage() {
                 type="button"
                 onClick={() => {
                   setTab('login')
-                  setError(null)
                 }}
                 className="text-primary hover:underline font-medium"
               >

@@ -612,75 +612,75 @@ export function useGetUsers<
  * 仅 SYS_ADMIN 可用
  * @summary 列出所有会议
  */
-export type listAll1Response200 = {
+export type listAll2Response200 = {
   data: Blob;
   status: 200;
 };
 
-export type listAll1ResponseSuccess = listAll1Response200 & {
+export type listAll2ResponseSuccess = listAll2Response200 & {
   headers: Headers;
 };
-export type listAll1Response = listAll1ResponseSuccess;
+export type listAll2Response = listAll2ResponseSuccess;
 
-export const getListAll1Url = () => {
+export const getListAll2Url = () => {
   return `/api/conference/all`;
 };
 
-export const listAll1 = async (
+export const listAll2 = async (
   options?: RequestInit,
-): Promise<listAll1Response> => {
-  return customInstance<listAll1Response>(getListAll1Url(), {
+): Promise<listAll2Response> => {
+  return customInstance<listAll2Response>(getListAll2Url(), {
     ...options,
     method: "GET",
   });
 };
 
-export const getListAll1QueryKey = () => {
+export const getListAll2QueryKey = () => {
   return [`/api/conference/all`] as const;
 };
 
-export const getListAll1QueryOptions = <
-  TData = Awaited<ReturnType<typeof listAll1>>,
+export const getListAll2QueryOptions = <
+  TData = Awaited<ReturnType<typeof listAll2>>,
   TError = unknown,
 >(options?: {
   query?: Partial<
-    UseQueryOptions<Awaited<ReturnType<typeof listAll1>>, TError, TData>
+    UseQueryOptions<Awaited<ReturnType<typeof listAll2>>, TError, TData>
   >;
   request?: SecondParameter<typeof customInstance>;
 }) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getListAll1QueryKey();
+  const queryKey = queryOptions?.queryKey ?? getListAll2QueryKey();
 
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof listAll1>>> = ({
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listAll2>>> = ({
     signal,
-  }) => listAll1({ signal, ...requestOptions });
+  }) => listAll2({ signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof listAll1>>,
+    Awaited<ReturnType<typeof listAll2>>,
     TError,
     TData
   > & { queryKey: DataTag<QueryKey, TData, TError> };
 };
 
-export type ListAll1QueryResult = NonNullable<
-  Awaited<ReturnType<typeof listAll1>>
+export type ListAll2QueryResult = NonNullable<
+  Awaited<ReturnType<typeof listAll2>>
 >;
-export type ListAll1QueryError = unknown;
+export type ListAll2QueryError = unknown;
 
-export function useListAll1<
-  TData = Awaited<ReturnType<typeof listAll1>>,
+export function useListAll2<
+  TData = Awaited<ReturnType<typeof listAll2>>,
   TError = unknown,
 >(
   options: {
     query: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof listAll1>>, TError, TData>
+      UseQueryOptions<Awaited<ReturnType<typeof listAll2>>, TError, TData>
     > &
       Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listAll1>>,
+          Awaited<ReturnType<typeof listAll2>>,
           TError,
-          Awaited<ReturnType<typeof listAll1>>
+          Awaited<ReturnType<typeof listAll2>>
         >,
         "initialData"
       >;
@@ -690,19 +690,19 @@ export function useListAll1<
 ): DefinedUseQueryResult<TData, TError> & {
   queryKey: DataTag<QueryKey, TData, TError>;
 };
-export function useListAll1<
-  TData = Awaited<ReturnType<typeof listAll1>>,
+export function useListAll2<
+  TData = Awaited<ReturnType<typeof listAll2>>,
   TError = unknown,
 >(
   options?: {
     query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof listAll1>>, TError, TData>
+      UseQueryOptions<Awaited<ReturnType<typeof listAll2>>, TError, TData>
     > &
       Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listAll1>>,
+          Awaited<ReturnType<typeof listAll2>>,
           TError,
-          Awaited<ReturnType<typeof listAll1>>
+          Awaited<ReturnType<typeof listAll2>>
         >,
         "initialData"
       >;
@@ -712,13 +712,13 @@ export function useListAll1<
 ): UseQueryResult<TData, TError> & {
   queryKey: DataTag<QueryKey, TData, TError>;
 };
-export function useListAll1<
-  TData = Awaited<ReturnType<typeof listAll1>>,
+export function useListAll2<
+  TData = Awaited<ReturnType<typeof listAll2>>,
   TError = unknown,
 >(
   options?: {
     query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof listAll1>>, TError, TData>
+      UseQueryOptions<Awaited<ReturnType<typeof listAll2>>, TError, TData>
     >;
     request?: SecondParameter<typeof customInstance>;
   },
@@ -730,13 +730,13 @@ export function useListAll1<
  * @summary 列出所有会议
  */
 
-export function useListAll1<
-  TData = Awaited<ReturnType<typeof listAll1>>,
+export function useListAll2<
+  TData = Awaited<ReturnType<typeof listAll2>>,
   TError = unknown,
 >(
   options?: {
     query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof listAll1>>, TError, TData>
+      UseQueryOptions<Awaited<ReturnType<typeof listAll2>>, TError, TData>
     >;
     request?: SecondParameter<typeof customInstance>;
   },
@@ -744,7 +744,7 @@ export function useListAll1<
 ): UseQueryResult<TData, TError> & {
   queryKey: DataTag<QueryKey, TData, TError>;
 } {
-  const queryOptions = getListAll1QueryOptions(options);
+  const queryOptions = getListAll2QueryOptions(options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<
     TData,

@@ -104,6 +104,8 @@ export interface MessageUpdateRequest {
   publishGameTime?: string;
   /** 是否加密 */
   isSecret?: boolean;
+  /** 附件UUID列表(为空表示清空，null表示不修改) */
+  attachmentUuids?: string[];
 }
 
 /**
@@ -146,6 +148,10 @@ export interface MessageResponse {
   publishGameTime: string;
   /** 是否加密 */
   isSecret: boolean;
+  /** 是否有附件(仅详情返回) */
+  hasAttachment?: boolean;
+  /** 附件UUID列表(仅详情返回) */
+  attachmentUuids?: string[];
 }
 
 /**
@@ -428,6 +434,8 @@ export interface MessageCreateRequest {
   isSecret: boolean;
   /** 接收者ID列表(UUID), 当isSecret为true时有效 */
   receiverIds?: string[];
+  /** 附件UUID列表 */
+  attachmentUuids?: string[];
 }
 
 /**
@@ -438,6 +446,29 @@ export interface ConferenceAssignRequest {
   conferenceUuid: string;
   /** 用户ID */
   userUuid: string;
+}
+
+/**
+ * 上传附件响应
+ */
+export interface AttachmentUploadResponse {
+  /** 附件UUID */
+  uuid: string;
+  /** 文件名(不含后缀) */
+  fileName: string;
+  /** 文件后缀 */
+  fileType: string;
+}
+
+/**
+ * 统一接口返回结构
+ */
+export interface ResultAttachmentUploadResponse {
+  /** 状态码 */
+  code: number;
+  /** 提示信息 */
+  message: string;
+  data?: AttachmentUploadResponse;
 }
 
 /**
@@ -488,30 +519,30 @@ export interface Pageable {
 
 export interface Sortnull {
   empty?: boolean;
-  sorted?: boolean;
   unsorted?: boolean;
+  sorted?: boolean;
 }
 
 export interface Pageablenull {
   offset?: number;
   sort?: Sortnull;
+  unpaged?: boolean;
   paged?: boolean;
   pageNumber?: number;
   pageSize?: number;
-  unpaged?: boolean;
 }
 
 export interface Pagenull {
-  totalElements?: number;
   totalPages?: number;
+  totalElements?: number;
   first?: boolean;
   last?: boolean;
   size?: number;
   content?: MessageResponse[];
   number?: number;
   sort?: Sortnull;
-  numberOfElements?: number;
   pageable?: Pageablenull;
+  numberOfElements?: number;
   empty?: boolean;
 }
 
@@ -548,6 +579,48 @@ export interface ResultListConferenceResponse {
   data?: ConferenceResponse[];
 }
 
+/**
+ * 关联目标类型
+ */
+export type AttachmentInfoResponseTargetType =
+  (typeof AttachmentInfoResponseTargetType)[keyof typeof AttachmentInfoResponseTargetType];
+
+export const AttachmentInfoResponseTargetType = {
+  MESSAGE: "MESSAGE",
+  DIRECTIVE: "DIRECTIVE",
+} as const;
+
+/**
+ * 附件信息(不含BLOB)
+ */
+export interface AttachmentInfoResponse {
+  /** 附件UUID */
+  uuid: string;
+  /** 文件名(不含后缀) */
+  fileName: string;
+  /** 文件后缀 */
+  fileType: string;
+  /** 文件大小(字节) */
+  fileSize: number;
+  /** 关联目标类型 */
+  targetType?: AttachmentInfoResponseTargetType;
+  /** 关联目标UUID */
+  targetId?: string;
+  /** 关联消息UUID */
+  messageId?: string;
+}
+
+/**
+ * 统一接口返回结构
+ */
+export interface ResultListAttachmentInfoResponse {
+  /** 状态码 */
+  code: number;
+  /** 提示信息 */
+  message: string;
+  data?: AttachmentInfoResponse[];
+}
+
 export type ResetPasswordBody = { [key: string]: string };
 
 export type SetRegistrationSwitchParams = {
@@ -556,6 +629,10 @@ export type SetRegistrationSwitchParams = {
 
 export type GetAllParams = {
   pageable: Pageable;
+};
+
+export type UploadBody = {
+  file: Blob;
 };
 
 export type GetSecretMessagesParams = {

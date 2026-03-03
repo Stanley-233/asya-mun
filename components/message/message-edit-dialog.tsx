@@ -6,6 +6,7 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
+  AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
@@ -13,13 +14,15 @@ import {
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
-import { useCreate1, useUpdate, useGetOne } from '@/lib/api/endpoints/消息管理/消息管理'
+import { useCreate1, useUpdate, useGetOne, useGetReceivers } from '@/lib/api/endpoints/消息管理/消息管理'
 import { useGetUsers } from '@/lib/api/endpoints/会议管理/会议管理'
+import { AXIOS_INSTANCE } from '@/lib/api/client'
 import type {
   MessageResponse,
   MessageCreateRequest,
   MessageUpdateRequest,
   UserInfoResponse,
+  ResultAttachmentUploadResponse,
 } from '@/lib/api/endpoints/asyaBackendAPI.schemas'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/lib/contexts/auth-context'
@@ -32,6 +35,72 @@ interface MessageEditDialogProps {
   currentGameTime?: string
 }
 
+interface AttachmentItem {
+  uuid: string
+  fileName: string
+  fileType?: string
+}
+
+function normalizeAttachmentItems(rawMessage: any): AttachmentItem[] {
+  const attachmentUuids: string[] = rawMessage?.attachmentUuids || []
+  const inlineInfos = rawMessage?.attachmentInfos || rawMessage?.attachments || []
+
+  const infoMap = (Array.isArray(inlineInfos) ? inlineInfos : []).reduce(
+    (acc: Record<string, { fileName?: string; fileType?: string }>, item: any) => {
+      if (item?.uuid) {
+        acc[item.uuid] = {
+          fileName: item.fileName,
+          fileType: item.fileType,
+        }
+      }
+      return acc
+    },
+    {}
+  )
+
+  return attachmentUuids.map((uuid) => {
+    const info = infoMap[uuid]
+    return {
+      uuid,
+      fileName: info?.fileName || uuid,
+      fileType: info?.fileType,
+    }
+  })
+}
+
+function getMessageIsSecret(rawMessage: any): boolean {
+  const rawValue = rawMessage?.isSecret ?? rawMessage?.is_secret ?? rawMessage?.secret ?? false
+
+  if (typeof rawValue === 'string') {
+    const normalized = rawValue.trim().toLowerCase()
+    return normalized === 'true' || normalized === '1' || normalized === 'yes'
+  }
+
+  return Boolean(rawValue)
+}
+
+function extractReceiverUserIds(rawData: any): string[] {
+  try {
+    const responseData = rawData?.data
+    if (!responseData) return []
+
+    const parsed = typeof responseData === 'string' ? JSON.parse(responseData) : responseData
+    const payload = parsed?.data ?? parsed
+
+    if (!Array.isArray(payload)) return []
+
+    return payload
+      .map((item: any) => {
+        if (typeof item === 'string') return item
+        return item?.uuid || item?.userUuid || item?.user_uuid || item?.id || ''
+      })
+      .filter((uuid: string) => !!uuid)
+  } catch (err) {
+    console.error('Failed to parse message receivers:', err)
+    return []
+  }
+}
+
 const MSG_TYPE_OPTIONS = [
   { value: 'EVENT', label: '事件' },
   { value: 'NEWS', label: '新闻' },
@@ -39,6 +108,51 @@ const MSG_TYPE_OPTIONS = [
   { value: 'WAR_REPORT', label: '战报' },
   { value: 'SECRET_LETTER', label: '密函' },
 ]
+
+const ALLOWED_ATTACHMENT_EXTENSIONS = new Set([
+  'docx',
+  'pdf',
+  'png',
+  'jpg',
+  'jpeg',
+  'gif',
+  'webp',
+  'bmp',
+  'svg',
+  'avif',
+  'heic',
+  'heif',
+])
+
+const ALLOWED_ATTACHMENT_MIME_TYPES = new Set([
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'image/png',
+  'image/jpeg',
+  'image/gif',
+  'image/webp',
+  'image/bmp',
+  'image/svg+xml',
+  'image/avif',
+  'image/heic',
+  'image/heif',
+])
+
+const ATTACHMENT_ACCEPT = '.docx,.pdf,.png,.jpg,.jpeg,.gif,.webp,.bmp,.svg,.avif,.heic,.heif'
+
+function getFileExtension(fileName: string): string {
+  const normalized = fileName.trim().toLowerCase()
+  if (!normalized.includes('.')) return ''
+  return normalized.split('.').pop() || ''
+}
+
+function isAllowedAttachmentFile(file: File): boolean {
+  const ext = getFileExtension(file.name)
+  if (ext && ALLOWED_ATTACHMENT_EXTENSIONS.has(ext)) return true
+
+  const mimeType = (file.type || '').trim().toLowerCase()
+  return mimeType ? ALLOWED_ATTACHMENT_MIME_TYPES.has(mimeType) : false
+}
 
 // 将友好格式转换为ISO 8601格式
 // "BC 454-12-31 20:20" -> "-0453-12-31T20:20:00"
@@ -73,7 +187,7 @@ export function MessageEditDialog({
   currentGameTime,
 }: MessageEditDialogProps) {
   const queryClient = useQueryClient()
-  const { user, canManageConference } = useAuth()
+  const { canManageConference } = useAuth()
   const isEditing = !!message
 
   // 获取完整的消息详情（包含 content）
@@ -82,6 +196,15 @@ export function MessageEditDialog({
     {
       query: {
         enabled: open && isEditing && !!message?.uuid,
+      },
+    }
+  )
+
+  const { data: receiversData } = useGetReceivers(
+    message?.uuid || '',
+    {
+      query: {
+        enabled: open && isEditing && !!message?.uuid && canManageConference,
       },
     }
   )
@@ -97,6 +220,11 @@ export function MessageEditDialog({
   })
 
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([])
+  const [attachments, setAttachments] = useState<AttachmentItem[]>([])
+  const [isUploadingAttachments, setIsUploadingAttachments] = useState(false)
+  const [removeDialogOpen, setRemoveDialogOpen] = useState(false)
+  const [attachmentToRemove, setAttachmentToRemove] = useState<AttachmentItem | null>(null)
+  const [isDeletingAttachmentOnServer, setIsDeletingAttachmentOnServer] = useState(false)
 
   // 获取会议的所有用户
   const { data: usersData } = useGetUsers({
@@ -159,6 +287,8 @@ export function MessageEditDialog({
   })
 
   useEffect(() => {
+    let cancelled = false
+
     if (message && open) {
       // 尝试从详情数据中获取完整信息
       let fullMessage = message
@@ -185,10 +315,55 @@ export function MessageEditDialog({
         msgType: (fullMessage.msgType || 'NEWS') as 'EVENT' | 'NEWS' | 'CRISIS' | 'WAR_REPORT' | 'SECRET_LETTER',
         publishRealTime: fullMessage.publishRealTime || '',
         publishGameTime: fullMessage.publishGameTime || '',
-        isSecret: fullMessage.isSecret || false,
+        isSecret: getMessageIsSecret(fullMessage),
       })
-      // TODO: 如果需要编辑时显示已选择的用户，需要从消息详情接口获取
-      setSelectedUserIds([])
+
+      const initialAttachments = normalizeAttachmentItems(fullMessage)
+      setAttachments(initialAttachments)
+
+      const missingNameUuids = initialAttachments
+        .filter((attachment) => attachment.fileName === attachment.uuid)
+        .map((attachment) => attachment.uuid)
+
+      if (missingNameUuids.length > 0) {
+        AXIOS_INSTANCE.get('/api/attachments')
+          .then((response) => {
+            if (cancelled) return
+
+            const payload = response.data
+            const list = Array.isArray(payload?.data)
+              ? payload.data
+              : Array.isArray(payload)
+                ? payload
+                : []
+
+            const fetchedMap = (list as any[])
+              .filter((item) => item?.uuid && missingNameUuids.includes(item.uuid))
+              .reduce((acc, item) => {
+                acc[item.uuid] = {
+                  fileName: item.fileName,
+                  fileType: item.fileType,
+                }
+                return acc
+              }, {} as Record<string, { fileName?: string; fileType?: string }>)
+
+            setAttachments((prev) =>
+              prev.map((attachment) => {
+                const fetched = fetchedMap[attachment.uuid]
+                if (!fetched?.fileName) return attachment
+                return {
+                  ...attachment,
+                  fileName: fetched.fileName,
+                  fileType: fetched.fileType || attachment.fileType,
+                }
+              })
+            )
+          })
+          .catch((err) => {
+            console.warn('Failed to fetch attachment info for edit dialog:', err)
+          })
+      }
+
     } else if (!message && open) {
       // 只在创建时使用当前游戏时间作为默认值
       setFormData({
@@ -201,9 +376,19 @@ export function MessageEditDialog({
         isSecret: false,
       })
       setSelectedUserIds([])
+      setAttachments([])
+    }
+
+    return () => {
+      cancelled = true
     }
     // 不包含currentGameTime，避免每次时间更新时重置表单
   }, [message, open, messageDetailData])
+
+  useEffect(() => {
+    if (!open || !isEditing || !canManageConference) return
+    setSelectedUserIds(extractReceiverUserIds(receiversData))
+  }, [open, isEditing, canManageConference, receiversData])
 
   const resetForm = () => {
     setFormData({
@@ -216,6 +401,7 @@ export function MessageEditDialog({
       isSecret: false,
     })
     setSelectedUserIds([])
+    setAttachments([])
   }
 
   const copyMessageContentToClipboard = async (content: string) => {
@@ -246,6 +432,123 @@ export function MessageEditDialog({
     }
   }
 
+  const uploadAttachment = async (file: File): Promise<AttachmentItem | null> => {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    try {
+      const response = await AXIOS_INSTANCE.post<ResultAttachmentUploadResponse>(
+        '/api/attachments',
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      )
+
+      const uploaded = response.data?.data
+      if (!uploaded?.uuid) {
+        throw new Error('上传成功但未返回附件UUID')
+      }
+
+      return {
+        uuid: uploaded.uuid,
+        fileName: uploaded.fileName,
+        fileType: uploaded.fileType,
+      }
+    } catch (err) {
+      console.error('Upload attachment error:', err)
+      return null
+    }
+  }
+
+  const handleAttachmentFilesChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files
+    if (!files || files.length === 0) return
+
+    const fileList = Array.from(files)
+    const allowedFiles = fileList.filter((file) => isAllowedAttachmentFile(file))
+    const rejectedFiles = fileList.filter((file) => !isAllowedAttachmentFile(file))
+
+    if (rejectedFiles.length > 0) {
+      toast.warning('仅支持上传 docx、pdf 和常见图片格式（png/jpg/jpeg/gif/webp/bmp/svg/avif/heic/heif）')
+    }
+
+    if (allowedFiles.length === 0) {
+      event.target.value = ''
+      return
+    }
+
+    setIsUploadingAttachments(true)
+
+    try {
+      const uploadedItems = await Promise.all(allowedFiles.map((file) => uploadAttachment(file)))
+      const successItems = uploadedItems.filter((item): item is AttachmentItem => !!item)
+
+      if (successItems.length > 0) {
+        setAttachments((prev) => {
+          const merged = [...prev]
+          successItems.forEach((item) => {
+            if (!merged.some((existing) => existing.uuid === item.uuid)) {
+              merged.push(item)
+            }
+          })
+          return merged
+        })
+        toast.success(`已上传 ${successItems.length} 个附件`)
+      }
+
+      if (successItems.length < allowedFiles.length) {
+        toast.error(`有 ${allowedFiles.length - successItems.length} 个附件上传失败`)
+      }
+    } finally {
+      setIsUploadingAttachments(false)
+      event.target.value = ''
+    }
+  }
+
+  const removeAttachment = (uuid: string) => {
+    setAttachments((prev) => prev.filter((attachment) => attachment.uuid !== uuid))
+  }
+
+  const openRemoveAttachmentDialog = (attachment: AttachmentItem) => {
+    setAttachmentToRemove(attachment)
+    setRemoveDialogOpen(true)
+  }
+
+  const closeRemoveAttachmentDialog = () => {
+    if (isDeletingAttachmentOnServer) return
+    setRemoveDialogOpen(false)
+    setAttachmentToRemove(null)
+  }
+
+  const handleRemoveAttachmentOnly = () => {
+    if (!attachmentToRemove) return
+    removeAttachment(attachmentToRemove.uuid)
+    setRemoveDialogOpen(false)
+    setAttachmentToRemove(null)
+    toast.success('已移除附件关联')
+  }
+
+  const handleRemoveAndDeleteAttachment = async () => {
+    if (!attachmentToRemove) return
+
+    setIsDeletingAttachmentOnServer(true)
+    try {
+      await AXIOS_INSTANCE.delete(`/api/attachments/${attachmentToRemove.uuid}`)
+      removeAttachment(attachmentToRemove.uuid)
+      toast.success('已移除附件并从服务器删除')
+      setRemoveDialogOpen(false)
+      setAttachmentToRemove(null)
+    } catch (err) {
+      console.error('Delete attachment on server failed:', err)
+      toast.error('删除服务器附件失败，请稍后重试')
+    } finally {
+      setIsDeletingAttachmentOnServer(false)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -269,7 +572,14 @@ export function MessageEditDialog({
       return
     }
 
+    if (isUploadingAttachments) {
+      toast.warning('附件正在上传，请稍候再提交')
+      return
+    }
+
     await copyMessageContentToClipboard(formData.content)
+
+    const attachmentUuids = attachments.map((attachment) => attachment.uuid)
 
     if (isEditing && message) {
       // 更新消息
@@ -281,6 +591,7 @@ export function MessageEditDialog({
         publishRealTime: formData.publishRealTime || undefined,
         publishGameTime: parseGameTimeToISO(formData.publishGameTime),
         isSecret: formData.isSecret,
+        attachmentUuids,
       }
       updateMutation.mutate({ uuid: message.uuid, data: updateData })
     } else {
@@ -294,22 +605,24 @@ export function MessageEditDialog({
         publishGameTime: parseGameTimeToISO(formData.publishGameTime),
         isSecret: formData.isSecret,
         receiverIds: formData.isSecret ? selectedUserIds : undefined,
+        attachmentUuids: attachmentUuids.length > 0 ? attachmentUuids : undefined,
       }
       createMutation.mutate({ data: createData })
     }
   }
 
-  const isLoading = createMutation.isPending || updateMutation.isPending
+  const isLoading = createMutation.isPending || updateMutation.isPending || isUploadingAttachments
 
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="!max-w-6xl max-h-[90vh] flex flex-col">
-        <form onSubmit={handleSubmit} className="flex flex-col h-full overflow-hidden">
-          <AlertDialogHeader className="flex-shrink-0">
-            <AlertDialogTitle>
-              {isEditing ? '编辑消息' : '创建消息'}
-            </AlertDialogTitle>
-          </AlertDialogHeader>
+    <>
+      <AlertDialog open={open} onOpenChange={onOpenChange}>
+        <AlertDialogContent className="!max-w-4xl max-h-[90vh] flex flex-col">
+          <form onSubmit={handleSubmit} className="flex flex-col h-full overflow-hidden">
+            <AlertDialogHeader className="flex-shrink-0">
+              <AlertDialogTitle>
+                {isEditing ? '编辑消息' : '创建消息'}
+              </AlertDialogTitle>
+            </AlertDialogHeader>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-4 overflow-y-auto flex-1 px-1 -mx-1">
             {/* 左栏：基本信息 */}
@@ -405,6 +718,45 @@ export function MessageEditDialog({
                 <p className="text-xs text-muted-foreground">留空则使用服务器时间</p>
               </div>
 
+              {/* Attachments */}
+              <div className="space-y-2">
+                <Label htmlFor="attachments">附件</Label>
+                <Input
+                  id="attachments"
+                  type="file"
+                  multiple
+                  accept={ATTACHMENT_ACCEPT}
+                  onChange={handleAttachmentFilesChange}
+                  disabled={isLoading}
+                />
+                <p className="text-xs text-muted-foreground">
+                  仅支持 docx、pdf 和常见图片格式（png/jpg/jpeg/gif/webp/bmp/svg/avif/heic/heif）
+                </p>
+
+                {attachments.length > 0 && (
+                  <div className="space-y-2 rounded border p-2 bg-muted/30">
+                    {attachments.map((attachment) => (
+                      <div key={attachment.uuid} className="flex items-center justify-between gap-2 text-sm">
+                        <div className="min-w-0">
+                          <p className="truncate font-medium">
+                            {attachment.fileName}{attachment.fileType ? `.${attachment.fileType}` : ''}
+                          </p>
+                          <p className="text-xs text-muted-foreground truncate">UUID: {attachment.uuid}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => openRemoveAttachmentDialog(attachment)}
+                          className="text-xs text-destructive hover:underline flex-shrink-0"
+                          disabled={isLoading}
+                        >
+                          移除
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {/* Session ID (only for create) */}
               {/* Is Secret */}
               <div className="flex items-center gap-2 pt-2">
@@ -485,16 +837,53 @@ export function MessageEditDialog({
             </div>
           </div>
 
-          <AlertDialogFooter className="flex-shrink-0 mt-4">
-            <AlertDialogCancel type="button" disabled={isLoading}>
+            <AlertDialogFooter className="flex-shrink-0 mt-4">
+              <AlertDialogCancel type="button" disabled={isLoading}>
+                取消
+              </AlertDialogCancel>
+              <AlertDialogAction type="submit" disabled={isLoading}>
+                {isLoading ? '提交中...' : isEditing ? '更新' : '创建'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </form>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={removeDialogOpen} onOpenChange={setRemoveDialogOpen}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>移除附件</AlertDialogTitle>
+            <AlertDialogDescription>
+              是否移除附件
+              {attachmentToRemove ? `「${attachmentToRemove.fileName}${attachmentToRemove.fileType ? `.${attachmentToRemove.fileType}` : ''}」` : ''}
+              ？
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              type="button"
+              disabled={isDeletingAttachmentOnServer}
+              onClick={closeRemoveAttachmentDialog}
+            >
               取消
             </AlertDialogCancel>
-            <AlertDialogAction type="submit" disabled={isLoading}>
-              {isLoading ? '提交中...' : isEditing ? '更新' : '创建'}
+            <AlertDialogAction
+              type="button"
+              disabled={isDeletingAttachmentOnServer}
+              onClick={handleRemoveAttachmentOnly}
+            >
+              仅移除关联
+            </AlertDialogAction>
+            <AlertDialogAction
+              type="button"
+              disabled={isDeletingAttachmentOnServer}
+              onClick={handleRemoveAndDeleteAttachment}
+            >
+              {isDeletingAttachmentOnServer ? '删除中...' : '移除并删除服务器附件'}
             </AlertDialogAction>
           </AlertDialogFooter>
-        </form>
-      </AlertDialogContent>
-    </AlertDialog>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }

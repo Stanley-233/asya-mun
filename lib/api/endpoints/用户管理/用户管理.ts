@@ -798,75 +798,75 @@ export const useBatchRegister = <TError = unknown, TContext = unknown>(
  * 仅系统管理员可访问
  * @summary 获取所有用户
  */
-export type listAllResponse200 = {
+export type listAll1Response200 = {
   data: Blob;
   status: 200;
 };
 
-export type listAllResponseSuccess = listAllResponse200 & {
+export type listAll1ResponseSuccess = listAll1Response200 & {
   headers: Headers;
 };
-export type listAllResponse = listAllResponseSuccess;
+export type listAll1Response = listAll1ResponseSuccess;
 
-export const getListAllUrl = () => {
+export const getListAll1Url = () => {
   return `/api/users`;
 };
 
-export const listAll = async (
+export const listAll1 = async (
   options?: RequestInit,
-): Promise<listAllResponse> => {
-  return customInstance<listAllResponse>(getListAllUrl(), {
+): Promise<listAll1Response> => {
+  return customInstance<listAll1Response>(getListAll1Url(), {
     ...options,
     method: "GET",
   });
 };
 
-export const getListAllQueryKey = () => {
+export const getListAll1QueryKey = () => {
   return [`/api/users`] as const;
 };
 
-export const getListAllQueryOptions = <
-  TData = Awaited<ReturnType<typeof listAll>>,
+export const getListAll1QueryOptions = <
+  TData = Awaited<ReturnType<typeof listAll1>>,
   TError = unknown,
 >(options?: {
   query?: Partial<
-    UseQueryOptions<Awaited<ReturnType<typeof listAll>>, TError, TData>
+    UseQueryOptions<Awaited<ReturnType<typeof listAll1>>, TError, TData>
   >;
   request?: SecondParameter<typeof customInstance>;
 }) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getListAllQueryKey();
+  const queryKey = queryOptions?.queryKey ?? getListAll1QueryKey();
 
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof listAll>>> = ({
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listAll1>>> = ({
     signal,
-  }) => listAll({ signal, ...requestOptions });
+  }) => listAll1({ signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof listAll>>,
+    Awaited<ReturnType<typeof listAll1>>,
     TError,
     TData
   > & { queryKey: DataTag<QueryKey, TData, TError> };
 };
 
-export type ListAllQueryResult = NonNullable<
-  Awaited<ReturnType<typeof listAll>>
+export type ListAll1QueryResult = NonNullable<
+  Awaited<ReturnType<typeof listAll1>>
 >;
-export type ListAllQueryError = unknown;
+export type ListAll1QueryError = unknown;
 
-export function useListAll<
-  TData = Awaited<ReturnType<typeof listAll>>,
+export function useListAll1<
+  TData = Awaited<ReturnType<typeof listAll1>>,
   TError = unknown,
 >(
   options: {
     query: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof listAll>>, TError, TData>
+      UseQueryOptions<Awaited<ReturnType<typeof listAll1>>, TError, TData>
     > &
       Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listAll>>,
+          Awaited<ReturnType<typeof listAll1>>,
           TError,
-          Awaited<ReturnType<typeof listAll>>
+          Awaited<ReturnType<typeof listAll1>>
         >,
         "initialData"
       >;
@@ -876,19 +876,19 @@ export function useListAll<
 ): DefinedUseQueryResult<TData, TError> & {
   queryKey: DataTag<QueryKey, TData, TError>;
 };
-export function useListAll<
-  TData = Awaited<ReturnType<typeof listAll>>,
+export function useListAll1<
+  TData = Awaited<ReturnType<typeof listAll1>>,
   TError = unknown,
 >(
   options?: {
     query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof listAll>>, TError, TData>
+      UseQueryOptions<Awaited<ReturnType<typeof listAll1>>, TError, TData>
     > &
       Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listAll>>,
+          Awaited<ReturnType<typeof listAll1>>,
           TError,
-          Awaited<ReturnType<typeof listAll>>
+          Awaited<ReturnType<typeof listAll1>>
         >,
         "initialData"
       >;
@@ -898,13 +898,13 @@ export function useListAll<
 ): UseQueryResult<TData, TError> & {
   queryKey: DataTag<QueryKey, TData, TError>;
 };
-export function useListAll<
-  TData = Awaited<ReturnType<typeof listAll>>,
+export function useListAll1<
+  TData = Awaited<ReturnType<typeof listAll1>>,
   TError = unknown,
 >(
   options?: {
     query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof listAll>>, TError, TData>
+      UseQueryOptions<Awaited<ReturnType<typeof listAll1>>, TError, TData>
     >;
     request?: SecondParameter<typeof customInstance>;
   },
@@ -916,13 +916,13 @@ export function useListAll<
  * @summary 获取所有用户
  */
 
-export function useListAll<
-  TData = Awaited<ReturnType<typeof listAll>>,
+export function useListAll1<
+  TData = Awaited<ReturnType<typeof listAll1>>,
   TError = unknown,
 >(
   options?: {
     query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof listAll>>, TError, TData>
+      UseQueryOptions<Awaited<ReturnType<typeof listAll1>>, TError, TData>
     >;
     request?: SecondParameter<typeof customInstance>;
   },
@@ -930,7 +930,7 @@ export function useListAll<
 ): UseQueryResult<TData, TError> & {
   queryKey: DataTag<QueryKey, TData, TError>;
 } {
-  const queryOptions = getListAllQueryOptions(options);
+  const queryOptions = getListAll1QueryOptions(options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<
     TData,
