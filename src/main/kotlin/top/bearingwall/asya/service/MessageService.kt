@@ -9,6 +9,7 @@ import top.bearingwall.asya.dto.MessageResponse
 import top.bearingwall.asya.dto.MessageUpdateRequest
 import top.bearingwall.asya.dto.UserInfoResponse
 import top.bearingwall.asya.model.Message
+import top.bearingwall.asya.repository.AttachmentRepository
 import top.bearingwall.asya.repository.MessageRepository
 import top.bearingwall.asya.repository.UserRepository
 import java.util.UUID
@@ -16,7 +17,8 @@ import java.util.UUID
 @Service
 class MessageService(
     private val messageRepository: MessageRepository,
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val attachmentRepository: AttachmentRepository
 ) {
 
     @Transactional
@@ -49,7 +51,9 @@ class MessageService(
             message.receivers.addAll(receivers)
         }
 
-        return messageRepository.save(message).toResponse()
+        val saved = messageRepository.save(message)
+        applyAttachments(saved, request.attachmentUuids)
+        return messageRepository.save(saved).toResponse()
     }
 
     @Transactional
@@ -65,6 +69,7 @@ class MessageService(
         request.publishRealTime?.let { message.publishRealTime = it }
         request.publishGameTime?.let { message.publishGameTime = it }
         request.isSecret?.let { message.isSecret = it }
+        applyAttachments(message, request.attachmentUuids)
 
         return messageRepository.save(message).toResponse()
     }
@@ -152,8 +157,53 @@ class MessageService(
         msgType = this.msgType,
         publishRealTime = this.publishRealTime,
         publishGameTime = this.publishGameTime,
-        isSecret = this.isSecret
+        isSecret = this.isSecret,
+        hasAttachment = if (omitContent) null else this.attachments.isNotEmpty(),
+        attachmentUuids = if (omitContent) null else this.attachments.mapNotNull { it.uuid?.toString() }
     )
+
+    private fun applyAttachments(message: Message, attachmentUuids: List<String>?) {
+        if (attachmentUuids == null) {
+            return
+        }
+
+        val targetUuids = attachmentUuids.map { UUID.fromString(it) }.toSet()
+        val attachmentsToSave = mutableListOf<top.bearingwall.asya.model.Attachment>()
+
+        message.attachments.toList().forEach { existing ->
+            val existingUuid = existing.uuid
+            if (existingUuid != null && existingUuid !in targetUuids) {
+                message.removeAttachment(existing)
+                existing.targetType = null
+                existing.targetId = null
+                attachmentsToSave.add(existing)
+            }
+        }
+
+        if (targetUuids.isNotEmpty()) {
+            val fetched = attachmentRepository.findAllById(targetUuids)
+            if (fetched.size != targetUuids.size) {
+                val found = fetched.mapNotNull { it.uuid }.toSet()
+                val missing = targetUuids.filterNot { it in found }
+                throw IllegalArgumentException("Attachment not found: $missing")
+            }
+
+            fetched.forEach { attachment ->
+                val existingMessageId = attachment.message?.uuid
+                if (existingMessageId != null && existingMessageId != message.uuid) {
+                    throw IllegalStateException("Attachment already bound to another message: ${attachment.uuid}")
+                }
+                if (message.attachments.none { it.uuid == attachment.uuid }) {
+                    message.addAttachment(attachment)
+                    attachmentsToSave.add(attachment)
+                }
+            }
+        }
+
+        if (attachmentsToSave.isNotEmpty()) {
+            attachmentRepository.saveAll(attachmentsToSave)
+        }
+    }
 
     @Transactional
     fun deleteMessage(uuid: UUID) {

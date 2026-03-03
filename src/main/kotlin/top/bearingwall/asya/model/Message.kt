@@ -51,5 +51,25 @@ class Message(
         joinColumns = [JoinColumn(name = "message_id")],
         inverseJoinColumns = [JoinColumn(name = "user_id")]
     )
-    var receivers: MutableSet<User> = mutableSetOf()
-)
+    var receivers: MutableSet<User> = mutableSetOf(),
+
+    @OneToMany(mappedBy = "message", fetch = FetchType.LAZY)
+    var attachments: MutableSet<Attachment> = mutableSetOf()
+) {
+    fun addAttachment(attachment: Attachment) {
+        attachment.targetId = this.uuid
+        attachment.targetType = AttachmentTargetType.MESSAGE
+        attachments.add(attachment)
+        attachment.message = this
+    }
+
+    fun removeAttachment(attachment: Attachment) {
+        attachments.remove(attachment)
+        attachment.message = null
+    }
+
+    fun hasAttachment(): Boolean {
+        return attachments.isNotEmpty()
+    }
+}
+

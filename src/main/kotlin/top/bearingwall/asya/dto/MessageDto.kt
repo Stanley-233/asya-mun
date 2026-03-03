@@ -32,7 +32,10 @@ data class MessageCreateRequest(
     val isSecret: Boolean = false,
 
     @Schema(description = "接收者ID列表(UUID), 当isSecret为true时有效")
-    val receiverIds: List<String>? = null
+    val receiverIds: List<String>? = null,
+
+    @Schema(description = "附件UUID列表")
+    val attachmentUuids: List<String>? = null
 )
 
 @Schema(description = "更新消息请求")
@@ -56,7 +59,10 @@ data class MessageUpdateRequest(
     val publishGameTime: LocalDateTime?,
 
     @Schema(description = "是否加密")
-    val isSecret: Boolean?
+    val isSecret: Boolean?,
+
+    @Schema(description = "附件UUID列表(为空表示清空，null表示不修改)")
+    val attachmentUuids: List<String>? = null
 )
 
 @Schema(description = "消息详情响应")
@@ -92,5 +98,11 @@ data class MessageResponse(
     val publishGameTime: LocalDateTime,
 
     @Schema(description = "是否加密")
-    val isSecret: Boolean
+    val isSecret: Boolean,
+
+    @Schema(description = "是否有附件(仅详情返回)")
+    val hasAttachment: Boolean? = null,
+
+    @Schema(description = "附件UUID列表(仅详情返回)")
+    val attachmentUuids: List<String>? = null
 )
