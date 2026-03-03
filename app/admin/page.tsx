@@ -705,7 +705,16 @@ export default function AdminPage() {
 
         {/* 用户管理 */}
         <div>
-          <h2 className="text-2xl font-bold mb-4">用户管理</h2>
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h2 className="text-2xl font-bold">用户管理</h2>
+            <Button
+              variant="outline"
+              onClick={handleOpenBatchDialog}
+              disabled={conferences.length === 0}
+            >
+              批量注册
+            </Button>
+          </div>
 
         {usersLoading ? (
           <div className="flex justify-center items-center min-h-64">

@@ -180,10 +180,10 @@ export default function ProfilePage() {
                 <div>
                   <h3 className="text-sm font-semibold mb-4">账户信息</h3>
                   <div className="space-y-3 bg-muted/50 p-4 rounded-lg">
-                    <div>
+                    {/* <div>
                       <p className="text-xs text-muted-foreground mb-1">用户ID</p>
                       <p className="font-mono text-sm break-all">{user.uuid}</p>
-                    </div>
+                    </div> */}
                     <div>
                       <p className="text-xs text-muted-foreground mb-1">用户昵称</p>
                       <p className="text-sm font-medium">{user.name}</p>

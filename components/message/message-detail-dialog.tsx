@@ -534,7 +534,7 @@ export function MessageDetailDialog({
                               <span>类型: {attachmentInfo?.fileType || '未知'}</span>
                               <span>大小: {formatFileSize(attachmentInfo?.fileSize)}</span>
                             </div>
-                            <p className="text-xs text-muted-foreground break-all">UUID: {attachmentUuid}</p>
+                            {/* <p className="text-xs text-muted-foreground break-all">UUID: {attachmentUuid}</p> */}
                           </div>
                           <div className="ml-2 flex items-center gap-2 shrink-0">
                             {isImageAttachment(attachmentInfo?.fileType, filename) && (
