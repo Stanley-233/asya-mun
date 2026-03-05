@@ -4,6 +4,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import top.bearingwall.asya.audit.Auditable
 import top.bearingwall.asya.dto.UserRegistrationRequest
 import top.bearingwall.asya.dto.UserResponse
 import top.bearingwall.asya.dto.UserInfoResponse
@@ -12,6 +13,7 @@ import top.bearingwall.asya.dto.BatchRegisterRequest
 import top.bearingwall.asya.dto.BatchRegisterResponse
 import top.bearingwall.asya.model.User
 import top.bearingwall.asya.model.UserRole
+import top.bearingwall.asya.model.AuditActionType
 import top.bearingwall.asya.repository.UserRepository
 import top.bearingwall.asya.repository.ConferenceRepository
 import top.bearingwall.asya.util.JwtUtil
@@ -28,6 +30,7 @@ class UserService(
     private val passwordEncoder = BCryptPasswordEncoder()
 
     @Transactional
+    @Auditable(type = AuditActionType.USER_REGISTER, content = "用户注册")
     fun registerUser(request: UserRegistrationRequest): UserResponse {
         log.info("Registering user, name={}, role={}", request.name, request.role)
 
@@ -82,6 +85,7 @@ class UserService(
         )
     }
 
+    @Auditable(type = AuditActionType.USER_LOGIN, content = "用户登录")
     fun loginUser(request: UserRegistrationRequest): UserResponse {
         log.info("Logging in user, name={}", request.name)
 
@@ -125,6 +129,7 @@ class UserService(
     }
 
     @Transactional
+    @Auditable(type = AuditActionType.USER_DELETE, content = "删除用户")
     fun deleteUser(uuid: UUID) {
         if (!userRepository.existsById(uuid)) {
             throw IllegalArgumentException("User not found: $uuid")
@@ -152,6 +157,7 @@ class UserService(
     }
 
     @Transactional
+    @Auditable(type = AuditActionType.USER_UPDATE, content = "更新用户信息")
     fun updateUser(targetUuid: UUID, token: String, request: UserUpdateRequest): UserInfoResponse {
         val parsed = JwtUtil.parseToken(token)
         val requesterId = UUID.fromString(parsed.subject)
@@ -208,6 +214,7 @@ class UserService(
     }
 
     @Transactional
+    @Auditable(type = AuditActionType.USER_PASSWORD_RESET, content = "重置用户密码")
     fun resetPassword(uuid: UUID, newPassword: String) {
         val user = userRepository.findById(uuid).orElseThrow {
             IllegalArgumentException("User not found: $uuid")
@@ -220,6 +227,7 @@ class UserService(
     }
 
     @Transactional
+    @Auditable(type = AuditActionType.USER_BATCH_REGISTER, content = "批量注册用户")
     fun batchRegister(requesterUuid: UUID, request: BatchRegisterRequest): BatchRegisterResponse {
         val requester = userRepository.findById(requesterUuid).orElseThrow { IllegalArgumentException("Requester not found") }
         if (requester.role != UserRole.SYS_ADMIN) {

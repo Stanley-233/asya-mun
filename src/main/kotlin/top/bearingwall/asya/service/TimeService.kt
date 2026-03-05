@@ -4,9 +4,11 @@ import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter
+import top.bearingwall.asya.audit.Auditable
 import top.bearingwall.asya.dto.TimeAnchorResponse
 import top.bearingwall.asya.dto.TimeUpdateRequest
 import top.bearingwall.asya.dto.TimeJumpRequest
+import top.bearingwall.asya.model.AuditActionType
 import top.bearingwall.asya.model.TimeAnchor
 import top.bearingwall.asya.repository.ConferenceRepository
 import top.bearingwall.asya.repository.TimeAnchorRepository
@@ -54,6 +56,7 @@ class TimeService(
     }
 
     @Transactional
+    @Auditable(type = AuditActionType.TIMELINE_UPDATE, content = "更新时间轴")
     fun updateTimeAnchor(request: TimeUpdateRequest, conferenceUuid: UUID): TimeAnchorResponse {
         val conference = conferenceRepository.findById(conferenceUuid).orElseThrow {
             IllegalArgumentException("Conference not found: $conferenceUuid")
@@ -90,6 +93,7 @@ class TimeService(
     }
 
     @Transactional
+    @Auditable(type = AuditActionType.TIMELINE_JUMP, content = "时间轴跳跃")
     fun jumpTimeAnchor(request: TimeJumpRequest, conferenceUuid: UUID): TimeAnchorResponse {
         val conference = conferenceRepository.findById(conferenceUuid).orElseThrow {
             IllegalArgumentException("Conference not found: $conferenceUuid")

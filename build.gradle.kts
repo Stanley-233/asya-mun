@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "top.bearingwall"
-version = "0.4.2-SNAPSHOT"
+version = "0.4.3-SNAPSHOT"
 
 java {
     toolchain {
@@ -36,6 +36,8 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter")
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
+    implementation("org.springframework:spring-aop")
+    implementation("org.aspectj:aspectjweaver")
     // Kotlin
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("org.jetbrains.kotlin:kotlin-stdlib")

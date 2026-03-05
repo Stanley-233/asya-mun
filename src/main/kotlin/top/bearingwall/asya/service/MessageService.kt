@@ -4,10 +4,12 @@ import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import top.bearingwall.asya.audit.Auditable
 import top.bearingwall.asya.dto.MessageCreateRequest
 import top.bearingwall.asya.dto.MessageResponse
 import top.bearingwall.asya.dto.MessageUpdateRequest
 import top.bearingwall.asya.dto.UserInfoResponse
+import top.bearingwall.asya.model.AuditActionType
 import top.bearingwall.asya.model.Message
 import top.bearingwall.asya.repository.AttachmentRepository
 import top.bearingwall.asya.repository.MessageRepository
@@ -22,6 +24,7 @@ class MessageService(
 ) {
 
     @Transactional
+    @Auditable(type = AuditActionType.MESSAGE_CREATE, content = "创建消息")
     fun createMessage(request: MessageCreateRequest, senderUuid: UUID): MessageResponse {
         val sender = userRepository.findById(senderUuid).orElseThrow {
             IllegalArgumentException("User not found: $senderUuid")
@@ -57,6 +60,7 @@ class MessageService(
     }
 
     @Transactional
+    @Auditable(type = AuditActionType.MESSAGE_UPDATE, content = "更新消息")
     fun updateMessage(uuid: UUID, request: MessageUpdateRequest): MessageResponse {
         val message = messageRepository.findById(uuid).orElseThrow {
             IllegalArgumentException("Message not found: $uuid")
@@ -206,6 +210,7 @@ class MessageService(
     }
 
     @Transactional
+    @Auditable(type = AuditActionType.MESSAGE_DELETE, content = "删除消息")
     fun deleteMessage(uuid: UUID) {
         if (!messageRepository.existsById(uuid)) {
             throw IllegalArgumentException("Message not found: $uuid")

@@ -2,9 +2,11 @@ package top.bearingwall.asya.service
 
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import top.bearingwall.asya.audit.Auditable
 import top.bearingwall.asya.dto.ConferenceRequest
 import top.bearingwall.asya.dto.ConferenceResponse
 import top.bearingwall.asya.dto.UserInfoResponse
+import top.bearingwall.asya.model.AuditActionType
 import top.bearingwall.asya.model.Conference
 import top.bearingwall.asya.model.ConferenceStatus
 import top.bearingwall.asya.model.User
@@ -19,6 +21,7 @@ class ConferenceService(
     private val userRepository: UserRepository
 ) {
     @Transactional
+    @Auditable(type = AuditActionType.CONFERENCE_CREATE, content = "创建会议")
     fun createConference(requester: User, req: ConferenceRequest): ConferenceResponse {
         require(requester.role == UserRole.SYS_ADMIN) { "Only SYS_ADMIN can create conference" }
         val conf = Conference(
@@ -31,6 +34,7 @@ class ConferenceService(
     }
 
     @Transactional
+    @Auditable(type = AuditActionType.CONFERENCE_UPDATE, content = "更新会议")
     fun updateConference(requester: User, req: ConferenceRequest): ConferenceResponse {
         require(requester.role == UserRole.DH || requester.role == UserRole.DM || requester.role == UserRole.SYS_ADMIN) {
             "Only DH, DM, or SYS_ADMIN can update conference"
@@ -73,6 +77,7 @@ class ConferenceService(
     }
 
     @Transactional
+    @Auditable(type = AuditActionType.CONFERENCE_ASSIGN_USER, content = "分配用户到会议")
     fun assignUserToConference(requester: User, conferenceUuid: UUID, userUuid: UUID): UserInfoResponse {
         require(requester.role == UserRole.SYS_ADMIN) { "Only SYS_ADMIN can assign users to conference" }
         val conference = conferenceRepository.findById(conferenceUuid).orElseThrow {
