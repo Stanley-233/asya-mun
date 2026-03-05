@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { useGetOne } from '@/lib/api/endpoints/消息管理/消息管理'
+import { getOne1 } from '@/lib/api/endpoints/附件管理/附件管理'
 import { AXIOS_INSTANCE } from '@/lib/api/client'
 import { useGetUsers } from '@/lib/api/endpoints/会议管理/会议管理'
 import type { MessageResponse, UserInfoResponse } from '@/lib/api/endpoints/asyaBackendAPI.schemas'
@@ -294,27 +295,31 @@ export function MessageDetailDialog({
     const fetchAttachmentInfos = async () => {
       setIsLoadingAttachmentInfo(true)
       try {
-        const response = await AXIOS_INSTANCE.get('/api/attachments')
-        const payload = response.data
-        const list = Array.isArray(payload?.data)
-          ? payload.data
-          : Array.isArray(payload)
-            ? payload
-            : []
+        const results = await Promise.allSettled(
+          missingUuids.map(async (uuid) => {
+            const response = await getOne1(uuid)
+            const payload = (response as any)?.data
+            const parsed = typeof payload === 'string' ? JSON.parse(payload) : payload
+            const item = parsed?.data || parsed
 
-        if (cancelled) return
+            if (!item?.uuid) return null
 
-        const filtered = (list as any[])
-          .filter((item) => item?.uuid && missingUuids.includes(item.uuid))
-          .reduce((acc, item) => {
-            acc[item.uuid] = {
+            return {
               uuid: item.uuid,
               fileName: item.fileName || item.uuid,
               fileType: item.fileType || '',
               fileSize: item.fileSize,
-            }
-            return acc
-          }, {} as Record<string, AttachmentDisplayInfo>)
+            } as AttachmentDisplayInfo
+          })
+        )
+
+        if (cancelled) return
+
+        const filtered = results.reduce((acc, result) => {
+          if (result.status !== 'fulfilled' || !result.value) return acc
+          acc[result.value.uuid] = result.value
+          return acc
+        }, {} as Record<string, AttachmentDisplayInfo>)
 
         if (Object.keys(filtered).length > 0) {
           setAttachmentInfoMap((prev) => ({ ...prev, ...filtered }))

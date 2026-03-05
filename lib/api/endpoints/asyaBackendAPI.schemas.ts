@@ -519,17 +519,17 @@ export interface Pageable {
 
 export interface Sortnull {
   empty?: boolean;
-  unsorted?: boolean;
   sorted?: boolean;
+  unsorted?: boolean;
 }
 
 export interface Pageablenull {
   offset?: number;
   sort?: Sortnull;
-  unpaged?: boolean;
   paged?: boolean;
   pageNumber?: number;
   pageSize?: number;
+  unpaged?: boolean;
 }
 
 export interface Pagenull {
@@ -619,6 +619,17 @@ export interface ResultListAttachmentInfoResponse {
   /** 提示信息 */
   message: string;
   data?: AttachmentInfoResponse[];
+}
+
+/**
+ * 统一接口返回结构
+ */
+export interface ResultAttachmentInfoResponse {
+  /** 状态码 */
+  code: number;
+  /** 提示信息 */
+  message: string;
+  data?: AttachmentInfoResponse;
 }
 
 export type ResetPasswordBody = { [key: string]: string };

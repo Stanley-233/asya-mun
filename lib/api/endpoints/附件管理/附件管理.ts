@@ -270,6 +270,257 @@ export const useUpload = <TError = unknown, TContext = unknown>(
   return useMutation(getUploadMutationOptions(options), queryClient);
 };
 /**
+ * 登录用户可查看单个附件信息，不包含BLOB
+ * @summary 查询单个附件信息
+ */
+export type getOne1Response200 = {
+  data: Blob;
+  status: 200;
+};
+
+export type getOne1ResponseSuccess = getOne1Response200 & {
+  headers: Headers;
+};
+export type getOne1Response = getOne1ResponseSuccess;
+
+export const getGetOne1Url = (uuid: string) => {
+  return `/api/attachments/${uuid}`;
+};
+
+export const getOne1 = async (
+  uuid: string,
+  options?: RequestInit,
+): Promise<getOne1Response> => {
+  return customInstance<getOne1Response>(getGetOne1Url(uuid), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetOne1QueryKey = (uuid: string) => {
+  return [`/api/attachments/${uuid}`] as const;
+};
+
+export const getGetOne1QueryOptions = <
+  TData = Awaited<ReturnType<typeof getOne1>>,
+  TError = unknown,
+>(
+  uuid: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getOne1>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetOne1QueryKey(uuid);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getOne1>>> = ({
+    signal,
+  }) => getOne1(uuid, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!uuid,
+    ...queryOptions,
+  } as UseQueryOptions<Awaited<ReturnType<typeof getOne1>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+};
+
+export type GetOne1QueryResult = NonNullable<
+  Awaited<ReturnType<typeof getOne1>>
+>;
+export type GetOne1QueryError = unknown;
+
+export function useGetOne1<
+  TData = Awaited<ReturnType<typeof getOne1>>,
+  TError = unknown,
+>(
+  uuid: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getOne1>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getOne1>>,
+          TError,
+          Awaited<ReturnType<typeof getOne1>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetOne1<
+  TData = Awaited<ReturnType<typeof getOne1>>,
+  TError = unknown,
+>(
+  uuid: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getOne1>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getOne1>>,
+          TError,
+          Awaited<ReturnType<typeof getOne1>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetOne1<
+  TData = Awaited<ReturnType<typeof getOne1>>,
+  TError = unknown,
+>(
+  uuid: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getOne1>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary 查询单个附件信息
+ */
+
+export function useGetOne1<
+  TData = Awaited<ReturnType<typeof getOne1>>,
+  TError = unknown,
+>(
+  uuid: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getOne1>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getGetOne1QueryOptions(uuid, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * DH、DM、SYS_ADMIN 可删除
+ * @summary 删除附件
+ */
+export type delete1Response200 = {
+  data: Blob;
+  status: 200;
+};
+
+export type delete1ResponseSuccess = delete1Response200 & {
+  headers: Headers;
+};
+export type delete1Response = delete1ResponseSuccess;
+
+export const getDelete1Url = (uuid: string) => {
+  return `/api/attachments/${uuid}`;
+};
+
+export const delete1 = async (
+  uuid: string,
+  options?: RequestInit,
+): Promise<delete1Response> => {
+  return customInstance<delete1Response>(getDelete1Url(uuid), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDelete1MutationOptions = <
+  TError = unknown,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof delete1>>,
+    TError,
+    { uuid: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof delete1>>,
+  TError,
+  { uuid: string },
+  TContext
+> => {
+  const mutationKey = ["delete1"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof delete1>>,
+    { uuid: string }
+  > = (props) => {
+    const { uuid } = props ?? {};
+
+    return delete1(uuid, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type Delete1MutationResult = NonNullable<
+  Awaited<ReturnType<typeof delete1>>
+>;
+
+export type Delete1MutationError = unknown;
+
+/**
+ * @summary 删除附件
+ */
+export const useDelete1 = <TError = unknown, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof delete1>>,
+      TError,
+      { uuid: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof delete1>>,
+  TError,
+  { uuid: string },
+  TContext
+> => {
+  return useMutation(getDelete1MutationOptions(options), queryClient);
+};
+/**
  * 登录用户可下载附件
  * @summary 下载附件
  */
@@ -425,98 +676,3 @@ export function useDownload<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
-
-/**
- * DH、DM、SYS_ADMIN 可删除
- * @summary 删除附件
- */
-export type delete1Response200 = {
-  data: Blob;
-  status: 200;
-};
-
-export type delete1ResponseSuccess = delete1Response200 & {
-  headers: Headers;
-};
-export type delete1Response = delete1ResponseSuccess;
-
-export const getDelete1Url = (uuid: string) => {
-  return `/api/attachments/${uuid}`;
-};
-
-export const delete1 = async (
-  uuid: string,
-  options?: RequestInit,
-): Promise<delete1Response> => {
-  return customInstance<delete1Response>(getDelete1Url(uuid), {
-    ...options,
-    method: "DELETE",
-  });
-};
-
-export const getDelete1MutationOptions = <
-  TError = unknown,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof delete1>>,
-    TError,
-    { uuid: string },
-    TContext
-  >;
-  request?: SecondParameter<typeof customInstance>;
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof delete1>>,
-  TError,
-  { uuid: string },
-  TContext
-> => {
-  const mutationKey = ["delete1"];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof delete1>>,
-    { uuid: string }
-  > = (props) => {
-    const { uuid } = props ?? {};
-
-    return delete1(uuid, requestOptions);
-  };
-
-  return { mutationFn, ...mutationOptions };
-};
-
-export type Delete1MutationResult = NonNullable<
-  Awaited<ReturnType<typeof delete1>>
->;
-
-export type Delete1MutationError = unknown;
-
-/**
- * @summary 删除附件
- */
-export const useDelete1 = <TError = unknown, TContext = unknown>(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof delete1>>,
-      TError,
-      { uuid: string },
-      TContext
-    >;
-    request?: SecondParameter<typeof customInstance>;
-  },
-  queryClient?: QueryClient,
-): UseMutationResult<
-  Awaited<ReturnType<typeof delete1>>,
-  TError,
-  { uuid: string },
-  TContext
-> => {
-  return useMutation(getDelete1MutationOptions(options), queryClient);
-};
