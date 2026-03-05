@@ -82,6 +82,21 @@ class AttachmentController(
         }
     }
 
+    @Operation(summary = "查询单个附件信息", description = "登录用户可查看单个附件信息，不包含BLOB")
+    @GetMapping("/{uuid}")
+    fun getOne(
+        @RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String,
+        @PathVariable uuid: UUID
+    ): ResponseEntity<Result<AttachmentInfoResponse>> {
+        return try {
+            userService.getUserFromToken(extractBearer(authorization))
+            val response = attachmentService.getAttachmentInfo(uuid)
+            ResponseEntity.ok(Result.success(response))
+        } catch (e: Exception) {
+            handleException(e)
+        }
+    }
+
     @Operation(summary = "下载附件", description = "登录用户可下载附件")
     @GetMapping("/{uuid}/download")
     fun download(

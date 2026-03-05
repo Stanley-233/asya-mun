@@ -37,16 +37,13 @@ class AttachmentService(
     @Transactional(readOnly = true)
     fun listAll(): List<AttachmentInfoResponse> {
         return attachmentRepository.findAll().map { attachment ->
-            AttachmentInfoResponse(
-                uuid = attachment.uuid.toString(),
-                fileName = attachment.fileName,
-                fileType = attachment.fileType,
-                fileSize = attachment.fileSize,
-                targetType = attachment.targetType,
-                targetId = attachment.targetId?.toString(),
-                messageId = attachment.message?.uuid?.toString()
-            )
+            attachment.toInfoResponse()
         }
+    }
+
+    @Transactional(readOnly = true)
+    fun getAttachmentInfo(uuid: UUID): AttachmentInfoResponse {
+        return getAttachment(uuid).toInfoResponse()
     }
 
     @Transactional(readOnly = true)
@@ -75,6 +72,18 @@ class AttachmentService(
         return Pair(
             normalized.substring(0, dotIndex),
             normalized.substring(dotIndex + 1)
+        )
+    }
+
+    private fun Attachment.toInfoResponse(): AttachmentInfoResponse {
+        return AttachmentInfoResponse(
+            uuid = uuid.toString(),
+            fileName = fileName,
+            fileType = fileType,
+            fileSize = fileSize,
+            targetType = targetType,
+            targetId = targetId?.toString(),
+            messageId = message?.uuid?.toString()
         )
     }
 }

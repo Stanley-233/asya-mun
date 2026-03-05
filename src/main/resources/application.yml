@@ -4,6 +4,8 @@ spring:
     driver-class-name: org.postgresql.Driver
     username: ${DB_USERNAME:asya}
     password: ${DB_PASSWORD}
+    hikari:
+      max-lifetime: 1500000
   jpa:
     hibernate:
       ddl-auto: update
