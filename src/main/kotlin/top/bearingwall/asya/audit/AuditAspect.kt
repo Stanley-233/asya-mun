@@ -28,6 +28,7 @@ class AuditAspect(
             auditLogService.save(
                 actorUuid = actor.uuid,
                 actorName = actor.name,
+                actorIp = actor.ip,
                 actionType = auditable.type,
                 eventContent = baseContent,
                 success = true
@@ -37,6 +38,7 @@ class AuditAspect(
             auditLogService.save(
                 actorUuid = actor.uuid,
                 actorName = actor.name,
+                actorIp = actor.ip,
                 actionType = auditable.type,
                 eventContent = "$baseContent [error=${ex.message?.take(200)}]",
                 success = false
@@ -70,4 +72,3 @@ class AuditAspect(
         return AuditActor(name = "anonymous")
     }
 }
-

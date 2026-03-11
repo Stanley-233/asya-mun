@@ -27,6 +27,9 @@ class AuditLog(
     @Column(name = "actor_name", length = 120)
     var actorName: String? = null,
 
+    @Column(name = "actor_ip", length = 45)
+    var actorIp: String? = null,
+
     @Enumerated(EnumType.STRING)
     @Column(name = "action_type", nullable = false, length = 64)
     var actionType: AuditActionType,
@@ -37,4 +40,3 @@ class AuditLog(
     @Column(name = "success", nullable = false)
     var success: Boolean = true
 )
-

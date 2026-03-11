@@ -20,6 +20,7 @@ class AuditLogService(
     fun save(
         actorUuid: UUID?,
         actorName: String?,
+        actorIp: String?,
         actionType: AuditActionType,
         eventContent: String,
         success: Boolean
@@ -30,14 +31,14 @@ class AuditLogService(
                     eventTime = LocalDateTime.now(),
                     actorUuid = actorUuid,
                     actorName = actorName,
+                    actorIp = actorIp,
                     actionType = actionType,
                     eventContent = eventContent,
                     success = success
                 )
             )
         }.onFailure {
-            log.error("Failed to persist audit log, type={}, actorName={}", actionType, actorName, it)
+            log.error("Failed to persist audit log, type={}, actorName={}, actorIp={}", actionType, actorName, actorIp, it)
         }
     }
 }
-

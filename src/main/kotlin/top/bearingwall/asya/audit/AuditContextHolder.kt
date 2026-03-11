@@ -4,7 +4,8 @@ import java.util.UUID
 
 data class AuditActor(
     val uuid: UUID? = null,
-    val name: String? = null
+    val name: String? = null,
+    val ip: String? = null
 )
 
 object AuditContextHolder {
@@ -20,4 +21,3 @@ object AuditContextHolder {
         actorContext.remove()
     }
 }
-
