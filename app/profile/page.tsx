@@ -32,8 +32,6 @@ export default function ProfilePage() {
   const { data: conferenceData, isLoading: conferenceLoading } = useGetMine()
 
   const [formData, setFormData] = useState({
-    name: '',
-    displayName: '',
     password: '',
   })
   const [conference, setConference] = useState<ConferenceResponse | null>(null)
@@ -50,8 +48,6 @@ export default function ProfilePage() {
   useEffect(() => {
     if (user) {
       setFormData({
-        name: user.name || '',
-        displayName: user.displayName || '',
         password: '',
       })
     }
@@ -86,39 +82,34 @@ export default function ProfilePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
     if (!user?.uuid) {
       setMessage({ type: 'error', text: '用户信息未加载' })
       return
     }
-
-    if (!formData.name.trim()) {
-      setMessage({ type: 'error', text: '用户昵称不能为空' })
+    if (!formData.password) {
+      setMessage({ type: 'error', text: '请输入新密码' })
       return
     }
-
     try {
       updateUser(
         {
           uuid: user.uuid,
           data: {
-            name: formData.name,
-            displayName: formData.displayName,
-            ...(formData.password && { password: formData.password }),
+            password: formData.password,
           }
         },
         {
           onSuccess: () => {
-            setMessage({ type: 'success', text: '个人信息更新成功' })
-            setFormData(prev => ({ ...prev, password: '' }))
+            setMessage({ type: 'success', text: '密码修改成功' })
+            setFormData({ password: '' })
           },
-          onError: (error) => {
-            setMessage({ type: 'error', text: '更新失败，请重试' })
+          onError: () => {
+            setMessage({ type: 'error', text: '密码修改失败，请重试' })
           }
         }
       )
     } catch (error) {
-      setMessage({ type: 'error', text: '更新失败，请重试' })
+      setMessage({ type: 'error', text: '密码修改失败，请重试' })
     }
   }
 
@@ -235,58 +226,27 @@ export default function ProfilePage() {
                 {/* 编辑表单 */}
                 <div>
                   <form onSubmit={handleSubmit} className="space-y-4">
-                  <h3 className="text-sm font-semibold">修改信息</h3>
-                  
-                  <div>
-                    <Label htmlFor="name">用户昵称</Label>
-                    <Input
-                      id="name"
-                      name="name"
-                      type="text"
-                      value={formData.name}
-                      onChange={handleInputChange}
-                      placeholder="输入新的用户昵称"
-                      className="mt-2"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="displayName">显示名称</Label>
-                    <Input
-                      id="displayName"
-                      name="displayName"
-                      type="text"
-                      value={formData.displayName}
-                      onChange={handleInputChange}
-                      placeholder="用于展示的名称（可选）"
-                      className="mt-2"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="password">新密码 (可选)</Label>
-                    <Input
-                      id="password"
-                      name="password"
-                      type="password"
-                      value={formData.password}
-                      onChange={handleInputChange}
-                      placeholder="留空表示不修改密码"
-                      className="mt-2"
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      如果不想修改密码，请留空此字段
-                    </p>
-                  </div>
-
-                  <Button
-                    type="submit"
-                    disabled={isUpdating}
-                    className="w-full"
-                  >
-                    {isUpdating ? '保存中...' : '保存修改'}
-                  </Button>
-                </form>
+                    <h3 className="text-sm font-semibold">修改密码</h3>
+                    <div>
+                      <Label htmlFor="password">新密码</Label>
+                      <Input
+                        id="password"
+                        name="password"
+                        type="password"
+                        value={formData.password}
+                        onChange={handleInputChange}
+                        placeholder="请输入新密码"
+                        className="mt-2"
+                      />
+                    </div>
+                    <Button
+                      type="submit"
+                      disabled={isUpdating}
+                      className="w-full"
+                    >
+                      {isUpdating ? '保存中...' : '保存密码'}
+                    </Button>
+                  </form>
                 </div>
               </div>
             </CardContent>

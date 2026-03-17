@@ -73,6 +73,37 @@ export interface ResultUserInfoResponse {
 }
 
 /**
+ * 用户组创建/更新请求
+ */
+export interface UserGroupRequest {
+  /** 组名称 */
+  groupName: string;
+}
+
+/**
+ * 用户组响应
+ */
+export interface UserGroupResponse {
+  /** 组ID */
+  id: number;
+  /** 组名称 */
+  groupName: string;
+  /** 成员UUID列表 */
+  userUuids: string[];
+}
+
+/**
+ * 统一接口返回结构
+ */
+export interface ResultUserGroupResponse {
+  /** 状态码 */
+  code: number;
+  /** 提示信息 */
+  message: string;
+  data?: UserGroupResponse;
+}
+
+/**
  * 消息类型
  */
 export type MessageUpdateRequestMsgType =
@@ -357,6 +388,14 @@ export interface ResultBatchRegisterResponse {
   data?: BatchRegisterResponse;
 }
 
+/**
+ * 用户组成员设置请求
+ */
+export interface UserGroupMembersRequest {
+  /** 用户UUID列表 */
+  userUuids: string[];
+}
+
 export interface TimeUpdateRequest {
   /** 时间流速 */
   timeRatio: number;
@@ -480,6 +519,17 @@ export interface ResultListUserInfoResponse {
   /** 提示信息 */
   message: string;
   data?: UserInfoResponse[];
+}
+
+/**
+ * 统一接口返回结构
+ */
+export interface ResultListUserGroupResponse {
+  /** 状态码 */
+  code: number;
+  /** 提示信息 */
+  message: string;
+  data?: UserGroupResponse[];
 }
 
 /**

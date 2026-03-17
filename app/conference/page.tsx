@@ -7,16 +7,37 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Badge } from "@/components/ui/badge"
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { useAuth } from "@/lib/contexts/auth-context"
-import { 
-  useGetMine, 
-  useUpdate1, 
+import {
+  useGetMine,
+  useUpdate1,
   useGetUsers
 } from "@/lib/api/endpoints/会议管理/会议管理"
-import type { 
-  ConferenceResponse, 
-  ConferenceRequestStatus, 
-  UserInfoResponse
+import {
+  useGetAllUserGroups,
+  useCreateUserGroup,
+  useUpdateUserGroup,
+  useDeleteUserGroup,
+  useSetGroupMembers,
+  useRemoveUserFromGroup
+} from "@/lib/api/endpoints/用户组管理/用户组管理"
+import type {
+  ConferenceResponse,
+  ConferenceRequestStatus,
+  UserInfoResponse,
+  UserGroupResponse
 } from "@/lib/api/endpoints/asyaBackendAPI.schemas"
 import { TimelineManager } from '@/components/timeline-manager'
 
@@ -59,6 +80,14 @@ export default function ConferencePage() {
   })
   const { mutate: updateConference, isPending: isUpdating } = useUpdate1()
 
+  const { data: groupsData, refetch: refetchGroups, isLoading: groupsLoading, error: groupsError } = useGetAllUserGroups({
+    query: { enabled: isAuthenticated && canManageConference }
+  })
+  const { mutate: createGroup, isPending: isCreatingGroup } = useCreateUserGroup()
+  const { mutate: updateGroup, isPending: isUpdatingGroup } = useUpdateUserGroup()
+  const { mutate: deleteGroup, isPending: isDeletingGroup } = useDeleteUserGroup()
+  const { mutate: setMembers, isPending: isSettingMembers } = useSetGroupMembers()
+
   const [conference, setConference] = useState<ConferenceResponse | null>(null)
   const [users, setUsers] = useState<UserInfoResponse[]>([])
   const [isEditing, setIsEditing] = useState(false)
@@ -68,6 +97,15 @@ export default function ConferencePage() {
     status: 'PREPARING' as ConferenceRequestStatus
   })
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  // 用户组相关状态
+  const [groups, setGroups] = useState<UserGroupResponse[]>([])
+  const [groupNameInput, setGroupNameInput] = useState('')
+  const [editingGroup, setEditingGroup] = useState<UserGroupResponse | null>(null)
+  const [showGroupForm, setShowGroupForm] = useState(false)
+  const [managingGroup, setManagingGroup] = useState<UserGroupResponse | null>(null)
+  const [selectedUuids, setSelectedUuids] = useState<string[]>([])
+  const [deletingGroupId, setDeletingGroupId] = useState<number | null>(null)
 
   useEffect(() => {
     if (!authLoading && (!isAuthenticated || !canManageConference)) {
@@ -134,6 +172,84 @@ export default function ConferencePage() {
       setUsers([])
     }
   }, [usersData, usersLoading, usersError, isAuthenticated, canManageConference])
+
+  useEffect(() => {
+    console.log('useGetAllUserGroups state:', { groupsData, groupsLoading, groupsError, isAuthenticated, canManageConference })
+    if (groupsData) {
+      try {
+        console.log('Raw groupsData:', groupsData)
+        const responseData = (groupsData as any).data
+        console.log('Groups responseData:', responseData)
+        if (responseData) {
+          const parsed = typeof responseData === 'string' ? JSON.parse(responseData) : responseData
+          const list = parsed.data ?? parsed
+          console.log('Groups list:', list)
+          setGroups(Array.isArray(list) ? list : [])
+        } else {
+          setGroups([])
+        }
+      } catch (err) {
+        console.error('Failed to parse groups data:', err)
+        setGroups([])
+      }
+    } else if (!groupsLoading && !groupsData) {
+      setGroups([])
+    }
+  }, [groupsData, groupsLoading, groupsError, isAuthenticated, canManageConference])
+
+  const openCreateGroupForm = () => {
+    setEditingGroup(null)
+    setGroupNameInput('')
+    setShowGroupForm(true)
+  }
+
+  const openEditGroupForm = (group: UserGroupResponse) => {
+    setEditingGroup(group)
+    setGroupNameInput(group.groupName)
+    setShowGroupForm(true)
+  }
+
+  const handleSaveGroup = () => {
+    if (!groupNameInput.trim()) return
+    if (editingGroup) {
+      updateGroup(
+        { id: editingGroup.id, data: { groupName: groupNameInput } },
+        { onSuccess: () => { refetchGroups(); setShowGroupForm(false); setEditingGroup(null) } }
+      )
+    } else {
+      createGroup(
+        { data: { groupName: groupNameInput } },
+        { onSuccess: () => { refetchGroups(); setShowGroupForm(false); setGroupNameInput('') } }
+      )
+    }
+  }
+
+  const handleDeleteGroup = () => {
+    if (deletingGroupId === null) return
+    deleteGroup(
+      { id: deletingGroupId },
+      { onSuccess: () => { refetchGroups(); setDeletingGroupId(null) } }
+    )
+  }
+
+  const openMemberManagement = (group: UserGroupResponse) => {
+    setManagingGroup(group)
+    setSelectedUuids([...group.userUuids])
+  }
+
+  const toggleUserInGroup = (uuid: string) => {
+    setSelectedUuids(prev =>
+      prev.includes(uuid) ? prev.filter(u => u !== uuid) : [...prev, uuid]
+    )
+  }
+
+  const handleSaveMembers = () => {
+    if (!managingGroup) return
+    setMembers(
+      { id: managingGroup.id, data: { userUuids: selectedUuids } },
+      { onSuccess: () => { refetchGroups(); setManagingGroup(null) } }
+    )
+  }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -333,11 +449,11 @@ export default function ConferencePage() {
           </CardContent>
         </Card>
 
-        {/* 会议关联用户卡片 */}
+        {/* 用户列表 */}
         <Card>
           <CardHeader>
-            <CardTitle>会议关联用户</CardTitle>
-            <CardDescription>查看参与当前会议的所有用户</CardDescription>
+            <CardTitle>会议用户</CardTitle>
+            <CardDescription>参与当前会议的所有用户及其所属用户组</CardDescription>
           </CardHeader>
           <CardContent>
             {!conference ? (
@@ -350,30 +466,178 @@ export default function ConferencePage() {
               <div className="bg-red-50 border border-red-200 p-4 rounded-lg">
                 <p className="text-sm text-red-900 font-semibold mb-2">加载用户失败</p>
                 <p className="text-xs text-red-800">
-                  {String(usersError).includes('no session') 
-                    ? '后端数据库会话错误，请联系管理员检查后端服务配置' 
+                  {String(usersError).includes('no session')
+                    ? '后端数据库会话错误，请联系管理员检查后端服务配置'
                     : String(usersError)}
                 </p>
               </div>
             ) : users.length === 0 ? (
               <p className="text-sm text-muted-foreground">当前会议暂无关联用户</p>
             ) : (
-              <div className="space-y-3">
-                {users.map((user) => (
-                  <div key={user.uuid} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                    <div className="flex-1">
-                      <p className="font-medium">{getUserLabel(user)}</p>
-                      <p className="text-sm text-muted-foreground font-mono">{user.uuid}</p>
-                    </div>
-                    <div className="text-sm font-medium">
-                      {roleLabels[user.role as keyof typeof roleLabels] || user.role}
-                    </div>
-                  </div>
-                ))}
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-muted-foreground">
+                      <th className="text-left py-2 pr-4 font-medium">用户名</th>
+                      <th className="text-left py-2 pr-4 font-medium">角色</th>
+                      <th className="text-left py-2 font-medium">所属用户组</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.map((u) => {
+                      const userGroups = groups.filter(g => g.userUuids.includes(u.uuid))
+                      return (
+                        <tr key={u.uuid} className="border-b last:border-0">
+                          <td className="py-2 pr-4">
+                            <p className="font-medium">{getUserLabel(u)}</p>
+                          </td>
+                          <td className="py-2 pr-4 text-muted-foreground">
+                            {roleLabels[u.role as keyof typeof roleLabels] || u.role}
+                          </td>
+                          <td className="py-2">
+                            <div className="flex flex-wrap gap-1">
+                              {userGroups.length === 0
+                                ? <span className="text-muted-foreground text-xs">未分组</span>
+                                : userGroups.map(g => (
+                                    <Badge key={g.id} variant="secondary" className="text-xs">{g.groupName}</Badge>
+                                  ))
+                              }
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
               </div>
             )}
           </CardContent>
         </Card>
+
+        {/* 用户组管理 */}
+        <Card>
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <div>
+                <CardTitle>用户组管理</CardTitle>
+                <CardDescription>创建和管理用户分组</CardDescription>
+              </div>
+              <Button size="sm" onClick={openCreateGroupForm}>新建用户组</Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {groupsLoading ? (
+              <p className="text-sm text-muted-foreground">加载中...</p>
+            ) : groupsError ? (
+              <div className="bg-red-50 border border-red-200 p-3 rounded-lg">
+                <p className="text-sm text-red-900 font-semibold">加载用户组失败，请查看控制台日志</p>
+              </div>
+            ) : (<>
+            {/* 新建/编辑表单 */}
+            {showGroupForm && (
+              <div className="flex gap-2 items-center p-3 bg-muted/50 rounded-lg">
+                <Input
+                  value={groupNameInput}
+                  onChange={e => setGroupNameInput(e.target.value)}
+                  placeholder="输入用户组名称"
+                  className="flex-1"
+                  onKeyDown={e => e.key === 'Enter' && handleSaveGroup()}
+                />
+                <Button
+                  size="sm"
+                  onClick={handleSaveGroup}
+                  disabled={isCreatingGroup || isUpdatingGroup || !groupNameInput.trim()}
+                >
+                  {isCreatingGroup || isUpdatingGroup ? '保存中...' : '保存'}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => { setShowGroupForm(false); setEditingGroup(null) }}>
+                  取消
+                </Button>
+              </div>
+            )}
+
+            {groups.length === 0 && !showGroupForm ? (
+              <p className="text-sm text-muted-foreground">暂无用户组，点击「新建用户组」创建</p>
+            ) : (
+              groups.map(group => (
+                <div key={group.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                  <div>
+                    <p className="font-medium text-sm">{group.groupName}</p>
+                    <p className="text-xs text-muted-foreground">{group.userUuids.length} 名成员</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => openMemberManagement(group)}>
+                      管理成员
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => openEditGroupForm(group)}>
+                      编辑
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => setDeletingGroupId(group.id)}
+                    >
+                      删除
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+            </>)}
+          </CardContent>
+        </Card>
+        <AlertDialog open={deletingGroupId !== null} onOpenChange={open => !open && setDeletingGroupId(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>确认删除用户组</AlertDialogTitle>
+              <AlertDialogDescription>
+                删除后将无法恢复，该用户组内的成员关系也会一并清除。
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>取消</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteGroup} disabled={isDeletingGroup}>
+                {isDeletingGroup ? '删除中...' : '确认删除'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* 管理成员 Sheet */}
+        <Sheet open={managingGroup !== null} onOpenChange={open => !open && setManagingGroup(null)}>
+          <SheetContent>
+            <SheetHeader>
+              <SheetTitle>管理成员 — {managingGroup?.groupName}</SheetTitle>
+            </SheetHeader>
+            <div className="mt-4 space-y-2">
+              {users.length === 0 ? (
+                <p className="text-sm text-muted-foreground">暂无用户</p>
+              ) : (
+                users.map(u => (
+                  <label key={u.uuid} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4"
+                      checked={selectedUuids.includes(u.uuid)}
+                      onChange={() => toggleUserInGroup(u.uuid)}
+                    />
+                    <div>
+                      <p className="text-sm font-medium">{getUserLabel(u)}</p>
+                      <p className="text-xs text-muted-foreground">{roleLabels[u.role as keyof typeof roleLabels] || u.role}</p>
+                    </div>
+                  </label>
+                ))
+              )}
+            </div>
+            <div className="mt-6 flex gap-2">
+              <Button onClick={handleSaveMembers} disabled={isSettingMembers} className="flex-1">
+                {isSettingMembers ? '保存中...' : '保存成员'}
+              </Button>
+              <Button variant="outline" onClick={() => setManagingGroup(null)}>取消</Button>
+            </div>
+          </SheetContent>
+        </Sheet>
           </div>
 
           {/* 右栏：时间轴管理 */}
