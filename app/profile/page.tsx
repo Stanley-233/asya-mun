@@ -1,16 +1,35 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { useAuth } from "@/lib/contexts/auth-context"
 import { useUpdateUser } from "@/lib/api/endpoints/用户管理/用户管理"
 import { useGetMine } from "@/lib/api/endpoints/会议管理/会议管理"
 import { SecretMessageList, MessageDetailDialog } from "@/components/message"
-import type { ConferenceResponse, MessageResponse } from "@/lib/api/endpoints/asyaBackendAPI.schemas"
+import { InstructionDetailDialog, InstructionList, InstructionSubmitForm } from '@/components/instruction'
+import { parseApiPayload } from '@/lib/api/response-utils'
+import { useGetMyInstructions } from '@/lib/api/endpoints/指令管理/指令管理'
+import {
+  INSTRUCTION_STATUS_LABELS,
+  parseInstructionPage,
+} from '@/components/instruction/instruction-utils'
+import type {
+  ConferenceResponse,
+  GetMyInstructionsStatus,
+  InstructionResponse,
+  MessageResponse,
+} from "@/lib/api/endpoints/asyaBackendAPI.schemas"
 
 const roleLabels = {
   'SYS_ADMIN': '系统管理员',
@@ -25,52 +44,62 @@ const statusLabels = {
   'COMPLETED': '已结束'
 }
 
+const ALL_INSTRUCTION_STATUS = '__ALL__'
+
+const myInstructionStatusOptions: GetMyInstructionsStatus[] = [
+  'SUBMITTED',
+  'IN_PROGRESS',
+  'REJECTED',
+  'FEEDBACKED',
+]
+
 export default function ProfilePage() {
   const router = useRouter()
   const { user, isLoading, isAuthenticated } = useAuth()
   const { mutate: updateUser, isPending: isUpdating } = useUpdateUser()
   const { data: conferenceData, isLoading: conferenceLoading } = useGetMine()
+  const canReviewInstructions = user?.role === 'DM' || user?.role === 'DH' || user?.role === 'SYS_ADMIN'
+  const canSubmitInstruction = user?.role === 'DELEGATE'
 
   const [formData, setFormData] = useState({
     password: '',
   })
-  const [conference, setConference] = useState<ConferenceResponse | null>(null)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [selectedMessageUuid, setSelectedMessageUuid] = useState<string | null>(null)
   const [messageDetailOpen, setMessageDetailOpen] = useState(false)
+  const [selectedInstructionUuid, setSelectedInstructionUuid] = useState<string | null>(null)
+  const [instructionDetailOpen, setInstructionDetailOpen] = useState(false)
+  const [instructionCurrentPage, setInstructionCurrentPage] = useState(0)
+  const [instructionStatusFilter, setInstructionStatusFilter] = useState<GetMyInstructionsStatus | undefined>(undefined)
+
+  const { data: myInstructionsData, isLoading: myInstructionsLoading, error: myInstructionsError, refetch: refetchMyInstructions } = useGetMyInstructions(
+    {
+      status: instructionStatusFilter,
+      pageable: {
+        page: instructionCurrentPage,
+        size: 10,
+        sort: ['submitRealTime,desc'],
+      },
+    },
+    {
+      query: {
+        enabled: isAuthenticated,
+      },
+    },
+  )
+
+  const parsedInstructionData = parseApiPayload<unknown>(myInstructionsData)
+  const instructionPage = parseInstructionPage(parsedInstructionData)
+  const conference = useMemo(
+    () => parseApiPayload<ConferenceResponse>(conferenceData),
+    [conferenceData],
+  )
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       router.push('/login')
     }
   }, [isLoading, isAuthenticated, router])
-
-  useEffect(() => {
-    if (user) {
-      setFormData({
-        password: '',
-      })
-    }
-  }, [user])
-
-  useEffect(() => {
-    if (conferenceData && !conferenceLoading) {
-      try {
-        const responseData = (conferenceData as any).data
-        if (responseData) {
-          const parsedData = typeof responseData === 'string' 
-            ? JSON.parse(responseData) 
-            : responseData
-          
-          const conferenceInfo = parsedData.data || parsedData
-          setConference(conferenceInfo)
-        }
-      } catch (err) {
-        console.error('Failed to parse conference data:', err)
-        setConference(null)
-      }
-    }
-  }, [conferenceData, conferenceLoading])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -108,7 +137,7 @@ export default function ProfilePage() {
           }
         }
       )
-    } catch (error) {
+    } catch {
       setMessage({ type: 'error', text: '密码修改失败，请重试' })
     }
   }
@@ -116,6 +145,11 @@ export default function ProfilePage() {
   const handleMessageClick = (msg: MessageResponse) => {
     setSelectedMessageUuid(msg.uuid)
     setMessageDetailOpen(true)
+  }
+
+  const handleInstructionClick = (instruction: InstructionResponse) => {
+    setSelectedInstructionUuid(instruction.uuid)
+    setInstructionDetailOpen(true)
   }
 
   if (isLoading) {
@@ -134,8 +168,83 @@ export default function ProfilePage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* 左侧：非对称消息列表 */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+        <div className="space-y-8">
+          <Card>
+            <CardHeader>
+              <CardTitle>我的指令</CardTitle>
+              <CardDescription>查看您在当前会议中的提交记录</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+                <div className="space-y-2 sm:min-w-56">
+                  <Label>状态筛选</Label>
+                  <Select
+                    value={instructionStatusFilter || ALL_INSTRUCTION_STATUS}
+                    onValueChange={value => {
+                      setInstructionStatusFilter(
+                        value === ALL_INSTRUCTION_STATUS ? undefined : (value as GetMyInstructionsStatus),
+                      )
+                      setInstructionCurrentPage(0)
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="全部状态" />
+                    </SelectTrigger>
+                    <SelectContent align="start">
+                      <SelectItem value={ALL_INSTRUCTION_STATUS}>全部状态</SelectItem>
+                      {myInstructionStatusOptions.map(status => (
+                        <SelectItem key={status} value={status}>
+                          {INSTRUCTION_STATUS_LABELS[status]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setInstructionStatusFilter(undefined)
+                    setInstructionCurrentPage(0)
+                  }}
+                >
+                  清空筛选
+                </Button>
+              </div>
+
+              <InstructionList
+                instructions={instructionPage.content}
+                isLoading={myInstructionsLoading}
+                error={!!myInstructionsError}
+                emptyTitle="暂无指令"
+                emptyDescription="当前筛选条件下没有符合条件的指令"
+                currentPage={instructionCurrentPage}
+                totalPages={instructionPage.totalPages}
+                isFirstPage={instructionPage.isFirstPage}
+                isLastPage={instructionPage.isLastPage}
+                onPreviousPage={() => setInstructionCurrentPage(page => Math.max(0, page - 1))}
+                onNextPage={() => setInstructionCurrentPage(page => page + 1)}
+                onInstructionClick={handleInstructionClick}
+              />
+            </CardContent>
+          </Card>
+
+          {canSubmitInstruction && (
+            <InstructionSubmitForm
+              disabled={!conference}
+              disabledReason={!conference ? '尚未关联会议，暂时无法提交指令，请联系管理员。' : undefined}
+              onSuccess={() => {
+                if (instructionCurrentPage === 0) {
+                  refetchMyInstructions()
+                } else {
+                  setInstructionCurrentPage(0)
+                }
+              }}
+            />
+          )}
+        </div>
+
+        {/* 中间：非对称消息列表 */}
         <div>
           <Card>
             <CardHeader>
@@ -147,65 +256,64 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
         </div>
+      </div>
 
-        {/* 右侧：个人信息 */}
-        <div>
-          <Card>
-            <CardHeader>
-              <CardTitle>个人信息</CardTitle>
-              <CardDescription>查看和修改您的账户信息</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {message && (
-                <div className={`mb-6 p-4 rounded-lg ${
-                  message.type === 'success'
-                    ? 'bg-green-50 text-green-900 border border-green-200'
-                    : 'bg-red-50 text-red-900 border border-red-200'
-                }`}>
-                  {message.text}
-                </div>
-              )}
+      <div className="mt-8">
+        <Card>
+          <CardHeader>
+            <CardTitle>个人信息</CardTitle>
+            <CardDescription>查看和修改您的账户信息</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {message && (
+              <div className={`mb-6 p-4 rounded-lg ${
+                message.type === 'success'
+                  ? 'bg-green-50 text-green-900 border border-green-200'
+                  : 'bg-red-50 text-red-900 border border-red-200'
+              }`}>
+                {message.text}
+              </div>
+            )}
 
-              <div className="space-y-6">
-                {/* 用户信息显示 */}
+            <div className="space-y-6">
+              <div className="grid gap-6 xl:grid-cols-2">
                 <div>
-                  <h3 className="text-sm font-semibold mb-4">账户信息</h3>
-                  <div className="space-y-3 bg-muted/50 p-4 rounded-lg">
-                    {/* <div>
+                <h3 className="text-sm font-semibold mb-4">账户信息</h3>
+                <div className="grid gap-4 rounded-lg bg-muted/50 p-4 sm:grid-cols-2 xl:grid-cols-3">
+                  {/* <div>
                       <p className="text-xs text-muted-foreground mb-1">用户ID</p>
                       <p className="font-mono text-sm break-all">{user.uuid}</p>
                     </div> */}
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">用户昵称</p>
-                      <p className="text-sm font-medium">{user.name}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">显示名称</p>
-                      <p className="text-sm font-medium">{user.displayName || '—'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">用户角色</p>
-                      <p className="text-sm font-medium">
-                        {roleLabels[user.role as keyof typeof roleLabels] || user.role}
-                      </p>
-                    </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">用户昵称</p>
+                    <p className="text-sm font-medium">{user.name}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">显示名称</p>
+                    <p className="text-sm font-medium">{user.displayName || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">用户角色</p>
+                    <p className="text-sm font-medium">
+                      {roleLabels[user.role as keyof typeof roleLabels] || user.role}
+                    </p>
                   </div>
                 </div>
+              </div>
 
-                {/* 会议信息显示 */}
                 <div>
                   <h3 className="text-sm font-semibold mb-4">会议信息</h3>
                   {conferenceLoading ? (
-                    <div className="bg-muted/50 p-4 rounded-lg">
+                    <div className="rounded-lg bg-muted/50 p-4">
                       <p className="text-sm text-muted-foreground">加载中...</p>
                     </div>
                   ) : conference ? (
-                    <div className="space-y-3 bg-muted/50 p-4 rounded-lg">
+                    <div className="grid gap-4 rounded-lg bg-muted/50 p-4 sm:grid-cols-2 xl:grid-cols-3">
                       <div>
                         <Label className="text-xs text-muted-foreground">会议名称</Label>
                         <p className="text-sm font-medium">{conference.name}</p>
                       </div>
-                      <div>
+                      <div className="sm:col-span-2 xl:col-span-1">
                         <Label className="text-xs text-muted-foreground">会议描述</Label>
                         <p className="text-sm">{conference.description}</p>
                       </div>
@@ -217,41 +325,44 @@ export default function ProfilePage() {
                       </div>
                     </div>
                   ) : (
-                    <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
+                    <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
                       <p className="text-sm text-yellow-900">尚未关联会议，请联系管理员</p>
                     </div>
                   )}
                 </div>
-
-                {/* 编辑表单 */}
-                <div>
-                  <form onSubmit={handleSubmit} className="space-y-4">
-                    <h3 className="text-sm font-semibold">修改密码</h3>
-                    <div>
-                      <Label htmlFor="password">新密码</Label>
-                      <Input
-                        id="password"
-                        name="password"
-                        type="password"
-                        value={formData.password}
-                        onChange={handleInputChange}
-                        placeholder="请输入新密码"
-                        className="mt-2"
-                      />
-                    </div>
-                    <Button
-                      type="submit"
-                      disabled={isUpdating}
-                      className="w-full"
-                    >
-                      {isUpdating ? '保存中...' : '保存密码'}
-                    </Button>
-                  </form>
-                </div>
               </div>
-            </CardContent>
-          </Card>
-        </div>
+
+              <div>
+                <form onSubmit={handleSubmit} className="rounded-lg border bg-muted/20 p-4">
+                  <h3 className="text-sm font-semibold">修改密码</h3>
+                  <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-end">
+                    <div className="flex-1">
+                      <Label htmlFor="password">新密码</Label>
+                    <Input
+                      id="password"
+                      name="password"
+                      type="password"
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      placeholder="请输入新密码"
+                      className="mt-2"
+                    />
+                    </div>
+                    <div className="md:shrink-0">
+                      <Button
+                        type="submit"
+                        disabled={isUpdating}
+                        className="w-full md:w-auto"
+                      >
+                        {isUpdating ? '保存中...' : '保存密码'}
+                      </Button>
+                    </div>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Message Detail Dialog */}
@@ -259,6 +370,16 @@ export default function ProfilePage() {
         open={messageDetailOpen}
         onOpenChange={setMessageDetailOpen}
         messageUuid={selectedMessageUuid}
+      />
+
+      <InstructionDetailDialog
+        open={instructionDetailOpen}
+        onOpenChange={setInstructionDetailOpen}
+        instructionUuid={selectedInstructionUuid}
+        canReview={canReviewInstructions}
+        onReviewed={() => {
+          refetchMyInstructions()
+        }}
       />
     </div>
   )

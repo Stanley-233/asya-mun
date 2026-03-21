@@ -1223,9 +1223,9 @@ export function MessageEditDialog({
                       规则：用户组冲突取最小延迟分钟数，手动用户配置优先覆盖用户组
                     </p>
                   )}
-                  <p className="text-xs text-muted-foreground mt-2 font-medium">
+                  {/* <p className="text-xs text-muted-foreground mt-2 font-medium">
                     最终将发送给 {resolvedReceivers.length} 位用户（组+手动去重后）
-                  </p>
+                  </p> */}
                 </div>
               )}
             </div>

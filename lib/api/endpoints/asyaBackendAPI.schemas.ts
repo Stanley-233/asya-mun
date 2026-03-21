@@ -500,6 +500,127 @@ export interface MessageCreateRequest {
 }
 
 /**
+ * 指令类型: MILITARY, DIPLOMACY, INTERNAL, OTHER
+ */
+export type InstructionCreateRequestInstructionType =
+  (typeof InstructionCreateRequestInstructionType)[keyof typeof InstructionCreateRequestInstructionType];
+
+export const InstructionCreateRequestInstructionType = {
+  MILITARY: "MILITARY",
+  DIPLOMACY: "DIPLOMACY",
+  INTERNAL: "INTERNAL",
+  OTHER: "OTHER",
+} as const;
+
+/**
+ * 创建指令请求
+ */
+export interface InstructionCreateRequest {
+  /** 标题 */
+  title: string;
+  /** 指令类型: MILITARY, DIPLOMACY, INTERNAL, OTHER */
+  instructionType: InstructionCreateRequestInstructionType;
+  /** 指令内容 */
+  content: string;
+}
+
+/**
+ * 指令类型
+ */
+export type InstructionResponseInstructionType =
+  (typeof InstructionResponseInstructionType)[keyof typeof InstructionResponseInstructionType];
+
+export const InstructionResponseInstructionType = {
+  MILITARY: "MILITARY",
+  DIPLOMACY: "DIPLOMACY",
+  INTERNAL: "INTERNAL",
+  OTHER: "OTHER",
+} as const;
+
+/**
+ * 状态
+ */
+export type InstructionResponseStatus =
+  (typeof InstructionResponseStatus)[keyof typeof InstructionResponseStatus];
+
+export const InstructionResponseStatus = {
+  SUBMITTED: "SUBMITTED",
+  IN_PROGRESS: "IN_PROGRESS",
+  REJECTED: "REJECTED",
+  FEEDBACKED: "FEEDBACKED",
+} as const;
+
+/**
+ * 指令响应
+ */
+export interface InstructionResponse {
+  /** 指令UUID */
+  uuid: string;
+  /** 会议UUID */
+  conferenceId: string;
+  /** 提交人UUID */
+  submitterId: string;
+  /** 提交人名称 */
+  submitterName: string;
+  /** 标题 */
+  title: string;
+  /** 指令类型 */
+  instructionType: InstructionResponseInstructionType;
+  /** 内容 */
+  content: string;
+  /** 状态 */
+  status: InstructionResponseStatus;
+  /** 批阅评语 */
+  reviewComment?: string;
+  /** 提交现实时间 */
+  submitRealTime: string;
+  /** 提交游戏时间 */
+  submitGameTime: string;
+  /** 最后批改人UUID */
+  reviewedById?: string;
+  /** 最后批改人名称 */
+  reviewedByName?: string;
+  /** 最后批改现实时间 */
+  reviewedRealTime?: string;
+  /** 最后批改游戏时间 */
+  reviewedGameTime?: string;
+}
+
+/**
+ * 统一接口返回结构
+ */
+export interface ResultInstructionResponse {
+  /** 状态码 */
+  code: number;
+  /** 提示信息 */
+  message: string;
+  data?: InstructionResponse;
+}
+
+/**
+ * 目标状态: IN_PROGRESS, REJECTED, FEEDBACKED
+ */
+export type InstructionReviewRequestStatus =
+  (typeof InstructionReviewRequestStatus)[keyof typeof InstructionReviewRequestStatus];
+
+export const InstructionReviewRequestStatus = {
+  SUBMITTED: "SUBMITTED",
+  IN_PROGRESS: "IN_PROGRESS",
+  REJECTED: "REJECTED",
+  FEEDBACKED: "FEEDBACKED",
+} as const;
+
+/**
+ * 批改指令请求
+ */
+export interface InstructionReviewRequest {
+  /** 目标状态: IN_PROGRESS, REJECTED, FEEDBACKED */
+  status: InstructionReviewRequestStatus;
+  /** 批阅评语 */
+  reviewComment?: string;
+}
+
+/**
  * 用户关联会议请求
  */
 export interface ConferenceAssignRequest {
@@ -672,6 +793,17 @@ export interface ResultListMessageReceiverVisibilityResponse {
 /**
  * 统一接口返回结构
  */
+export interface ResultPageInstructionResponse {
+  /** 状态码 */
+  code: number;
+  /** 提示信息 */
+  message: string;
+  data?: Pagenull;
+}
+
+/**
+ * 统一接口返回结构
+ */
 export interface ResultString {
   /** 状态码 */
   code: number;
@@ -768,3 +900,45 @@ export type GetAllSecretInConferenceParams = {
   keyword?: string;
   pageable: Pageable;
 };
+
+export type GetMyInstructionsParams = {
+  status?: GetMyInstructionsStatus;
+  pageable: Pageable;
+};
+
+export type GetMyInstructionsStatus =
+  (typeof GetMyInstructionsStatus)[keyof typeof GetMyInstructionsStatus];
+
+export const GetMyInstructionsStatus = {
+  SUBMITTED: "SUBMITTED",
+  IN_PROGRESS: "IN_PROGRESS",
+  REJECTED: "REJECTED",
+  FEEDBACKED: "FEEDBACKED",
+} as const;
+
+export type GetForManagementParams = {
+  status?: GetForManagementStatus;
+  instructionType?: GetForManagementInstructionType;
+  userGroupId?: number;
+  pageable: Pageable;
+};
+
+export type GetForManagementStatus =
+  (typeof GetForManagementStatus)[keyof typeof GetForManagementStatus];
+
+export const GetForManagementStatus = {
+  SUBMITTED: "SUBMITTED",
+  IN_PROGRESS: "IN_PROGRESS",
+  REJECTED: "REJECTED",
+  FEEDBACKED: "FEEDBACKED",
+} as const;
+
+export type GetForManagementInstructionType =
+  (typeof GetForManagementInstructionType)[keyof typeof GetForManagementInstructionType];
+
+export const GetForManagementInstructionType = {
+  MILITARY: "MILITARY",
+  DIPLOMACY: "DIPLOMACY",
+  INTERNAL: "INTERNAL",
+  OTHER: "OTHER",
+} as const;

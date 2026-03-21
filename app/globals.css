@@ -124,3 +124,78 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+  .asya-grid {
+    background-image:
+      linear-gradient(to right, rgb(184 132 52 / 0.09) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(184 132 52 / 0.08) 1px, transparent 1px);
+    background-size: 72px 72px;
+    mask-image: linear-gradient(to bottom, rgb(0 0 0 / 0.9), transparent 88%);
+  }
+
+  .asya-noise {
+    background-image:
+      radial-gradient(circle at 20% 20%, rgb(255 255 255 / 0.7) 0, transparent 34%),
+      radial-gradient(circle at 80% 0%, rgb(184 132 52 / 0.07) 0, transparent 28%),
+      radial-gradient(circle at 50% 100%, rgb(120 87 26 / 0.06) 0, transparent 32%);
+    mix-blend-mode: soft-light;
+  }
+
+  .asya-glow {
+    border-radius: 9999px;
+    background:
+      radial-gradient(circle, rgb(216 170 76 / 0.26) 0%, rgb(216 170 76 / 0.12) 28%, transparent 72%);
+    filter: blur(18px);
+    animation: asya-float 18s ease-in-out infinite;
+  }
+
+  .asya-orb {
+    background:
+      radial-gradient(circle at 30% 30%, rgb(255 255 255 / 0.95), rgb(255 225 154 / 0.6) 34%, rgb(184 132 52 / 0.16) 62%, transparent 80%);
+    filter: blur(4px);
+    animation: asya-pulse 9s ease-in-out infinite;
+  }
+
+  .asya-panel {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .asya-panel::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(135deg, rgb(255 255 255 / 0.18), transparent 42%),
+      linear-gradient(180deg, transparent, rgb(184 132 52 / 0.05));
+    pointer-events: none;
+  }
+}
+
+@keyframes asya-float {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(0, -18px, 0) scale(1.04);
+  }
+}
+
+@keyframes asya-pulse {
+  0%, 100% {
+    transform: scale(0.94);
+    opacity: 0.65;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .asya-glow,
+  .asya-orb {
+    animation: none;
+  }
+}
