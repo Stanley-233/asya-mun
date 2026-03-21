@@ -148,7 +148,7 @@ class MessageController(
     fun getReceivers(
         @RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String,
         @PathVariable uuid: UUID
-    ): ResponseEntity<Result<List<UserInfoResponse>>> {
+    ): ResponseEntity<Result<List<MessageReceiverVisibilityResponse>>> {
          return try {
             userService.getUserFromToken(extractBearer(authorization))
             val response = messageService.getMessageReceivers(uuid)

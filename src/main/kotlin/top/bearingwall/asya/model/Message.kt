@@ -45,17 +45,27 @@ class Message(
     @Column(name = "is_secret")
     var isSecret: Boolean = false,
 
-    @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-        name = "message_receivers",
-        joinColumns = [JoinColumn(name = "message_id")],
-        inverseJoinColumns = [JoinColumn(name = "user_id")]
-    )
-    var receivers: MutableSet<User> = mutableSetOf(),
+    @OneToMany(mappedBy = "message", fetch = FetchType.LAZY, cascade = [CascadeType.ALL], orphanRemoval = true)
+    var receiverMappings: MutableSet<MessageReceiver> = mutableSetOf(),
 
     @OneToMany(mappedBy = "message", fetch = FetchType.LAZY)
     var attachments: MutableSet<Attachment> = mutableSetOf()
 ) {
+    fun addReceiver(receiver: User, readableAt: LocalDateTime) {
+        val existing = receiverMappings.firstOrNull { it.receiver?.uuid == receiver.uuid }
+        if (existing != null) {
+            existing.readableAt = readableAt
+            return
+        }
+        receiverMappings.add(
+            MessageReceiver(
+                message = this,
+                receiver = receiver,
+                readableAt = readableAt
+            )
+        )
+    }
+
     fun addAttachment(attachment: Attachment) {
         attachment.targetId = this.uuid
         attachment.targetType = AttachmentTargetType.MESSAGE
@@ -72,4 +82,3 @@ class Message(
         return attachments.isNotEmpty()
     }
 }
-

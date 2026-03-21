@@ -49,26 +49,35 @@ class AuditAspect(
 
     private fun resolveActor(args: Array<Any?>): AuditActor {
         val fromContext = AuditContextHolder.get()
-        if (fromContext != null) {
-            return fromContext
-        }
+        var resolvedUuid = fromContext?.uuid
+        var resolvedName = fromContext?.name?.takeIf { it.isNotBlank() }
+        val resolvedIp = fromContext?.ip
 
         val userArg = args.filterIsInstance<User>().firstOrNull()
-        if (userArg != null) {
-            return AuditActor(uuid = userArg.uuid, name = userArg.name)
+        if (userArg != null && resolvedName == null) {
+            resolvedName = userArg.name
+        }
+        if (userArg?.uuid != null && resolvedUuid == null) {
+            resolvedUuid = userArg.uuid
         }
 
         val registrationArg = args.filterIsInstance<UserRegistrationRequest>().firstOrNull()
-        if (registrationArg != null) {
-            return AuditActor(name = registrationArg.name)
+        if (registrationArg != null && resolvedName == null) {
+            resolvedName = registrationArg.name
         }
 
         val uuidArg = args.filterIsInstance<UUID>().firstOrNull()
-        if (uuidArg != null) {
-            val userName = userRepository.findById(uuidArg).orElse(null)?.name
-            return AuditActor(uuid = uuidArg, name = userName)
+        if (uuidArg != null && resolvedUuid == null) {
+            resolvedUuid = uuidArg
+        }
+        if (uuidArg != null && resolvedName == null) {
+            resolvedName = userRepository.findById(uuidArg).orElse(null)?.name
         }
 
-        return AuditActor(name = "anonymous")
+        return AuditActor(
+            uuid = resolvedUuid,
+            name = resolvedName ?: "anonymous",
+            ip = resolvedIp
+        )
     }
 }

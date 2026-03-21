@@ -6,14 +6,15 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import top.bearingwall.asya.audit.Auditable
 import top.bearingwall.asya.dto.MessageCreateRequest
+import top.bearingwall.asya.dto.MessageReceiverVisibilityResponse
 import top.bearingwall.asya.dto.MessageResponse
 import top.bearingwall.asya.dto.MessageUpdateRequest
-import top.bearingwall.asya.dto.UserInfoResponse
 import top.bearingwall.asya.model.AuditActionType
 import top.bearingwall.asya.model.Message
 import top.bearingwall.asya.repository.AttachmentRepository
 import top.bearingwall.asya.repository.MessageRepository
 import top.bearingwall.asya.repository.UserRepository
+import java.time.LocalDateTime
 import java.util.UUID
 
 @Service
@@ -44,14 +45,32 @@ class MessageService(
             brief = brief,
             content = request.content,
             msgType = request.msgType,
-            publishRealTime = request.publishRealTime ?: java.time.LocalDateTime.now(),
+            publishRealTime = request.publishRealTime ?: LocalDateTime.now(),
             publishGameTime = request.publishGameTime,
             isSecret = request.isSecret
         )
 
         if (request.isSecret && !request.receiverIds.isNullOrEmpty()) {
-            val receivers = userRepository.findAllById(request.receiverIds.map { UUID.fromString(it) })
-            message.receivers.addAll(receivers)
+            if (request.receiverIds.any { it.delayMinutes < 0 }) {
+                throw IllegalArgumentException("delayMinutes must be >= 0")
+            }
+
+            val receiverIds = request.receiverIds.map { UUID.fromString(it.receiverId) }
+            val receivers = userRepository.findAllById(receiverIds)
+            if (receivers.size != receiverIds.toSet().size) {
+                val foundIds = receivers.mapNotNull { it.uuid }.toSet()
+                val missing = receiverIds.toSet().filterNot { it in foundIds }
+                throw IllegalArgumentException("Receiver not found: $missing")
+            }
+
+            val receiverMap = receivers.associateBy { it.uuid!! }
+            request.receiverIds.forEach { item ->
+                val receiverId = UUID.fromString(item.receiverId)
+                val receiver = receiverMap[receiverId]
+                    ?: throw IllegalArgumentException("Receiver not found: $receiverId")
+                val readableAt = message.publishRealTime.plusMinutes(item.delayMinutes.toLong())
+                message.addReceiver(receiver, readableAt)
+            }
         }
 
         val saved = messageRepository.save(message)
@@ -73,6 +92,37 @@ class MessageService(
         request.publishRealTime?.let { message.publishRealTime = it }
         request.publishGameTime?.let { message.publishGameTime = it }
         request.isSecret?.let { message.isSecret = it }
+        request.receiverIds?.let { receiverItems ->
+            val targetReadableAtByReceiverId = receiverItems.associate { UUID.fromString(it.receiverId) to it.readableAt }
+            val receiverIds = targetReadableAtByReceiverId.keys
+            val receivers = userRepository.findAllById(receiverIds)
+            if (receivers.size != receiverIds.size) {
+                val foundIds = receivers.mapNotNull { it.uuid }.toSet()
+                val missing = receiverIds.filterNot { it in foundIds }
+                throw IllegalArgumentException("Receiver not found: $missing")
+            }
+            val receiverMap = receivers.associateBy { it.uuid!! }
+
+            val existingByReceiverId = message.receiverMappings
+                .mapNotNull { mapping -> mapping.receiver?.uuid?.let { it to mapping } }
+                .toMap(mutableMapOf())
+
+            targetReadableAtByReceiverId.forEach { (receiverId, readableAt) ->
+                val existing = existingByReceiverId.remove(receiverId)
+                if (existing != null) {
+                    existing.readableAt = readableAt
+                } else {
+                    val receiver = receiverMap[receiverId]
+                        ?: throw IllegalArgumentException("Receiver not found: $receiverId")
+                    message.addReceiver(receiver, readableAt)
+                }
+            }
+
+            if (existingByReceiverId.isNotEmpty()) {
+                val staleReceiverIds = existingByReceiverId.keys
+                message.receiverMappings.removeIf { mapping -> mapping.receiver?.uuid in staleReceiverIds }
+            }
+        }
         applyAttachments(message, request.attachmentUuids)
 
         return messageRepository.save(message).toResponse()
@@ -106,7 +156,7 @@ class MessageService(
 
     @Transactional(readOnly = true)
     fun getSecretMessagesForUser(userUuid: UUID, pageable: Pageable): Page<MessageResponse> {
-        return messageRepository.findSecretMessagesForUser(userUuid, pageable).map {
+        return messageRepository.findSecretMessagesForUser(userUuid, LocalDateTime.now(), pageable).map {
             it.toResponse(omitContent = true)
         }
     }
@@ -124,9 +174,10 @@ class MessageService(
             val isPrivileged = requester.role in listOf(top.bearingwall.asya.model.UserRole.DH, top.bearingwall.asya.model.UserRole.DM, top.bearingwall.asya.model.UserRole.SYS_ADMIN)
 
             if (!isPrivileged) {
-                val isReceiver = message.receivers.any { it.uuid == requesterUuid }
+                val receiverMapping = message.receiverMappings.firstOrNull { it.receiver?.uuid == requesterUuid }
+                val canReadByTime = receiverMapping?.readableAt?.let { !it.isAfter(LocalDateTime.now()) } ?: false
                 val isSender = message.sender?.uuid == requesterUuid
-                if (!isReceiver && !isSender) {
+                if ((!canReadByTime) && !isSender) {
                     throw SecurityException("Access denied for secret message")
                 }
             }
@@ -136,16 +187,18 @@ class MessageService(
     }
 
     @Transactional(readOnly = true)
-    fun getMessageReceivers(uuid: UUID): List<UserInfoResponse> {
+    fun getMessageReceivers(uuid: UUID): List<MessageReceiverVisibilityResponse> {
         val message = messageRepository.findById(uuid).orElseThrow {
             IllegalArgumentException("Message not found: $uuid")
         }
-        return message.receivers.map {
-            UserInfoResponse(
-                uuid = it.uuid.toString(),
-                name = it.name,
-                displayName = it.displayName,
-                role = it.role
+        return message.receiverMappings.mapNotNull { mapping ->
+            val receiver = mapping.receiver ?: return@mapNotNull null
+            MessageReceiverVisibilityResponse(
+                uuid = receiver.uuid.toString(),
+                name = receiver.name,
+                displayName = receiver.displayName,
+                role = receiver.role,
+                readableAt = mapping.readableAt
             )
         }
     }
