@@ -1,0 +1,140 @@
+package top.bearingwall.asya.controller
+
+import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.tags.Tag
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
+import org.springframework.data.domain.Sort
+import org.springframework.data.web.PageableDefault
+import org.springframework.http.HttpHeaders
+import org.springframework.http.HttpStatus
+import org.springframework.http.ResponseEntity
+import org.springframework.web.bind.annotation.*
+import top.bearingwall.asya.dto.BizCode
+import top.bearingwall.asya.dto.InstructionCreateRequest
+import top.bearingwall.asya.dto.InstructionResponse
+import top.bearingwall.asya.dto.InstructionReviewRequest
+import top.bearingwall.asya.dto.Result
+import top.bearingwall.asya.model.InstructionStatus
+import top.bearingwall.asya.model.InstructionType
+import top.bearingwall.asya.model.UserRole
+import top.bearingwall.asya.service.InstructionService
+import top.bearingwall.asya.service.UserService
+import java.util.UUID
+
+@RestController
+@RequestMapping("/api/instructions")
+@Tag(name = "指令管理")
+class InstructionController(
+    private val instructionService: InstructionService,
+    private val userService: UserService
+) {
+
+    @Operation(summary = "提交指令", description = "仅代表可提交，提交后不可修改")
+    @PostMapping
+    fun create(
+        @RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String,
+        @RequestBody request: InstructionCreateRequest
+    ): ResponseEntity<Result<InstructionResponse>> {
+        return try {
+            val user = userService.getUserFromToken(extractBearer(authorization))
+            if (user.role != UserRole.DELEGATE) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Result.failure(BizCode.PERMISSION_DENIED, "仅代表可提交指令"))
+            }
+            ResponseEntity.ok(Result.success(instructionService.createInstruction(request, user.uuid!!)))
+        } catch (e: Exception) {
+            handleException(e)
+        }
+    }
+
+    @Operation(summary = "查询我的指令", description = "代表分页查询自己提交的指令")
+    @GetMapping("/my")
+    fun getMyInstructions(
+        @RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String,
+        @RequestParam(required = false) status: InstructionStatus?,
+        @PageableDefault(sort = ["submitRealTime"], direction = Sort.Direction.DESC) pageable: Pageable
+    ): ResponseEntity<Result<Page<InstructionResponse>>> {
+        return try {
+            val user = userService.getUserFromToken(extractBearer(authorization))
+            ResponseEntity.ok(Result.success(instructionService.getMyInstructions(user.uuid!!, pageable, status)))
+        } catch (e: Exception) {
+            handleException(e)
+        }
+    }
+
+    @Operation(summary = "查询指令详情", description = "代表仅可查看自己的，DH/DM/SYS_ADMIN 可查看当前会议全部")
+    @GetMapping("/{uuid}")
+    fun getInstruction(
+        @RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String,
+        @PathVariable uuid: UUID
+    ): ResponseEntity<Result<InstructionResponse>> {
+        return try {
+            val user = userService.getUserFromToken(extractBearer(authorization))
+            ResponseEntity.ok(Result.success(instructionService.getInstruction(uuid, user.uuid!!)))
+        } catch (e: Exception) {
+            handleException(e)
+        }
+    }
+
+    @Operation(summary = "管理端分页查询指令", description = "DH/DM/SYS_ADMIN 可按状态、类型、用户组筛选当前会议的指令")
+    @GetMapping("/manage")
+    fun getForManagement(
+        @RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String,
+        @RequestParam(required = false) status: InstructionStatus?,
+        @RequestParam(required = false) instructionType: InstructionType?,
+        @RequestParam(required = false) userGroupId: Long?,
+        @PageableDefault(sort = ["submitRealTime"], direction = Sort.Direction.DESC) pageable: Pageable
+    ): ResponseEntity<Result<Page<InstructionResponse>>> {
+        return try {
+            val user = userService.getUserFromToken(extractBearer(authorization))
+            ResponseEntity.ok(
+                Result.success(
+                    instructionService.queryInstructionsForManagement(
+                        requesterUuid = user.uuid!!,
+                        pageable = pageable,
+                        status = status,
+                        instructionType = instructionType,
+                        userGroupId = userGroupId
+                    )
+                )
+            )
+        } catch (e: Exception) {
+            handleException(e)
+        }
+    }
+
+    @Operation(summary = "批改指令", description = "DH/DM/SYS_ADMIN 可更新状态并写入当前批阅评语")
+    @PostMapping("/{uuid}/review")
+    fun review(
+        @RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String,
+        @PathVariable uuid: UUID,
+        @RequestBody request: InstructionReviewRequest
+    ): ResponseEntity<Result<InstructionResponse>> {
+        return try {
+            val user = userService.getUserFromToken(extractBearer(authorization))
+            ResponseEntity.ok(Result.success(instructionService.reviewInstruction(uuid, user.uuid!!, request)))
+        } catch (e: Exception) {
+            handleException(e)
+        }
+    }
+
+    private fun extractBearer(authorization: String): String {
+        val prefix = "Bearer "
+        require(authorization.startsWith(prefix)) { "Authorization header must start with 'Bearer '" }
+        return authorization.substring(prefix.length)
+    }
+
+    private fun <T> handleException(e: Exception): ResponseEntity<Result<T>> {
+        return when (e) {
+            is IllegalArgumentException -> ResponseEntity.status(HttpStatus.OK)
+                .body(Result.failure(BizCode.PARAM_ERROR, e.message ?: "参数错误"))
+            is IllegalStateException -> ResponseEntity.status(HttpStatus.OK)
+                .body(Result.failure(BizCode.PARAM_ERROR, e.message ?: "状态错误"))
+            is SecurityException -> ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(Result.failure(BizCode.PERMISSION_DENIED, e.message ?: "权限不足"))
+            else -> ResponseEntity.status(HttpStatus.OK)
+                .body(Result.failure(BizCode.TOKEN_INVALID, e.message ?: "操作失败"))
+        }
+    }
+}

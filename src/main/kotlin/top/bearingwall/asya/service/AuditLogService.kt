@@ -25,20 +25,48 @@ class AuditLogService(
         eventContent: String,
         success: Boolean
     ) {
-        runCatching {
-            auditLogRepository.save(
-                AuditLog(
-                    eventTime = LocalDateTime.now(),
-                    actorUuid = actorUuid,
-                    actorName = actorName,
-                    actorIp = actorIp,
-                    actionType = actionType,
-                    eventContent = eventContent,
-                    success = success
+        runCatching { persist(actorUuid, actorName, actorIp, actionType, eventContent, success) }
+            .recoverCatching { ex ->
+                val fallbackType = actionType.fallbackType() ?: throw ex
+                val fallbackContent = "[fallbackFrom=$actionType] $eventContent"
+                log.warn(
+                    "Audit log type {} rejected by database constraint, retrying with fallback type {}",
+                    actionType,
+                    fallbackType
                 )
+                persist(actorUuid, actorName, actorIp, fallbackType, fallbackContent, success)
+            }
+            .onFailure {
+                log.error("Failed to persist audit log, type={}, actorName={}, actorIp={}", actionType, actorName, actorIp, it)
+            }
+    }
+
+    private fun persist(
+        actorUuid: UUID?,
+        actorName: String?,
+        actorIp: String?,
+        actionType: AuditActionType,
+        eventContent: String,
+        success: Boolean
+    ) {
+        auditLogRepository.saveAndFlush(
+            AuditLog(
+                eventTime = LocalDateTime.now(),
+                actorUuid = actorUuid,
+                actorName = actorName,
+                actorIp = actorIp,
+                actionType = actionType,
+                eventContent = eventContent,
+                success = success
             )
-        }.onFailure {
-            log.error("Failed to persist audit log, type={}, actorName={}, actorIp={}", actionType, actorName, actorIp, it)
+        )
+    }
+
+    private fun AuditActionType.fallbackType(): AuditActionType? {
+        return when (this) {
+            AuditActionType.INSTRUCTION_CREATE -> AuditActionType.MESSAGE_CREATE
+            AuditActionType.INSTRUCTION_REVIEW -> AuditActionType.MESSAGE_UPDATE
+            else -> null
         }
     }
 }
