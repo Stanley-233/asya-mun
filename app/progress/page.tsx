@@ -196,8 +196,12 @@ export default function ProgressPage() {
           toast.success('消息删除成功')
           setDeleteDialogOpen(false)
           setMessageToDelete(null)
-          queryClient.invalidateQueries({ queryKey: ['/api/messages'] })
-          queryClient.invalidateQueries({ queryKey: ['/api/messages/secret/conference'] })
+          queryClient.invalidateQueries({
+            predicate: (query) => {
+              const head = query.queryKey[0]
+              return typeof head === 'string' && head.startsWith('/api/messages')
+            },
+          })
         },
         onError: (error) => {
           console.error('删除失败:', error)

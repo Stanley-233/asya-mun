@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-toastify'
+import { parseApiPayload } from '@/lib/api/response-utils'
 
 const msgTypeLabels = {
   'EVENT': '事件',
@@ -98,23 +99,7 @@ export default function DirectiveAsymsgPage() {
   const { mutate: deleteMessage, isPending: isDeleting } = useDelete()
   
   // 解析用户数据
-  const users: UserInfoResponse[] = (() => {
-    try {
-      if (!usersData) return []
-      const responseData = (usersData as any).data
-      if (!responseData) return []
-      
-      const parsedData = typeof responseData === 'string'
-        ? JSON.parse(responseData)
-        : responseData
-      
-      const usersList = parsedData.data || parsedData
-      return Array.isArray(usersList) ? usersList : []
-    } catch (err) {
-      console.error('Failed to parse users data:', err)
-      return []
-    }
-  })()
+  const users = parseApiPayload<UserInfoResponse[]>(usersData) || []
 
   const getUserLabel = (targetUser: UserInfoResponse) => {
     const displayName = targetUser.displayName?.trim()
@@ -122,22 +107,7 @@ export default function DirectiveAsymsgPage() {
   }
   
   // 解析消息数据
-  const parsedMessagesData = (() => {
-    try {
-      if (!messagesData) return null
-      const responseData = (messagesData as any).data
-      if (!responseData) return null
-      
-      const parsed = typeof responseData === 'string'
-        ? JSON.parse(responseData)
-        : responseData
-      
-      return parsed.data || parsed
-    } catch (err) {
-      console.error('Failed to parse messages data:', err)
-      return null
-    }
-  })()
+  const parsedMessagesData = parseApiPayload<any>(messagesData)
   
   const messages = parsedMessagesData?.content || []
   const rawTotalPages =
@@ -268,8 +238,12 @@ export default function DirectiveAsymsgPage() {
           toast.success('消息删除成功')
           setIsDeleteDialogOpen(false)
           setMessageToDelete(null)
-          queryClient.invalidateQueries({ queryKey: ['/api/messages'] })
-          queryClient.invalidateQueries({ queryKey: ['/api/messages/secret/conference'] })
+          queryClient.invalidateQueries({
+            predicate: (query) => {
+              const head = query.queryKey[0]
+              return typeof head === 'string' && head.startsWith('/api/messages')
+            },
+          })
           refetch()
         },
         onError: (error) => {

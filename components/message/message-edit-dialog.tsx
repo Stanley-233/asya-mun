@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,17 +16,21 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { useCreate1, useUpdate, useGetOne, useGetReceivers } from '@/lib/api/endpoints/消息管理/消息管理'
 import { useGetUsers } from '@/lib/api/endpoints/会议管理/会议管理'
+import { useGetAllUserGroups } from '@/lib/api/endpoints/用户组管理/用户组管理'
 import { AXIOS_INSTANCE } from '@/lib/api/client'
 import type {
   MessageResponse,
   MessageCreateRequest,
   MessageUpdateRequest,
+  MessageReceiverVisibilityResponse,
   UserInfoResponse,
+  UserGroupResponse,
   ResultAttachmentUploadResponse,
 } from '@/lib/api/endpoints/asyaBackendAPI.schemas'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/lib/contexts/auth-context'
 import { toast } from 'react-toastify'
+import { parseApiPayload } from '@/lib/api/response-utils'
 
 interface MessageEditDialogProps {
   open: boolean
@@ -39,6 +43,18 @@ interface AttachmentItem {
   uuid: string
   fileName: string
   fileType?: string
+}
+
+interface SecretReceiverConfig {
+  receiverId: string
+  delayMinutes: string
+  readableAt: string
+}
+
+interface GroupReceiverConfig {
+  groupId: number
+  delayMinutes: string
+  readableAt: string
 }
 
 function normalizeAttachmentItems(rawMessage: any): AttachmentItem[] {
@@ -79,26 +95,139 @@ function getMessageIsSecret(rawMessage: any): boolean {
   return Boolean(rawValue)
 }
 
-function extractReceiverUserIds(rawData: any): string[] {
-  try {
-    const responseData = rawData?.data
-    if (!responseData) return []
+function parseMessageReceivers(rawData: unknown): MessageReceiverVisibilityResponse[] {
+  const payload = parseApiPayload<unknown>(rawData)
+  if (!Array.isArray(payload)) return []
+  return payload.filter((item): item is MessageReceiverVisibilityResponse => {
+    return !!item && typeof item === 'object' && !!(item as MessageReceiverVisibilityResponse).uuid
+  })
+}
 
-    const parsed = typeof responseData === 'string' ? JSON.parse(responseData) : responseData
-    const payload = parsed?.data ?? parsed
+function toDateTimeLocalInputValue(isoString?: string): string {
+  if (!isoString) return ''
+  const date = new Date(isoString)
+  if (Number.isNaN(date.getTime())) return ''
 
-    if (!Array.isArray(payload)) return []
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  return `${year}-${month}-${day}T${hours}:${minutes}`
+}
 
-    return payload
-      .map((item: any) => {
-        if (typeof item === 'string') return item
-        return item?.uuid || item?.userUuid || item?.user_uuid || item?.id || ''
-      })
-      .filter((uuid: string) => !!uuid)
-  } catch (err) {
-    console.error('Failed to parse message receivers:', err)
-    return []
+function parseDateTimeLocalToISO(dateTimeLocal: string): string {
+  if (!dateTimeLocal.trim()) return ''
+  const date = new Date(dateTimeLocal)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toISOString()
+}
+
+function createDefaultReceiverConfig(receiverId: string, readableAt = ''): SecretReceiverConfig {
+  return {
+    receiverId,
+    delayMinutes: '0',
+    readableAt,
   }
+}
+
+function createDefaultGroupConfig(groupId: number, readableAt = ''): GroupReceiverConfig {
+  return {
+    groupId,
+    delayMinutes: '0',
+    readableAt,
+  }
+}
+
+function updateSecretReceiver(
+  receivers: SecretReceiverConfig[],
+  receiverId: string,
+  updater: (current: SecretReceiverConfig) => SecretReceiverConfig
+): SecretReceiverConfig[] {
+  const index = receivers.findIndex((item) => item.receiverId === receiverId)
+  if (index === -1) return receivers
+
+  const next = [...receivers]
+  next[index] = updater(next[index])
+  return next
+}
+
+function updateGroupReceiverConfig(
+  groupConfigs: GroupReceiverConfig[],
+  groupId: number,
+  updater: (current: GroupReceiverConfig) => GroupReceiverConfig
+): GroupReceiverConfig[] {
+  const index = groupConfigs.findIndex((item) => item.groupId === groupId)
+  if (index === -1) return groupConfigs
+
+  const next = [...groupConfigs]
+  next[index] = updater(next[index])
+  return next
+}
+
+function parseNonNegativeInteger(value: string): number | null {
+  const normalized = value.trim()
+  if (!/^\d+$/.test(normalized)) return null
+  const parsed = Number.parseInt(normalized, 10)
+  if (parsed < 0) return null
+  return parsed
+}
+
+function getEarliestReadableAt(a: string, b: string): string {
+  const aTs = Date.parse(parseDateTimeLocalToISO(a))
+  const bTs = Date.parse(parseDateTimeLocalToISO(b))
+
+  const aValid = Number.isFinite(aTs)
+  const bValid = Number.isFinite(bTs)
+
+  if (!aValid && !bValid) return a || b
+  if (!aValid) return b
+  if (!bValid) return a
+  return aTs <= bTs ? a : b
+}
+
+function resolveReceiversFromGroupsAndManual(
+  selectedGroupConfigs: GroupReceiverConfig[],
+  groups: UserGroupResponse[],
+  manualReceivers: SecretReceiverConfig[],
+  isEditing: boolean
+): SecretReceiverConfig[] {
+  const groupMap = new Map(groups.map((group) => [group.id, group]))
+  const resolved = new Map<string, SecretReceiverConfig>()
+
+  selectedGroupConfigs.forEach((groupConfig) => {
+    const group = groupMap.get(groupConfig.groupId)
+    if (!group || !Array.isArray(group.userUuids) || group.userUuids.length === 0) return
+
+    group.userUuids.forEach((receiverId) => {
+      const current = resolved.get(receiverId)
+      if (!current) {
+        resolved.set(receiverId, createDefaultReceiverConfig(receiverId, groupConfig.readableAt))
+        const created = resolved.get(receiverId)!
+        created.delayMinutes = groupConfig.delayMinutes
+        return
+      }
+
+      if (isEditing) {
+        current.readableAt = getEarliestReadableAt(current.readableAt, groupConfig.readableAt)
+      } else {
+        const currentDelay = parseNonNegativeInteger(current.delayMinutes)
+        const nextDelay = parseNonNegativeInteger(groupConfig.delayMinutes)
+        if (currentDelay === null) {
+          current.delayMinutes = groupConfig.delayMinutes
+        } else if (nextDelay !== null && nextDelay < currentDelay) {
+          current.delayMinutes = groupConfig.delayMinutes
+        }
+      }
+    })
+  })
+
+  // 手动用户配置优先
+  manualReceivers.forEach((manual) => {
+    resolved.set(manual.receiverId, { ...manual })
+  })
+
+  return Array.from(resolved.values())
 }
 
 const MSG_TYPE_OPTIONS = [
@@ -219,7 +348,8 @@ export function MessageEditDialog({
     isSecret: false,
   })
 
-  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([])
+  const [secretReceivers, setSecretReceivers] = useState<SecretReceiverConfig[]>([])
+  const [selectedGroupConfigs, setSelectedGroupConfigs] = useState<GroupReceiverConfig[]>([])
   const [attachments, setAttachments] = useState<AttachmentItem[]>([])
   const [isUploadingAttachments, setIsUploadingAttachments] = useState(false)
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false)
@@ -232,34 +362,69 @@ export function MessageEditDialog({
       enabled: open && formData.isSecret && canManageConference,
     },
   })
+  const { data: groupsData } = useGetAllUserGroups({
+    query: {
+      enabled: open && formData.isSecret && canManageConference,
+    },
+  })
 
-  const conferenceUsers = (() => {
-    try {
-      if (!usersData) return []
-      const responseData = (usersData as any).data
-      if (!responseData) return []
-      
-      const parsed = typeof responseData === 'string' 
-        ? JSON.parse(responseData) 
-        : responseData
-      
-      return (parsed.data || parsed) as UserInfoResponse[]
-    } catch (err) {
-      console.error('Failed to parse users data:', err)
-      return []
-    }
-  })()
+  const conferenceUsers = parseApiPayload<UserInfoResponse[]>(usersData) || []
+  const conferenceGroups = parseApiPayload<UserGroupResponse[]>(groupsData) || []
+  const receiverVisibilityList = parseMessageReceivers(receiversData)
+
+  const selectableUsers = useMemo(() => {
+    const baseUsers = [...conferenceUsers]
+    const existingUserIds = new Set(baseUsers.map((user) => user.uuid))
+
+    receiverVisibilityList.forEach((receiver) => {
+      if (existingUserIds.has(receiver.uuid)) return
+      baseUsers.push({
+        uuid: receiver.uuid,
+        name: receiver.name,
+        displayName: receiver.displayName,
+        role: receiver.role as UserInfoResponse['role'],
+      } as UserInfoResponse)
+    })
+
+    return baseUsers
+  }, [conferenceUsers, receiverVisibilityList])
 
   const getUserLabel = (targetUser: UserInfoResponse) => {
     const displayName = targetUser.displayName?.trim()
     return displayName ? `${displayName}（${targetUser.name}）` : targetUser.name
   }
 
+  const selectedGroupMap = useMemo(() => {
+    return new Map(selectedGroupConfigs.map((item) => [item.groupId, item]))
+  }, [selectedGroupConfigs])
+
+  const resolvedReceivers = useMemo(() => {
+    return resolveReceiversFromGroupsAndManual(
+      selectedGroupConfigs,
+      conferenceGroups,
+      secretReceivers,
+      isEditing
+    )
+  }, [selectedGroupConfigs, conferenceGroups, secretReceivers, isEditing])
+
+  const selectedGroupsWithoutMembers = useMemo(() => {
+    const groupMap = new Map(conferenceGroups.map((group) => [group.id, group]))
+    return selectedGroupConfigs.filter((groupConfig) => {
+      const group = groupMap.get(groupConfig.groupId)
+      return !group || !Array.isArray(group.userUuids) || group.userUuids.length === 0
+    }).length
+  }, [conferenceGroups, selectedGroupConfigs])
+
   const createMutation = useCreate1({
     mutation: {
       onSuccess: () => {
         toast.success('消息创建成功')
-        queryClient.invalidateQueries({ queryKey: ['/api/messages'] })
+        queryClient.invalidateQueries({
+          predicate: (query) => {
+            const head = query.queryKey[0]
+            return typeof head === 'string' && head.startsWith('/api/messages')
+          },
+        })
         onOpenChange(false)
         resetForm()
       },
@@ -274,8 +439,12 @@ export function MessageEditDialog({
     mutation: {
       onSuccess: () => {
         toast.success('消息更新成功')
-        queryClient.invalidateQueries({ queryKey: ['/api/messages'] })
-        queryClient.invalidateQueries({ queryKey: ['/api/messages/secret/conference'] })
+        queryClient.invalidateQueries({
+          predicate: (query) => {
+            const head = query.queryKey[0]
+            return typeof head === 'string' && head.startsWith('/api/messages')
+          },
+        })
         onOpenChange(false)
         resetForm()
       },
@@ -294,17 +463,9 @@ export function MessageEditDialog({
       let fullMessage = message
       
       if (messageDetailData) {
-        try {
-          const responseData = (messageDetailData as any).data
-          if (responseData) {
-            const parsed = typeof responseData === 'string' 
-              ? JSON.parse(responseData) 
-              : responseData
-            const detailMsg = parsed.data || parsed
-            fullMessage = detailMsg
-          }
-        } catch (err) {
-          console.error('Failed to parse message detail:', err)
+        const detailMsg = parseApiPayload<MessageResponse>(messageDetailData)
+        if (detailMsg) {
+          fullMessage = detailMsg
         }
       }
       
@@ -317,6 +478,7 @@ export function MessageEditDialog({
         publishGameTime: fullMessage.publishGameTime || '',
         isSecret: getMessageIsSecret(fullMessage),
       })
+      setSelectedGroupConfigs([])
 
       const initialAttachments = normalizeAttachmentItems(fullMessage)
       setAttachments(initialAttachments)
@@ -375,7 +537,8 @@ export function MessageEditDialog({
         publishGameTime: currentGameTime || '',
         isSecret: false,
       })
-      setSelectedUserIds([])
+      setSecretReceivers([])
+      setSelectedGroupConfigs([])
       setAttachments([])
     }
 
@@ -387,7 +550,14 @@ export function MessageEditDialog({
 
   useEffect(() => {
     if (!open || !isEditing || !canManageConference) return
-    setSelectedUserIds(extractReceiverUserIds(receiversData))
+    const parsedReceivers = parseMessageReceivers(receiversData)
+    setSecretReceivers(
+      parsedReceivers.map((receiver) => ({
+        receiverId: receiver.uuid,
+        delayMinutes: '0',
+        readableAt: toDateTimeLocalInputValue(receiver.readableAt),
+      }))
+    )
   }, [open, isEditing, canManageConference, receiversData])
 
   const resetForm = () => {
@@ -400,7 +570,8 @@ export function MessageEditDialog({
       publishGameTime: currentGameTime || '',
       isSecret: false,
     })
-    setSelectedUserIds([])
+    setSecretReceivers([])
+    setSelectedGroupConfigs([])
     setAttachments([])
   }
 
@@ -567,9 +738,41 @@ export function MessageEditDialog({
       return
     }
 
-    if (formData.isSecret && selectedUserIds.length === 0) {
+    if (formData.isSecret && resolvedReceivers.length === 0) {
       toast.warning('非对称消息必须至少选择一个接收用户')
       return
+    }
+
+    if (!isEditing && formData.isSecret) {
+      const invalidGroupDelay = selectedGroupConfigs.some((group) => parseNonNegativeInteger(group.delayMinutes) === null)
+      if (invalidGroupDelay) {
+        toast.warning('请为每个选中的用户组填写非负整数的延迟分钟数')
+        return
+      }
+
+      const invalidDelay = secretReceivers.some((receiver) => {
+        if (!receiver.delayMinutes.trim()) return true
+        if (!/^\d+$/.test(receiver.delayMinutes.trim())) return true
+        return Number.parseInt(receiver.delayMinutes.trim(), 10) < 0
+      })
+      if (invalidDelay) {
+        toast.warning('请为每个接收者填写非负整数的延迟分钟数')
+        return
+      }
+    }
+
+    if (isEditing && formData.isSecret) {
+      const invalidGroupReadableAt = selectedGroupConfigs.some((group) => !parseDateTimeLocalToISO(group.readableAt))
+      if (invalidGroupReadableAt) {
+        toast.warning('请为每个选中的用户组填写合法的可读时间')
+        return
+      }
+
+      const invalidReadableAt = secretReceivers.some((receiver) => !parseDateTimeLocalToISO(receiver.readableAt))
+      if (invalidReadableAt) {
+        toast.warning('请为每个接收者填写合法的可读时间')
+        return
+      }
     }
 
     if (isUploadingAttachments) {
@@ -591,6 +794,12 @@ export function MessageEditDialog({
         publishRealTime: formData.publishRealTime || undefined,
         publishGameTime: parseGameTimeToISO(formData.publishGameTime),
         isSecret: formData.isSecret,
+        receiverIds: formData.isSecret
+          ? resolvedReceivers.map((receiver) => ({
+              receiverId: receiver.receiverId,
+              readableAt: parseDateTimeLocalToISO(receiver.readableAt),
+            }))
+          : [],
         attachmentUuids,
       }
       updateMutation.mutate({ uuid: message.uuid, data: updateData })
@@ -604,7 +813,12 @@ export function MessageEditDialog({
         publishRealTime: formData.publishRealTime || undefined,
         publishGameTime: parseGameTimeToISO(formData.publishGameTime),
         isSecret: formData.isSecret,
-        receiverIds: formData.isSecret ? selectedUserIds : undefined,
+        receiverIds: formData.isSecret
+          ? resolvedReceivers.map((receiver) => ({
+              receiverId: receiver.receiverId,
+              delayMinutes: Number.parseInt(receiver.delayMinutes.trim() || '0', 10),
+            }))
+          : undefined,
         attachmentUuids: attachmentUuids.length > 0 ? attachmentUuids : undefined,
       }
       createMutation.mutate({ data: createData })
@@ -616,7 +830,7 @@ export function MessageEditDialog({
   return (
     <>
       <AlertDialog open={open} onOpenChange={onOpenChange}>
-        <AlertDialogContent className="!max-w-4xl max-h-[90vh] flex flex-col">
+        <AlertDialogContent className="!max-w-6xl max-h-[90vh] flex flex-col">
           <form onSubmit={handleSubmit} className="flex flex-col h-full overflow-hidden">
             <AlertDialogHeader className="flex-shrink-0">
               <AlertDialogTitle>
@@ -767,7 +981,8 @@ export function MessageEditDialog({
                   onChange={(e) => {
                     setFormData({ ...formData, isSecret: e.target.checked })
                     if (!e.target.checked) {
-                      setSelectedUserIds([])
+                      setSecretReceivers([])
+                      setSelectedGroupConfigs([])
                     }
                   }}
                   className="w-4 h-4 rounded border-gray-300"
@@ -781,56 +996,235 @@ export function MessageEditDialog({
               {/* User Selection for Secret Messages */}
               {formData.isSecret && canManageConference && (
                 <div className="space-y-2 border rounded-lg p-4 bg-muted/50 flex-1">
-                  <div className="flex items-center justify-between">
-                    <Label>选择接收用户 *</Label>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedUserIds(conferenceUsers.map(u => u.uuid))}
-                        className="text-xs text-primary hover:underline"
-                      >
-                        全选
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedUserIds([])}
-                        className="text-xs text-primary hover:underline"
-                      >
-                        清空
-                      </button>
+                  <div className="space-y-3 border rounded p-3 bg-background">
+                    <div className="flex items-center justify-between">
+                      <Label>按用户组快速选择</Label>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedGroupConfigs((prev) => {
+                              const map = new Map(prev.map((item) => [item.groupId, item]))
+                              return conferenceGroups.map((group) => {
+                                const defaultReadableAt = isEditing
+                                  ? toDateTimeLocalInputValue(new Date().toISOString())
+                                  : ''
+                                return map.get(group.id) || createDefaultGroupConfig(group.id, defaultReadableAt)
+                              })
+                            })
+                          }}
+                          className="text-xs text-primary hover:underline"
+                        >
+                          全选用户组
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedGroupConfigs([])}
+                          className="text-xs text-primary hover:underline"
+                        >
+                          清空用户组
+                        </button>
+                      </div>
+                    </div>
+                    <div className="max-h-52 overflow-y-auto space-y-2 border rounded p-2 bg-muted/20">
+                      {conferenceGroups.length === 0 ? (
+                        <p className="text-sm text-muted-foreground p-2">暂无用户组</p>
+                      ) : (
+                        conferenceGroups.map((group) => {
+                          const selectedGroup = selectedGroupMap.get(group.id)
+                          const isSelected = !!selectedGroup
+                          return (
+                            <div key={group.id} className="flex items-center gap-2 hover:bg-muted/50 p-2 rounded">
+                              <input
+                                type="checkbox"
+                                id={`group-${group.id}`}
+                                checked={isSelected}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    const defaultReadableAt = isEditing
+                                      ? toDateTimeLocalInputValue(new Date().toISOString())
+                                      : ''
+                                    setSelectedGroupConfigs((prev) => {
+                                      if (prev.some((item) => item.groupId === group.id)) return prev
+                                      return [...prev, createDefaultGroupConfig(group.id, defaultReadableAt)]
+                                    })
+                                  } else {
+                                    setSelectedGroupConfigs((prev) => prev.filter((item) => item.groupId !== group.id))
+                                  }
+                                }}
+                                className="w-4 h-4 rounded border-gray-300 flex-shrink-0"
+                              />
+                              <Label htmlFor={`group-${group.id}`} className="cursor-pointer text-sm flex-1">
+                                {group.groupName} <span className="text-muted-foreground">({group.userUuids.length} 人)</span>
+                              </Label>
+                              {isSelected && selectedGroup && (
+                                <div className="ml-auto w-48">
+                                  {isEditing ? (
+                                    <Input
+                                      type="datetime-local"
+                                      value={selectedGroup.readableAt}
+                                      onChange={(e) => {
+                                        const nextValue = e.target.value
+                                        setSelectedGroupConfigs((prev) =>
+                                          updateGroupReceiverConfig(prev, group.id, (current) => ({
+                                            ...current,
+                                            readableAt: nextValue,
+                                          }))
+                                        )
+                                      }}
+                                      placeholder="组可读时间"
+                                    />
+                                  ) : (
+                                    <Input
+                                      type="number"
+                                      min={0}
+                                      step={1}
+                                      value={selectedGroup.delayMinutes}
+                                      onChange={(e) => {
+                                        const nextValue = e.target.value
+                                        setSelectedGroupConfigs((prev) =>
+                                          updateGroupReceiverConfig(prev, group.id, (current) => ({
+                                            ...current,
+                                            delayMinutes: nextValue,
+                                          }))
+                                        )
+                                      }}
+                                      placeholder="组延迟分钟数"
+                                    />
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })
+                      )}
                     </div>
                   </div>
-                  <div className="max-h-96 overflow-y-auto space-y-2 border rounded p-2 bg-background">
-                    {conferenceUsers.length === 0 ? (
-                      <p className="text-sm text-muted-foreground p-2">加载用户列表...</p>
-                    ) : (
-                      conferenceUsers.map((conferenceUser) => (
-                        <div key={conferenceUser.uuid} className="flex items-center gap-2 hover:bg-muted/50 p-2 rounded">
-                          <input
-                            type="checkbox"
-                            id={`user-${conferenceUser.uuid}`}
-                            checked={selectedUserIds.includes(conferenceUser.uuid)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedUserIds([...selectedUserIds, conferenceUser.uuid])
-                              } else {
-                                setSelectedUserIds(selectedUserIds.filter(id => id !== conferenceUser.uuid))
-                              }
-                            }}
-                            className="w-4 h-4 rounded border-gray-300 flex-shrink-0"
-                          />
-                          <Label 
-                            htmlFor={`user-${conferenceUser.uuid}`} 
-                            className="cursor-pointer text-sm flex-1"
-                          >
-                            {getUserLabel(conferenceUser)} <span className="text-muted-foreground">({conferenceUser.role})</span>
-                          </Label>
-                        </div>
-                      ))
-                    )}
+
+                  <div className="space-y-3 border rounded p-3 bg-background">
+                    <div className="flex items-center justify-between">
+                      <Label>手动用户微调</Label>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSecretReceivers((prev) => {
+                              const map = new Map(prev.map((item) => [item.receiverId, item]))
+                              return selectableUsers.map((user) => {
+                                const defaultReadableAt = isEditing
+                                  ? toDateTimeLocalInputValue(new Date().toISOString())
+                                  : ''
+                                return map.get(user.uuid) || createDefaultReceiverConfig(user.uuid, defaultReadableAt)
+                              })
+                            })
+                          }}
+                          className="text-xs text-primary hover:underline"
+                        >
+                          全选用户
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSecretReceivers([])}
+                          className="text-xs text-primary hover:underline"
+                        >
+                          清空用户
+                        </button>
+                      </div>
+                    </div>
+                    <div className="max-h-72 overflow-y-auto space-y-2 border rounded p-2 bg-muted/20">
+                      {selectableUsers.length === 0 ? (
+                        <p className="text-sm text-muted-foreground p-2">加载用户列表...</p>
+                      ) : (
+                        selectableUsers.map((conferenceUser) => {
+                          const selectedReceiver = secretReceivers.find((item) => item.receiverId === conferenceUser.uuid)
+                          const isSelected = !!selectedReceiver
+                          return (
+                            <div key={conferenceUser.uuid} className="flex items-center gap-2 hover:bg-muted/50 p-2 rounded">
+                              <input
+                                type="checkbox"
+                                id={`user-${conferenceUser.uuid}`}
+                                checked={isSelected}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSecretReceivers((prev) => {
+                                      if (prev.some((item) => item.receiverId === conferenceUser.uuid)) return prev
+                                      const defaultReadableAt = isEditing
+                                        ? toDateTimeLocalInputValue(new Date().toISOString())
+                                        : ''
+                                      return [...prev, createDefaultReceiverConfig(conferenceUser.uuid, defaultReadableAt)]
+                                    })
+                                  } else {
+                                    setSecretReceivers((prev) => prev.filter((item) => item.receiverId !== conferenceUser.uuid))
+                                  }
+                                }}
+                                className="w-4 h-4 rounded border-gray-300 flex-shrink-0"
+                              />
+                              <Label
+                                htmlFor={`user-${conferenceUser.uuid}`}
+                                className="cursor-pointer text-sm flex-1"
+                              >
+                                {getUserLabel(conferenceUser)} <span className="text-muted-foreground">({conferenceUser.role})</span>
+                              </Label>
+                              {isSelected && selectedReceiver && (
+                                <div className="ml-auto w-48">
+                                  {isEditing ? (
+                                    <Input
+                                      type="datetime-local"
+                                      value={selectedReceiver.readableAt}
+                                      onChange={(e) => {
+                                        const nextValue = e.target.value
+                                        setSecretReceivers((prev) =>
+                                          updateSecretReceiver(prev, conferenceUser.uuid, (current) => ({
+                                            ...current,
+                                            readableAt: nextValue,
+                                          }))
+                                        )
+                                      }}
+                                      placeholder="可读时间"
+                                    />
+                                  ) : (
+                                    <Input
+                                      type="number"
+                                      min={0}
+                                      step={1}
+                                      value={selectedReceiver.delayMinutes}
+                                      onChange={(e) => {
+                                        const nextValue = e.target.value
+                                        setSecretReceivers((prev) =>
+                                          updateSecretReceiver(prev, conferenceUser.uuid, (current) => ({
+                                            ...current,
+                                            delayMinutes: nextValue,
+                                          }))
+                                        )
+                                      }}
+                                      placeholder="延迟分钟数"
+                                    />
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })
+                      )}
+                    </div>
                   </div>
+
+                  {selectedGroupsWithoutMembers > 0 && (
+                    <p className="text-xs text-amber-700">
+                      已选用户组中有 {selectedGroupsWithoutMembers} 个组暂无成员，提交时将自动忽略
+                    </p>
+                  )}
+                  {isEditing ? (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      规则：用户组冲突取最早可读时间，手动用户配置优先覆盖用户组
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      规则：用户组冲突取最小延迟分钟数，手动用户配置优先覆盖用户组
+                    </p>
+                  )}
                   <p className="text-xs text-muted-foreground mt-2 font-medium">
-                    已选择 {selectedUserIds.length} / {conferenceUsers.length} 个用户
+                    最终将发送给 {resolvedReceivers.length} 位用户（组+手动去重后）
                   </p>
                 </div>
               )}

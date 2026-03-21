@@ -12,17 +12,22 @@ import {
   AlertDialogCancel,
 } from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
-import { useGetOne } from '@/lib/api/endpoints/消息管理/消息管理'
+import { useGetOne, useGetReceivers } from '@/lib/api/endpoints/消息管理/消息管理'
 import { getOne1 } from '@/lib/api/endpoints/附件管理/附件管理'
 import { AXIOS_INSTANCE } from '@/lib/api/client'
 import { useGetUsers } from '@/lib/api/endpoints/会议管理/会议管理'
-import type { MessageResponse, UserInfoResponse } from '@/lib/api/endpoints/asyaBackendAPI.schemas'
+import type {
+  MessageReceiverVisibilityResponse,
+  MessageResponse,
+  UserInfoResponse,
+} from '@/lib/api/endpoints/asyaBackendAPI.schemas'
 import { Separator } from '@/components/ui/separator'
 import { useAuth } from '@/lib/contexts/auth-context'
 import { Button } from '@/components/ui/button'
 import { ImagePreviewDialog } from '@/components/message/image-preview-dialog'
 import { Eye } from 'lucide-react'
 import { toast } from 'react-toastify'
+import { parseApiPayload } from '@/lib/api/response-utils'
 
 interface MessageDetailDialogProps {
   messageUuid: string | null
@@ -125,6 +130,12 @@ function formatFileSize(size?: number): string {
   return `${(size / 1024 / 1024).toFixed(2)} MB`
 }
 
+function formatReadableAt(isoString: string): string {
+  const date = new Date(isoString)
+  if (Number.isNaN(date.getTime())) return isoString || '未知'
+  return date.toLocaleString('zh-CN')
+}
+
 function getFilenameFromHeaders(headers: unknown, fallback: string): string {
   const getHeader = (name: string) => {
     if (!headers) return undefined
@@ -178,7 +189,7 @@ export function MessageDetailDialog({
   open,
   onOpenChange,
 }: MessageDetailDialogProps) {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, canManageConference } = useAuth()
   const [downloadingUuid, setDownloadingUuid] = useState<string | null>(null)
   const [confirmDownloadUuid, setConfirmDownloadUuid] = useState<string | null>(null)
   const [previewingUuid, setPreviewingUuid] = useState<string | null>(null)
@@ -190,6 +201,11 @@ export function MessageDetailDialog({
       enabled: !!messageUuid && open,
     },
   })
+  const { data: receiversData } = useGetReceivers(messageUuid || '', {
+    query: {
+      enabled: !!messageUuid && open && canManageConference,
+    },
+  })
 
   const { data: usersData } = useGetUsers({
     query: {
@@ -198,40 +214,9 @@ export function MessageDetailDialog({
   })
 
   // 解析响应数据
-  const message = (() => {
-    try {
-      if (!data) return null
-      const responseData = (data as any).data
-      if (!responseData) return null
-
-      const parsed = typeof responseData === 'string'
-        ? JSON.parse(responseData)
-        : responseData
-
-      return (parsed.data || parsed) as MessageResponse
-    } catch (err) {
-      console.error('Failed to parse message detail:', err)
-      return null
-    }
-  })()
-
-  const users: UserInfoResponse[] = (() => {
-    try {
-      if (!usersData) return []
-      const responseData = (usersData as any).data
-      if (!responseData) return []
-
-      const parsed = typeof responseData === 'string'
-        ? JSON.parse(responseData)
-        : responseData
-
-      const usersList = parsed.data || parsed
-      return Array.isArray(usersList) ? usersList : []
-    } catch (err) {
-      console.error('Failed to parse users data:', err)
-      return []
-    }
-  })()
+  const message = parseApiPayload<MessageResponse>(data)
+  const users = parseApiPayload<UserInfoResponse[]>(usersData) || []
+  const receiverVisibilityList = parseApiPayload<MessageReceiverVisibilityResponse[]>(receiversData) || []
 
   const senderDisplayNameMap = users.reduce<Record<string, string>>((acc, user) => {
     const displayName = user.displayName?.trim()
@@ -243,6 +228,15 @@ export function MessageDetailDialog({
   }, {})
 
   const attachmentUuids = message?.attachmentUuids || []
+
+  const receiverStatusList = receiverVisibilityList.map((receiver) => {
+    const readableAtTs = new Date(receiver.readableAt).getTime()
+    const isReadable = Number.isFinite(readableAtTs) ? readableAtTs <= Date.now() : false
+    return {
+      ...receiver,
+      isReadable,
+    }
+  })
 
   const inlineAttachmentInfos = useMemo(() => {
     if (!message) return []
@@ -569,6 +563,42 @@ export function MessageDetailDialog({
                     </div>
                     {isLoadingAttachmentInfo && (
                       <p className="text-xs text-muted-foreground mt-2">正在加载附件信息...</p>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {/* Receiver Visibility (for managers) */}
+              {canManageConference && message.isSecret && (
+                <>
+                  <Separator />
+                  <div>
+                    <h3 className="text-sm font-semibold mb-2">可见用户</h3>
+                    {receiverStatusList.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">暂无可见性数据</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {receiverStatusList.map((receiver) => (
+                          <div key={receiver.uuid} className="rounded border p-2 text-sm">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="font-medium truncate">
+                                  {receiver.displayName?.trim()
+                                    ? `${receiver.displayName}（${receiver.name}）`
+                                    : receiver.name}
+                                </p>
+                                <p className="text-xs text-muted-foreground">{receiver.role}</p>
+                              </div>
+                              <Badge variant={receiver.isReadable ? 'secondary' : 'outline'}>
+                                {receiver.isReadable ? '已可读' : '未到可读时间'}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              可读时间: {formatReadableAt(receiver.readableAt)}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
                 </>

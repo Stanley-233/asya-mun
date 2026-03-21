@@ -104,6 +104,16 @@ export interface ResultUserGroupResponse {
 }
 
 /**
+ * 接收者及可读时间配置
+ */
+export interface MessageReceiverReadableAtItem {
+  /** 接收者ID(UUID) */
+  receiverId: string;
+  /** 可读时间 */
+  readableAt: string;
+}
+
+/**
  * 消息类型
  */
 export type MessageUpdateRequestMsgType =
@@ -135,6 +145,8 @@ export interface MessageUpdateRequest {
   publishGameTime?: string;
   /** 是否加密 */
   isSecret?: boolean;
+  /** 接收者列表(包含接收者ID和可读时间，null表示不修改，空数组表示清空) */
+  receiverIds?: MessageReceiverReadableAtItem[];
   /** 附件UUID列表(为空表示清空，null表示不修改) */
   attachmentUuids?: string[];
 }
@@ -454,6 +466,16 @@ export const MessageCreateRequestMsgType = {
 } as const;
 
 /**
+ * 接收者及延迟阅读配置
+ */
+export interface MessageReceiverDelayItem {
+  /** 接收者ID(UUID) */
+  receiverId: string;
+  /** 延迟可读分钟数(>=0) */
+  delayMinutes: number;
+}
+
+/**
  * 创建消息请求
  */
 export interface MessageCreateRequest {
@@ -471,8 +493,8 @@ export interface MessageCreateRequest {
   publishGameTime: string;
   /** 是否加密(默认为false) */
   isSecret: boolean;
-  /** 接收者ID列表(UUID), 当isSecret为true时有效 */
-  receiverIds?: string[];
+  /** 接收者列表(包含接收者ID和延迟分钟数), 当isSecret为true时有效 */
+  receiverIds?: MessageReceiverDelayItem[];
   /** 附件UUID列表 */
   attachmentUuids?: string[];
 }
@@ -583,16 +605,16 @@ export interface Pageablenull {
 }
 
 export interface Pagenull {
-  totalPages?: number;
   totalElements?: number;
+  totalPages?: number;
   first?: boolean;
   last?: boolean;
   size?: number;
   content?: MessageResponse[];
   number?: number;
   sort?: Sortnull;
-  pageable?: Pageablenull;
   numberOfElements?: number;
+  pageable?: Pageablenull;
   empty?: boolean;
 }
 
@@ -605,6 +627,46 @@ export interface ResultPageMessageResponse {
   /** 提示信息 */
   message: string;
   data?: Pagenull;
+}
+
+/**
+ * 用户角色
+ */
+export type MessageReceiverVisibilityResponseRole =
+  (typeof MessageReceiverVisibilityResponseRole)[keyof typeof MessageReceiverVisibilityResponseRole];
+
+export const MessageReceiverVisibilityResponseRole = {
+  DELEGATE: "DELEGATE",
+  DM: "DM",
+  DH: "DH",
+  SYS_ADMIN: "SYS_ADMIN",
+} as const;
+
+/**
+ * 消息接收者可见性响应
+ */
+export interface MessageReceiverVisibilityResponse {
+  /** 用户ID */
+  uuid: string;
+  /** 用户昵称 */
+  name: string;
+  /** 显示名称 */
+  displayName?: string;
+  /** 用户角色 */
+  role: MessageReceiverVisibilityResponseRole;
+  /** 该用户可阅读这条消息的时间 */
+  readableAt: string;
+}
+
+/**
+ * 统一接口返回结构
+ */
+export interface ResultListMessageReceiverVisibilityResponse {
+  /** 状态码 */
+  code: number;
+  /** 提示信息 */
+  message: string;
+  data?: MessageReceiverVisibilityResponse[];
 }
 
 /**
