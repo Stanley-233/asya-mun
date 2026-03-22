@@ -40,6 +40,7 @@ import type {
   UserGroupResponse
 } from "@/lib/api/endpoints/asyaBackendAPI.schemas"
 import { TimelineManager } from '@/components/timeline-manager'
+import { RoundManager } from '@/components/round/round-manager'
 
 const statusLabels = {
   'PREPARING': '筹备中',
@@ -644,6 +645,9 @@ export default function ConferencePage() {
           <div className="space-y-6">
             {/* 时间轴管理 */}
             <TimelineManager />
+
+            {/* 回合管理 */}
+            <RoundManager />
           </div>
         </div>
       </div>

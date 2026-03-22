@@ -94,7 +94,7 @@ export function InstructionSubmitForm({
               id="instruction-title"
               value={title}
               onChange={event => setTitle(event.target.value)}
-              placeholder="请输入指令标题"
+              placeholder="标题格式：【军事/内政/外交-会期数.份数】摘要，如【军事1.1】后勤保障"
               disabled={disabled || isPending}
             />
           </div>

@@ -126,7 +126,7 @@ function parseDateTimeLocalToISO(dateTimeLocal: string): string {
 function createDefaultReceiverConfig(receiverId: string, readableAt = ''): SecretReceiverConfig {
   return {
     receiverId,
-    delayMinutes: '0',
+    delayMinutes: '',
     readableAt,
   }
 }
@@ -134,7 +134,7 @@ function createDefaultReceiverConfig(receiverId: string, readableAt = ''): Secre
 function createDefaultGroupConfig(groupId: number, readableAt = ''): GroupReceiverConfig {
   return {
     groupId,
-    delayMinutes: '0',
+    delayMinutes: '',
     readableAt,
   }
 }
@@ -554,7 +554,7 @@ export function MessageEditDialog({
     setSecretReceivers(
       parsedReceivers.map((receiver) => ({
         receiverId: receiver.uuid,
-        delayMinutes: '0',
+        delayMinutes: '',
         readableAt: toDateTimeLocalInputValue(receiver.readableAt),
       }))
     )
@@ -744,16 +744,18 @@ export function MessageEditDialog({
     }
 
     if (!isEditing && formData.isSecret) {
-      const invalidGroupDelay = selectedGroupConfigs.some((group) => parseNonNegativeInteger(group.delayMinutes) === null)
+      const invalidGroupDelay = selectedGroupConfigs.some((group) => {
+        if (!group.delayMinutes.trim()) return false
+        return parseNonNegativeInteger(group.delayMinutes) === null
+      })
       if (invalidGroupDelay) {
         toast.warning('请为每个选中的用户组填写非负整数的延迟分钟数')
         return
       }
 
       const invalidDelay = secretReceivers.some((receiver) => {
-        if (!receiver.delayMinutes.trim()) return true
-        if (!/^\d+$/.test(receiver.delayMinutes.trim())) return true
-        return Number.parseInt(receiver.delayMinutes.trim(), 10) < 0
+        if (!receiver.delayMinutes.trim()) return false
+        return parseNonNegativeInteger(receiver.delayMinutes) === null
       })
       if (invalidDelay) {
         toast.warning('请为每个接收者填写非负整数的延迟分钟数')

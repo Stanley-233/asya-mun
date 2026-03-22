@@ -104,6 +104,62 @@ export interface ResultUserGroupResponse {
 }
 
 /**
+ * 设置下一回合请求
+ */
+export interface RoundSetNextRequest {
+  /** 下一回合ID，可为空（清空） */
+  nextRoundId?: string;
+}
+
+/**
+ * 回合状态
+ */
+export type RoundResponseStatus =
+  (typeof RoundResponseStatus)[keyof typeof RoundResponseStatus];
+
+export const RoundResponseStatus = {
+  RUNNING: "RUNNING",
+  PAUSED: "PAUSED",
+} as const;
+
+/**
+ * 回合响应
+ */
+export interface RoundResponse {
+  /** 回合ID */
+  roundId: string;
+  /** 会议ID */
+  conferenceId: string;
+  /** 回合名称 */
+  name: string;
+  /** 总时长（秒） */
+  durationSeconds: number;
+  /** 剩余时长（秒） */
+  remainingSeconds: number;
+  /** 回合状态 */
+  status: RoundResponseStatus;
+  /** 是否当前回合 */
+  isCurrent: boolean;
+  /** 下一回合ID */
+  nextRoundId?: string;
+  /** 结束时间（仅RUNNING时） */
+  endAt?: string;
+  /** 服务端时间 */
+  serverTime: string;
+}
+
+/**
+ * 统一接口返回结构
+ */
+export interface ResultRoundResponse {
+  /** 状态码 */
+  code: number;
+  /** 提示信息 */
+  message: string;
+  data?: RoundResponse;
+}
+
+/**
  * 接收者及可读时间配置
  */
 export interface MessageReceiverReadableAtItem {
@@ -452,6 +508,31 @@ export interface TimeJumpRequest {
 }
 
 /**
+ * 初始状态
+ */
+export type RoundPublishRequestInitialStatus =
+  (typeof RoundPublishRequestInitialStatus)[keyof typeof RoundPublishRequestInitialStatus];
+
+export const RoundPublishRequestInitialStatus = {
+  RUNNING: "RUNNING",
+  PAUSED: "PAUSED",
+} as const;
+
+/**
+ * 发布回合请求
+ */
+export interface RoundPublishRequest {
+  /** 回合名称 */
+  name: string;
+  /** 回合持续时长（秒） */
+  durationSeconds: number;
+  /** 初始状态 */
+  initialStatus: RoundPublishRequestInitialStatus;
+  /** 下一回合ID，可为空 */
+  nextRoundId?: string;
+}
+
+/**
  * 消息类型: EVENT, NEWS, CRISIS, SECRET_LETTER, WAR_REPORT
  */
 export type MessageCreateRequestMsgType =
@@ -702,6 +783,17 @@ export interface ResultCurrentTimeResponse {
   data?: CurrentTimeResponse;
 }
 
+/**
+ * 统一接口返回结构
+ */
+export interface ResultListRoundResponse {
+  /** 状态码 */
+  code: number;
+  /** 提示信息 */
+  message: string;
+  data?: RoundResponse[];
+}
+
 export interface Pageable {
   /** @minimum 0 */
   page?: number;
@@ -726,16 +818,16 @@ export interface Pageablenull {
 }
 
 export interface Pagenull {
-  totalElements?: number;
   totalPages?: number;
+  totalElements?: number;
   first?: boolean;
   last?: boolean;
   size?: number;
   content?: MessageResponse[];
   number?: number;
   sort?: Sortnull;
-  numberOfElements?: number;
   pageable?: Pageablenull;
+  numberOfElements?: number;
   empty?: boolean;
 }
 

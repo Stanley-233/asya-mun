@@ -12,11 +12,11 @@ import { useGetMine } from "@/lib/api/endpoints/会议管理/会议管理"
 import { useGetLatest } from "@/lib/api/endpoints/时间轴管理/时间轴管理"
 import { useDelete } from "@/lib/api/endpoints/消息管理/消息管理"
 import type { ConferenceResponse, TimeAnchorResponse, MessageResponse } from "@/lib/api/endpoints/asyaBackendAPI.schemas"
-import { TimelineManager } from "@/components/timeline-manager"
 import { MessageList, MessageDetailDialog, MessageEditDialog } from "@/components/message"
 import { AlertDialogCancel } from "@/components/ui/alert-dialog"
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-toastify'
+import { RoundStatusCard } from '@/components/round/round-status-card'
 
 const statusLabels = {
   'PREPARING': '筹备中',
@@ -229,6 +229,9 @@ export default function ProgressPage() {
           currentGameTime={currentGameTime}
           latestAnchor={latestAnchor}
         />
+
+        {/* 当前回合状态（独立于时间锚点） */}
+        <RoundStatusCard />
 
         {/* 时间轴变化提醒弹窗 */}
         <AlertDialog open={showAlert} onOpenChange={setShowAlert}>
