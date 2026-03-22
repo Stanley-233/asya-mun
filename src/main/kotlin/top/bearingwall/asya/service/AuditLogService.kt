@@ -66,6 +66,11 @@ class AuditLogService(
         return when (this) {
             AuditActionType.INSTRUCTION_CREATE -> AuditActionType.MESSAGE_CREATE
             AuditActionType.INSTRUCTION_REVIEW -> AuditActionType.MESSAGE_UPDATE
+            AuditActionType.ROUND_PUBLISH -> AuditActionType.TIMELINE_UPDATE
+            AuditActionType.ROUND_PAUSE -> AuditActionType.TIMELINE_UPDATE
+            AuditActionType.ROUND_RESUME -> AuditActionType.TIMELINE_UPDATE
+            AuditActionType.ROUND_SET_NEXT -> AuditActionType.TIMELINE_UPDATE
+            AuditActionType.ROUND_AUTO_ADVANCE -> AuditActionType.TIMELINE_JUMP
             else -> null
         }
     }
