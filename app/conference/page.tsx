@@ -22,7 +22,7 @@ import {
 import { useAuth } from "@/lib/contexts/auth-context"
 import {
   useGetMine,
-  useUpdate1,
+  useUpdate2,
   useGetUsers
 } from "@/lib/api/endpoints/会议管理/会议管理"
 import {
@@ -79,7 +79,7 @@ export default function ConferencePage() {
       enabled: isAuthenticated && canManageConference,
     }
   })
-  const { mutate: updateConference, isPending: isUpdating } = useUpdate1()
+  const { mutate: updateConference, isPending: isUpdating } = useUpdate2()
 
   const { data: groupsData, refetch: refetchGroups, isLoading: groupsLoading, error: groupsError } = useGetAllUserGroups({
     query: { enabled: isAuthenticated && canManageConference }

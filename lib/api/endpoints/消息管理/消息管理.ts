@@ -192,26 +192,26 @@ export function useGetOne<
  * DH、DM、SYS_ADMIN 可更新
  * @summary 更新消息
  */
-export type updateResponse200 = {
+export type update1Response200 = {
   data: Blob;
   status: 200;
 };
 
-export type updateResponseSuccess = updateResponse200 & {
+export type update1ResponseSuccess = update1Response200 & {
   headers: Headers;
 };
-export type updateResponse = updateResponseSuccess;
+export type update1Response = update1ResponseSuccess;
 
-export const getUpdateUrl = (uuid: string) => {
+export const getUpdate1Url = (uuid: string) => {
   return `/api/messages/${uuid}`;
 };
 
-export const update = async (
+export const update1 = async (
   uuid: string,
   messageUpdateRequest: MessageUpdateRequest,
   options?: RequestInit,
-): Promise<updateResponse> => {
-  return customInstance<updateResponse>(getUpdateUrl(uuid), {
+): Promise<update1Response> => {
+  return customInstance<update1Response>(getUpdate1Url(uuid), {
     ...options,
     method: "PUT",
     headers: { "Content-Type": "application/json", ...options?.headers },
@@ -219,24 +219,24 @@ export const update = async (
   });
 };
 
-export const getUpdateMutationOptions = <
+export const getUpdate1MutationOptions = <
   TError = unknown,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof update>>,
+    Awaited<ReturnType<typeof update1>>,
     TError,
     { uuid: string; data: MessageUpdateRequest },
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
-  Awaited<ReturnType<typeof update>>,
+  Awaited<ReturnType<typeof update1>>,
   TError,
   { uuid: string; data: MessageUpdateRequest },
   TContext
 > => {
-  const mutationKey = ["update"];
+  const mutationKey = ["update1"];
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation &&
       "mutationKey" in options.mutation &&
@@ -246,30 +246,30 @@ export const getUpdateMutationOptions = <
     : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof update>>,
+    Awaited<ReturnType<typeof update1>>,
     { uuid: string; data: MessageUpdateRequest }
   > = (props) => {
     const { uuid, data } = props ?? {};
 
-    return update(uuid, data, requestOptions);
+    return update1(uuid, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
-export type UpdateMutationResult = NonNullable<
-  Awaited<ReturnType<typeof update>>
+export type Update1MutationResult = NonNullable<
+  Awaited<ReturnType<typeof update1>>
 >;
-export type UpdateMutationBody = MessageUpdateRequest;
-export type UpdateMutationError = unknown;
+export type Update1MutationBody = MessageUpdateRequest;
+export type Update1MutationError = unknown;
 
 /**
  * @summary 更新消息
  */
-export const useUpdate = <TError = unknown, TContext = unknown>(
+export const useUpdate1 = <TError = unknown, TContext = unknown>(
   options?: {
     mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof update>>,
+      Awaited<ReturnType<typeof update1>>,
       TError,
       { uuid: string; data: MessageUpdateRequest },
       TContext
@@ -278,12 +278,12 @@ export const useUpdate = <TError = unknown, TContext = unknown>(
   },
   queryClient?: QueryClient,
 ): UseMutationResult<
-  Awaited<ReturnType<typeof update>>,
+  Awaited<ReturnType<typeof update1>>,
   TError,
   { uuid: string; data: MessageUpdateRequest },
   TContext
 > => {
-  return useMutation(getUpdateMutationOptions(options), queryClient);
+  return useMutation(getUpdate1MutationOptions(options), queryClient);
 };
 /**
  * DH、DM、SYS_ADMIN 可删除

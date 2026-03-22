@@ -104,11 +104,13 @@ export interface ResultUserGroupResponse {
 }
 
 /**
- * 设置下一回合请求
+ * 修改回合请求
  */
-export interface RoundSetNextRequest {
-  /** 下一回合ID，可为空（清空） */
-  nextRoundId?: string;
+export interface RoundUpdateRequest {
+  /** 回合名称 */
+  name: string;
+  /** 回合总时长（秒） */
+  durationSeconds: number;
 }
 
 /**
@@ -157,6 +159,22 @@ export interface ResultRoundResponse {
   /** 提示信息 */
   message: string;
   data?: RoundResponse;
+}
+
+/**
+ * 设置下一回合请求
+ */
+export interface RoundSetNextRequest {
+  /** 下一回合ID，可为空（清空） */
+  nextRoundId?: string;
+}
+
+/**
+ * 设置当前回合请求
+ */
+export interface RoundSetCurrentRequest {
+  /** 要切换成当前回合的 roundId */
+  roundId: string;
 }
 
 /**
@@ -262,6 +280,124 @@ export interface ResultMessageResponse {
   /** 提示信息 */
   message: string;
   data?: MessageResponse;
+}
+
+/**
+ * 属性值写入项
+ */
+export interface DelegateAttrValueInput {
+  /** 属性key */
+  attrKey: string;
+  /** 文本值（TEXT类型使用） */
+  textValue?: string;
+  /** 数值（NUMBER类型使用） */
+  numberValue?: number;
+}
+
+/**
+ * 整条记录写入请求（全量覆盖）
+ */
+export interface DelegateAttrRecordUpsertRequest {
+  values: DelegateAttrValueInput[];
+}
+
+export type DelegateAttrTypedValueResponseAttrType =
+  (typeof DelegateAttrTypedValueResponseAttrType)[keyof typeof DelegateAttrTypedValueResponseAttrType];
+
+export const DelegateAttrTypedValueResponseAttrType = {
+  TEXT: "TEXT",
+  NUMBER: "NUMBER",
+} as const;
+
+/**
+ * 聚合属性值
+ */
+export interface DelegateAttrTypedValueResponse {
+  attrType: DelegateAttrTypedValueResponseAttrType;
+  textValue?: string;
+  numberValue?: number;
+}
+
+export type DelegateAttrRecordResponseValues = {
+  [key: string]: DelegateAttrTypedValueResponse;
+};
+
+/**
+ * 代表属性记录响应
+ */
+export interface DelegateAttrRecordResponse {
+  recordId: string;
+  delegateId: string;
+  delegateName: string;
+  updatedAt: string;
+  values: DelegateAttrRecordResponseValues;
+}
+
+/**
+ * 统一接口返回结构
+ */
+export interface ResultDelegateAttrRecordResponse {
+  /** 状态码 */
+  code: number;
+  /** 提示信息 */
+  message: string;
+  data?: DelegateAttrRecordResponse;
+}
+
+/**
+ * 属性类型
+ */
+export type DelegateAttrConfigUpdateRequestAttrType =
+  (typeof DelegateAttrConfigUpdateRequestAttrType)[keyof typeof DelegateAttrConfigUpdateRequestAttrType];
+
+export const DelegateAttrConfigUpdateRequestAttrType = {
+  TEXT: "TEXT",
+  NUMBER: "NUMBER",
+} as const;
+
+/**
+ * 更新属性配置请求
+ */
+export interface DelegateAttrConfigUpdateRequest {
+  /** 属性展示名 */
+  attrLabel?: string;
+  /** 属性类型 */
+  attrType?: DelegateAttrConfigUpdateRequestAttrType;
+  /** 排序值 */
+  sortOrder?: number;
+  /** 是否启用 */
+  enabled?: boolean;
+}
+
+export type DelegateAttrConfigResponseAttrType =
+  (typeof DelegateAttrConfigResponseAttrType)[keyof typeof DelegateAttrConfigResponseAttrType];
+
+export const DelegateAttrConfigResponseAttrType = {
+  TEXT: "TEXT",
+  NUMBER: "NUMBER",
+} as const;
+
+/**
+ * 属性配置响应
+ */
+export interface DelegateAttrConfigResponse {
+  id: string;
+  attrKey: string;
+  attrLabel: string;
+  attrType: DelegateAttrConfigResponseAttrType;
+  sortOrder: number;
+  enabled: boolean;
+}
+
+/**
+ * 统一接口返回结构
+ */
+export interface ResultDelegateAttrConfigResponse {
+  /** 状态码 */
+  code: number;
+  /** 提示信息 */
+  message: string;
+  data?: DelegateAttrConfigResponse;
 }
 
 /**
@@ -702,6 +838,106 @@ export interface InstructionReviewRequest {
 }
 
 /**
+ * 属性值过滤项
+ */
+export interface DelegateAttrFilterItem {
+  attrKey: string;
+  textValue?: string;
+  numberValue?: number;
+}
+
+/**
+ * 管理端查询请求
+ */
+export interface DelegateAttrManageQueryRequest {
+  delegateIds?: string[];
+  attrFilters?: DelegateAttrFilterItem[];
+}
+
+export interface Pageable {
+  /** @minimum 0 */
+  page?: number;
+  /** @minimum 1 */
+  size?: number;
+  sort?: string[];
+}
+
+export interface Sortnull {
+  empty?: boolean;
+  sorted?: boolean;
+  unsorted?: boolean;
+}
+
+export interface Pageablenull {
+  offset?: number;
+  sort?: Sortnull;
+  paged?: boolean;
+  pageNumber?: number;
+  unpaged?: boolean;
+  pageSize?: number;
+}
+
+export interface Pagenull {
+  totalElements?: number;
+  totalPages?: number;
+  first?: boolean;
+  last?: boolean;
+  size?: number;
+  content?: DelegateAttrRecordResponse[];
+  number?: number;
+  sort?: Sortnull;
+  numberOfElements?: number;
+  pageable?: Pageablenull;
+  empty?: boolean;
+}
+
+/**
+ * 属性记录分页聚合响应
+ */
+export interface DelegateAttrRecordPageResponse {
+  configs: DelegateAttrConfigResponse[];
+  records: Pagenull;
+}
+
+/**
+ * 统一接口返回结构
+ */
+export interface ResultDelegateAttrRecordPageResponse {
+  /** 状态码 */
+  code: number;
+  /** 提示信息 */
+  message: string;
+  data?: DelegateAttrRecordPageResponse;
+}
+
+/**
+ * 属性类型
+ */
+export type DelegateAttrConfigCreateRequestAttrType =
+  (typeof DelegateAttrConfigCreateRequestAttrType)[keyof typeof DelegateAttrConfigCreateRequestAttrType];
+
+export const DelegateAttrConfigCreateRequestAttrType = {
+  TEXT: "TEXT",
+  NUMBER: "NUMBER",
+} as const;
+
+/**
+ * 创建属性配置请求
+ */
+export interface DelegateAttrConfigCreateRequest {
+  /** 属性key(英文) */
+  attrKey: string;
+  /** 属性展示名 */
+  attrLabel: string;
+  /** 属性类型 */
+  attrType: DelegateAttrConfigCreateRequestAttrType;
+  /** 排序值 */
+  sortOrder: number;
+  /** 是否启用 */
+  enabled: boolean;
+}
+
+/**
  * 用户关联会议请求
  */
 export interface ConferenceAssignRequest {
@@ -794,43 +1030,6 @@ export interface ResultListRoundResponse {
   data?: RoundResponse[];
 }
 
-export interface Pageable {
-  /** @minimum 0 */
-  page?: number;
-  /** @minimum 1 */
-  size?: number;
-  sort?: string[];
-}
-
-export interface Sortnull {
-  empty?: boolean;
-  sorted?: boolean;
-  unsorted?: boolean;
-}
-
-export interface Pageablenull {
-  offset?: number;
-  sort?: Sortnull;
-  paged?: boolean;
-  pageNumber?: number;
-  pageSize?: number;
-  unpaged?: boolean;
-}
-
-export interface Pagenull {
-  totalPages?: number;
-  totalElements?: number;
-  first?: boolean;
-  last?: boolean;
-  size?: number;
-  content?: MessageResponse[];
-  number?: number;
-  sort?: Sortnull;
-  pageable?: Pageablenull;
-  numberOfElements?: number;
-  empty?: boolean;
-}
-
 /**
  * 统一接口返回结构
  */
@@ -907,6 +1106,17 @@ export interface ResultString {
 /**
  * 统一接口返回结构
  */
+export interface ResultListDelegateAttrConfigResponse {
+  /** 状态码 */
+  code: number;
+  /** 提示信息 */
+  message: string;
+  data?: DelegateAttrConfigResponse[];
+}
+
+/**
+ * 统一接口返回结构
+ */
 export interface ResultListConferenceResponse {
   /** 状态码 */
   code: number;
@@ -978,6 +1188,10 @@ export type GetAllParams = {
   pageable: Pageable;
 };
 
+export type QueryForManagementParams = {
+  pageable: Pageable;
+};
+
 export type UploadBody = {
   file: Blob;
 };
@@ -1034,3 +1248,7 @@ export const GetForManagementInstructionType = {
   INTERNAL: "INTERNAL",
   OTHER: "OTHER",
 } as const;
+
+export type ListMyRecordsParams = {
+  pageable: Pageable;
+};

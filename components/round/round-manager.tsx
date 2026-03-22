@@ -28,6 +28,8 @@ import {
   usePublish,
   useResume,
   useSetNext,
+  useUpdate,
+  useUpdateCurrent,
 } from '@/lib/api/endpoints/回合管理/回合管理'
 import type {
   RoundPublishRequestInitialStatus,
@@ -69,6 +71,12 @@ export function RoundManager() {
   const [publishDialogOpen, setPublishDialogOpen] = useState(false)
   const [nextDrafts, setNextDrafts] = useState<NextDraftMap>({})
   const [savingRoundId, setSavingRoundId] = useState<string | null>(null)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [editingRoundId, setEditingRoundId] = useState<string | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editDurationSeconds, setEditDurationSeconds] = useState(0)
+  const [setCurrentDialogOpen, setSetCurrentDialogOpen] = useState(false)
+  const [targetCurrentRoundId, setTargetCurrentRoundId] = useState<string | null>(null)
 
   const { data: currentData, isLoading: currentLoading } = useCurrent({
     query: {
@@ -89,6 +97,8 @@ export function RoundManager() {
   const pauseMutation = usePause()
   const resumeMutation = useResume()
   const setNextMutation = useSetNext()
+  const updateMutation = useUpdate()
+  const updateCurrentMutation = useUpdateCurrent()
 
   const currentRound = useMemo(() => parseApiPayload<RoundResponse>(currentData), [currentData])
   const rounds = useMemo(() => parseApiPayload<RoundResponse[]>(listData) ?? [], [listData])
@@ -218,6 +228,84 @@ export function RoundManager() {
     }
   }
 
+  const openEditDialog = (round: RoundResponse) => {
+    setEditingRoundId(round.roundId)
+    setEditName(round.name)
+    setEditDurationSeconds(Math.max(1, Math.floor(round.durationSeconds)))
+    setEditDialogOpen(true)
+  }
+
+  const handleSaveRoundEdit = async () => {
+    const roundId = editingRoundId
+    const name = editName.trim()
+
+    if (!roundId) {
+      toast.warning('未选择要修改的回合')
+      return
+    }
+    if (!name) {
+      toast.warning('请输入回合名称')
+      return
+    }
+    if (!Number.isFinite(editDurationSeconds) || editDurationSeconds <= 0) {
+      toast.warning('回合时长必须是大于 0 的秒数')
+      return
+    }
+
+    try {
+      await updateMutation.mutateAsync({
+        roundId,
+        data: {
+          name,
+          durationSeconds: Math.floor(editDurationSeconds),
+        },
+      })
+      toast.success('回合修改成功')
+      setEditDialogOpen(false)
+      setEditingRoundId(null)
+      await invalidateRoundQueries()
+    } catch (error) {
+      console.error('Update round failed:', error)
+      toast.error('修改回合失败，请稍后重试')
+    }
+  }
+
+  const openSetCurrentDialog = (roundId: string) => {
+    setTargetCurrentRoundId(roundId)
+    setSetCurrentDialogOpen(true)
+  }
+
+  const handleSetCurrent = async () => {
+    const roundId = targetCurrentRoundId
+    if (!roundId) {
+      toast.warning('未选择目标回合')
+      return
+    }
+
+    const targetRound = rounds.find((item) => item.roundId === roundId)
+    if (targetRound?.isCurrent) {
+      toast.warning('该回合已是当前回合')
+      setSetCurrentDialogOpen(false)
+      return
+    }
+
+    try {
+      await updateCurrentMutation.mutateAsync({
+        data: { roundId },
+      })
+      toast.success('已切换当前回合')
+      setSetCurrentDialogOpen(false)
+      setTargetCurrentRoundId(null)
+      await invalidateRoundQueries()
+    } catch (error) {
+      console.error('Set current round failed:', error)
+      toast.error('设置当前回合失败，请稍后重试')
+    }
+  }
+
+  const targetCurrentRound =
+    rounds.find((item) => item.roundId === targetCurrentRoundId) ?? null
+
   return (
     <Card>
       <CardHeader>
@@ -344,6 +432,24 @@ export function RoundManager() {
                     {setNextMutation.isPending && savingRoundId === round.roundId ? '保存中...' : '保存'}
                   </Button>
                 </div>
+
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => openEditDialog(round)}
+                    disabled={updateMutation.isPending}
+                  >
+                    编辑
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => openSetCurrentDialog(round.roundId)}
+                    disabled={round.isCurrent || updateCurrentMutation.isPending}
+                  >
+                    {round.isCurrent ? '当前回合' : '设为当前'}
+                  </Button>
+                </div>
               </div>
             ))
           )}
@@ -414,6 +520,78 @@ export function RoundManager() {
             <AlertDialogCancel disabled={publishMutation.isPending}>取消</AlertDialogCancel>
             <AlertDialogAction onClick={handlePublish} disabled={publishMutation.isPending}>
               {publishMutation.isPending ? '发布中...' : '发布并切换为当前回合'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={editDialogOpen}
+        onOpenChange={(open) => {
+          setEditDialogOpen(open)
+          if (!open) {
+            setEditingRoundId(null)
+          }
+        }}
+      >
+        <AlertDialogContent className="!max-w-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>修改回合</AlertDialogTitle>
+            <AlertDialogDescription>可修改回合名称和总时长</AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="round-edit-name">回合名称</Label>
+              <Input
+                id="round-edit-name"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="例如：第二轮非正式磋商"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="round-edit-duration">总时长（秒）</Label>
+              <Input
+                id="round-edit-duration"
+                type="number"
+                min="1"
+                value={editDurationSeconds}
+                onChange={(e) => setEditDurationSeconds(parseInt(e.target.value, 10) || 0)}
+              />
+            </div>
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={updateMutation.isPending}>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSaveRoundEdit} disabled={updateMutation.isPending}>
+              {updateMutation.isPending ? '保存中...' : '保存修改'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={setCurrentDialogOpen}
+        onOpenChange={(open) => {
+          setSetCurrentDialogOpen(open)
+          if (!open) {
+            setTargetCurrentRoundId(null)
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认切换当前回合</AlertDialogTitle>
+            <AlertDialogDescription>
+              确认将当前回合切换为「{targetCurrentRound?.name || '未命名回合'}」吗？
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={updateCurrentMutation.isPending}>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSetCurrent} disabled={updateCurrentMutation.isPending}>
+              {updateCurrentMutation.isPending ? '切换中...' : '确认切换'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

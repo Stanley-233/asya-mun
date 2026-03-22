@@ -13,7 +13,8 @@ import {
 import { useAuth } from "@/lib/contexts/auth-context"
 
 export function Navbar() {
-  const { isAuthenticated, isSysAdmin, canManageConference, logout, isLoading } = useAuth()
+  const { user, isAuthenticated, isSysAdmin, canManageConference, logout, isLoading } = useAuth()
+  const isDelegate = user?.role === 'DELEGATE'
 
   const baseMenuItems = [
     { href: "/", label: "主页" }
@@ -28,8 +29,10 @@ export function Navbar() {
         ? [
             { href: "/profile", label: "个人" },
             { href: "/progress", label: "会议" },
+            ...(isDelegate ? [{ href: "/status", label: "状态" }] : []),
             ...(canManageConference ? [
               { href: "/conference", label: "会议管理" },
+              { href: "/status-manage", label: "状态管理" },
               { href: "/asymsg", label: "非对称管理" },
               { href: "/instructions", label: "指令管理" }
             ] : []),

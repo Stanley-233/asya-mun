@@ -23,13 +23,267 @@ import type {
 
 import type {
   RoundPublishRequest,
+  RoundSetCurrentRequest,
   RoundSetNextRequest,
+  RoundUpdateRequest,
 } from "../asyaBackendAPI.schemas";
 
 import { customInstance } from "../../client";
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
+/**
+ * 所有登录用户可查询自己所在会议下的回合详情
+ * @summary 按ID查询回合详情
+ */
+export type detailResponse200 = {
+  data: Blob;
+  status: 200;
+};
+
+export type detailResponseSuccess = detailResponse200 & {
+  headers: Headers;
+};
+export type detailResponse = detailResponseSuccess;
+
+export const getDetailUrl = (roundId: string) => {
+  return `/api/round/${roundId}`;
+};
+
+export const detail = async (
+  roundId: string,
+  options?: RequestInit,
+): Promise<detailResponse> => {
+  return customInstance<detailResponse>(getDetailUrl(roundId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getDetailQueryKey = (roundId: string) => {
+  return [`/api/round/${roundId}`] as const;
+};
+
+export const getDetailQueryOptions = <
+  TData = Awaited<ReturnType<typeof detail>>,
+  TError = unknown,
+>(
+  roundId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof detail>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getDetailQueryKey(roundId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof detail>>> = ({
+    signal,
+  }) => detail(roundId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!roundId,
+    ...queryOptions,
+  } as UseQueryOptions<Awaited<ReturnType<typeof detail>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+};
+
+export type DetailQueryResult = NonNullable<Awaited<ReturnType<typeof detail>>>;
+export type DetailQueryError = unknown;
+
+export function useDetail<
+  TData = Awaited<ReturnType<typeof detail>>,
+  TError = unknown,
+>(
+  roundId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof detail>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof detail>>,
+          TError,
+          Awaited<ReturnType<typeof detail>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useDetail<
+  TData = Awaited<ReturnType<typeof detail>>,
+  TError = unknown,
+>(
+  roundId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof detail>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof detail>>,
+          TError,
+          Awaited<ReturnType<typeof detail>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useDetail<
+  TData = Awaited<ReturnType<typeof detail>>,
+  TError = unknown,
+>(
+  roundId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof detail>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary 按ID查询回合详情
+ */
+
+export function useDetail<
+  TData = Awaited<ReturnType<typeof detail>>,
+  TError = unknown,
+>(
+  roundId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof detail>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getDetailQueryOptions(roundId, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * DH、DM、SYS_ADMIN 可修改回合名称和总时间
+ * @summary 修改指定回合
+ */
+export type updateResponse200 = {
+  data: Blob;
+  status: 200;
+};
+
+export type updateResponseSuccess = updateResponse200 & {
+  headers: Headers;
+};
+export type updateResponse = updateResponseSuccess;
+
+export const getUpdateUrl = (roundId: string) => {
+  return `/api/round/${roundId}`;
+};
+
+export const update = async (
+  roundId: string,
+  roundUpdateRequest: RoundUpdateRequest,
+  options?: RequestInit,
+): Promise<updateResponse> => {
+  return customInstance<updateResponse>(getUpdateUrl(roundId), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(roundUpdateRequest),
+  });
+};
+
+export const getUpdateMutationOptions = <
+  TError = unknown,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof update>>,
+    TError,
+    { roundId: string; data: RoundUpdateRequest },
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof update>>,
+  TError,
+  { roundId: string; data: RoundUpdateRequest },
+  TContext
+> => {
+  const mutationKey = ["update"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof update>>,
+    { roundId: string; data: RoundUpdateRequest }
+  > = (props) => {
+    const { roundId, data } = props ?? {};
+
+    return update(roundId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateMutationResult = NonNullable<
+  Awaited<ReturnType<typeof update>>
+>;
+export type UpdateMutationBody = RoundUpdateRequest;
+export type UpdateMutationError = unknown;
+
+/**
+ * @summary 修改指定回合
+ */
+export const useUpdate = <TError = unknown, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof update>>,
+      TError,
+      { roundId: string; data: RoundUpdateRequest },
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof update>>,
+  TError,
+  { roundId: string; data: RoundUpdateRequest },
+  TContext
+> => {
+  return useMutation(getUpdateMutationOptions(options), queryClient);
+};
 /**
  * DH、DM、SYS_ADMIN 可设置某个 round 的 nextRoundId（可清空）
  * @summary 设置下一回合
@@ -126,6 +380,248 @@ export const useSetNext = <TError = unknown, TContext = unknown>(
   TContext
 > => {
   return useMutation(getSetNextMutationOptions(options), queryClient);
+};
+/**
+ * 所有登录用户可查看当前回合与剩余时间
+ * @summary 查询当前回合状态
+ */
+export type currentResponse200 = {
+  data: Blob;
+  status: 200;
+};
+
+export type currentResponseSuccess = currentResponse200 & {
+  headers: Headers;
+};
+export type currentResponse = currentResponseSuccess;
+
+export const getCurrentUrl = () => {
+  return `/api/round/current`;
+};
+
+export const current = async (
+  options?: RequestInit,
+): Promise<currentResponse> => {
+  return customInstance<currentResponse>(getCurrentUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getCurrentQueryKey = () => {
+  return [`/api/round/current`] as const;
+};
+
+export const getCurrentQueryOptions = <
+  TData = Awaited<ReturnType<typeof current>>,
+  TError = unknown,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<Awaited<ReturnType<typeof current>>, TError, TData>
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getCurrentQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof current>>> = ({
+    signal,
+  }) => current({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof current>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type CurrentQueryResult = NonNullable<
+  Awaited<ReturnType<typeof current>>
+>;
+export type CurrentQueryError = unknown;
+
+export function useCurrent<
+  TData = Awaited<ReturnType<typeof current>>,
+  TError = unknown,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof current>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof current>>,
+          TError,
+          Awaited<ReturnType<typeof current>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useCurrent<
+  TData = Awaited<ReturnType<typeof current>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof current>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof current>>,
+          TError,
+          Awaited<ReturnType<typeof current>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useCurrent<
+  TData = Awaited<ReturnType<typeof current>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof current>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary 查询当前回合状态
+ */
+
+export function useCurrent<
+  TData = Awaited<ReturnType<typeof current>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof current>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getCurrentQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * DH、DM、SYS_ADMIN 可将当前回合切换为已有回合
+ * @summary 设置当前回合
+ */
+export type updateCurrentResponse200 = {
+  data: Blob;
+  status: 200;
+};
+
+export type updateCurrentResponseSuccess = updateCurrentResponse200 & {
+  headers: Headers;
+};
+export type updateCurrentResponse = updateCurrentResponseSuccess;
+
+export const getUpdateCurrentUrl = () => {
+  return `/api/round/current`;
+};
+
+export const updateCurrent = async (
+  roundSetCurrentRequest: RoundSetCurrentRequest,
+  options?: RequestInit,
+): Promise<updateCurrentResponse> => {
+  return customInstance<updateCurrentResponse>(getUpdateCurrentUrl(), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(roundSetCurrentRequest),
+  });
+};
+
+export const getUpdateCurrentMutationOptions = <
+  TError = unknown,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateCurrent>>,
+    TError,
+    { data: RoundSetCurrentRequest },
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateCurrent>>,
+  TError,
+  { data: RoundSetCurrentRequest },
+  TContext
+> => {
+  const mutationKey = ["updateCurrent"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateCurrent>>,
+    { data: RoundSetCurrentRequest }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return updateCurrent(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateCurrentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateCurrent>>
+>;
+export type UpdateCurrentMutationBody = RoundSetCurrentRequest;
+export type UpdateCurrentMutationError = unknown;
+
+/**
+ * @summary 设置当前回合
+ */
+export const useUpdateCurrent = <TError = unknown, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof updateCurrent>>,
+      TError,
+      { data: RoundSetCurrentRequest },
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof updateCurrent>>,
+  TError,
+  { data: RoundSetCurrentRequest },
+  TContext
+> => {
+  return useMutation(getUpdateCurrentMutationOptions(options), queryClient);
 };
 /**
  * DH、DM、SYS_ADMIN 可查看
@@ -553,303 +1049,3 @@ export const usePause = <TError = unknown, TContext = unknown>(
 > => {
   return useMutation(getPauseMutationOptions(options), queryClient);
 };
-/**
- * 所有登录用户可查询自己所在会议下的回合详情
- * @summary 按ID查询回合详情
- */
-export type detailResponse200 = {
-  data: Blob;
-  status: 200;
-};
-
-export type detailResponseSuccess = detailResponse200 & {
-  headers: Headers;
-};
-export type detailResponse = detailResponseSuccess;
-
-export const getDetailUrl = (roundId: string) => {
-  return `/api/round/${roundId}`;
-};
-
-export const detail = async (
-  roundId: string,
-  options?: RequestInit,
-): Promise<detailResponse> => {
-  return customInstance<detailResponse>(getDetailUrl(roundId), {
-    ...options,
-    method: "GET",
-  });
-};
-
-export const getDetailQueryKey = (roundId: string) => {
-  return [`/api/round/${roundId}`] as const;
-};
-
-export const getDetailQueryOptions = <
-  TData = Awaited<ReturnType<typeof detail>>,
-  TError = unknown,
->(
-  roundId: string,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof detail>>, TError, TData>
-    >;
-    request?: SecondParameter<typeof customInstance>;
-  },
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
-
-  const queryKey = queryOptions?.queryKey ?? getDetailQueryKey(roundId);
-
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof detail>>> = ({
-    signal,
-  }) => detail(roundId, { signal, ...requestOptions });
-
-  return {
-    queryKey,
-    queryFn,
-    enabled: !!roundId,
-    ...queryOptions,
-  } as UseQueryOptions<Awaited<ReturnType<typeof detail>>, TError, TData> & {
-    queryKey: DataTag<QueryKey, TData, TError>;
-  };
-};
-
-export type DetailQueryResult = NonNullable<Awaited<ReturnType<typeof detail>>>;
-export type DetailQueryError = unknown;
-
-export function useDetail<
-  TData = Awaited<ReturnType<typeof detail>>,
-  TError = unknown,
->(
-  roundId: string,
-  options: {
-    query: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof detail>>, TError, TData>
-    > &
-      Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof detail>>,
-          TError,
-          Awaited<ReturnType<typeof detail>>
-        >,
-        "initialData"
-      >;
-    request?: SecondParameter<typeof customInstance>;
-  },
-  queryClient?: QueryClient,
-): DefinedUseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-};
-export function useDetail<
-  TData = Awaited<ReturnType<typeof detail>>,
-  TError = unknown,
->(
-  roundId: string,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof detail>>, TError, TData>
-    > &
-      Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof detail>>,
-          TError,
-          Awaited<ReturnType<typeof detail>>
-        >,
-        "initialData"
-      >;
-    request?: SecondParameter<typeof customInstance>;
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-};
-export function useDetail<
-  TData = Awaited<ReturnType<typeof detail>>,
-  TError = unknown,
->(
-  roundId: string,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof detail>>, TError, TData>
-    >;
-    request?: SecondParameter<typeof customInstance>;
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-};
-/**
- * @summary 按ID查询回合详情
- */
-
-export function useDetail<
-  TData = Awaited<ReturnType<typeof detail>>,
-  TError = unknown,
->(
-  roundId: string,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof detail>>, TError, TData>
-    >;
-    request?: SecondParameter<typeof customInstance>;
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-} {
-  const queryOptions = getDetailQueryOptions(roundId, options);
-
-  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
-    TData,
-    TError
-  > & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-/**
- * 所有登录用户可查看当前回合与剩余时间
- * @summary 查询当前回合状态
- */
-export type currentResponse200 = {
-  data: Blob;
-  status: 200;
-};
-
-export type currentResponseSuccess = currentResponse200 & {
-  headers: Headers;
-};
-export type currentResponse = currentResponseSuccess;
-
-export const getCurrentUrl = () => {
-  return `/api/round/current`;
-};
-
-export const current = async (
-  options?: RequestInit,
-): Promise<currentResponse> => {
-  return customInstance<currentResponse>(getCurrentUrl(), {
-    ...options,
-    method: "GET",
-  });
-};
-
-export const getCurrentQueryKey = () => {
-  return [`/api/round/current`] as const;
-};
-
-export const getCurrentQueryOptions = <
-  TData = Awaited<ReturnType<typeof current>>,
-  TError = unknown,
->(options?: {
-  query?: Partial<
-    UseQueryOptions<Awaited<ReturnType<typeof current>>, TError, TData>
-  >;
-  request?: SecondParameter<typeof customInstance>;
-}) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
-
-  const queryKey = queryOptions?.queryKey ?? getCurrentQueryKey();
-
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof current>>> = ({
-    signal,
-  }) => current({ signal, ...requestOptions });
-
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof current>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> };
-};
-
-export type CurrentQueryResult = NonNullable<
-  Awaited<ReturnType<typeof current>>
->;
-export type CurrentQueryError = unknown;
-
-export function useCurrent<
-  TData = Awaited<ReturnType<typeof current>>,
-  TError = unknown,
->(
-  options: {
-    query: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof current>>, TError, TData>
-    > &
-      Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof current>>,
-          TError,
-          Awaited<ReturnType<typeof current>>
-        >,
-        "initialData"
-      >;
-    request?: SecondParameter<typeof customInstance>;
-  },
-  queryClient?: QueryClient,
-): DefinedUseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-};
-export function useCurrent<
-  TData = Awaited<ReturnType<typeof current>>,
-  TError = unknown,
->(
-  options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof current>>, TError, TData>
-    > &
-      Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof current>>,
-          TError,
-          Awaited<ReturnType<typeof current>>
-        >,
-        "initialData"
-      >;
-    request?: SecondParameter<typeof customInstance>;
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-};
-export function useCurrent<
-  TData = Awaited<ReturnType<typeof current>>,
-  TError = unknown,
->(
-  options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof current>>, TError, TData>
-    >;
-    request?: SecondParameter<typeof customInstance>;
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-};
-/**
- * @summary 查询当前回合状态
- */
-
-export function useCurrent<
-  TData = Awaited<ReturnType<typeof current>>,
-  TError = unknown,
->(
-  options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof current>>, TError, TData>
-    >;
-    request?: SecondParameter<typeof customInstance>;
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-} {
-  const queryOptions = getCurrentQueryOptions(options);
-
-  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
-    TData,
-    TError
-  > & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}

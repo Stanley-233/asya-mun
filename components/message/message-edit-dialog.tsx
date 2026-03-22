@@ -14,7 +14,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
-import { useCreate1, useUpdate, useGetOne, useGetReceivers } from '@/lib/api/endpoints/消息管理/消息管理'
+import { useCreate1, useUpdate1, useGetOne, useGetReceivers } from '@/lib/api/endpoints/消息管理/消息管理'
 import { useGetUsers } from '@/lib/api/endpoints/会议管理/会议管理'
 import { useGetAllUserGroups } from '@/lib/api/endpoints/用户组管理/用户组管理'
 import { AXIOS_INSTANCE } from '@/lib/api/client'
@@ -435,7 +435,7 @@ export function MessageEditDialog({
     },
   })
 
-  const updateMutation = useUpdate({
+  const updateMutation = useUpdate1({
     mutation: {
       onSuccess: () => {
         toast.success('消息更新成功')

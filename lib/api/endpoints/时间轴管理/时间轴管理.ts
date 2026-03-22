@@ -34,25 +34,25 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
  * 仅 DM、DH、SYS_ADMIN 可操作
  * @summary 启动/恢复/变速时间轴
  */
-export type update2Response200 = {
+export type update3Response200 = {
   data: Blob;
   status: 200;
 };
 
-export type update2ResponseSuccess = update2Response200 & {
+export type update3ResponseSuccess = update3Response200 & {
   headers: Headers;
 };
-export type update2Response = update2ResponseSuccess;
+export type update3Response = update3ResponseSuccess;
 
-export const getUpdate2Url = () => {
+export const getUpdate3Url = () => {
   return `/api/time/update`;
 };
 
-export const update2 = async (
+export const update3 = async (
   timeUpdateRequest: TimeUpdateRequest,
   options?: RequestInit,
-): Promise<update2Response> => {
-  return customInstance<update2Response>(getUpdate2Url(), {
+): Promise<update3Response> => {
+  return customInstance<update3Response>(getUpdate3Url(), {
     ...options,
     method: "POST",
     headers: { "Content-Type": "application/json", ...options?.headers },
@@ -60,24 +60,24 @@ export const update2 = async (
   });
 };
 
-export const getUpdate2MutationOptions = <
+export const getUpdate3MutationOptions = <
   TError = unknown,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof update2>>,
+    Awaited<ReturnType<typeof update3>>,
     TError,
     { data: TimeUpdateRequest },
     TContext
   >;
   request?: SecondParameter<typeof customInstance>;
 }): UseMutationOptions<
-  Awaited<ReturnType<typeof update2>>,
+  Awaited<ReturnType<typeof update3>>,
   TError,
   { data: TimeUpdateRequest },
   TContext
 > => {
-  const mutationKey = ["update2"];
+  const mutationKey = ["update3"];
   const { mutation: mutationOptions, request: requestOptions } = options
     ? options.mutation &&
       "mutationKey" in options.mutation &&
@@ -87,30 +87,30 @@ export const getUpdate2MutationOptions = <
     : { mutation: { mutationKey }, request: undefined };
 
   const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof update2>>,
+    Awaited<ReturnType<typeof update3>>,
     { data: TimeUpdateRequest }
   > = (props) => {
     const { data } = props ?? {};
 
-    return update2(data, requestOptions);
+    return update3(data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
-export type Update2MutationResult = NonNullable<
-  Awaited<ReturnType<typeof update2>>
+export type Update3MutationResult = NonNullable<
+  Awaited<ReturnType<typeof update3>>
 >;
-export type Update2MutationBody = TimeUpdateRequest;
-export type Update2MutationError = unknown;
+export type Update3MutationBody = TimeUpdateRequest;
+export type Update3MutationError = unknown;
 
 /**
  * @summary 启动/恢复/变速时间轴
  */
-export const useUpdate2 = <TError = unknown, TContext = unknown>(
+export const useUpdate3 = <TError = unknown, TContext = unknown>(
   options?: {
     mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof update2>>,
+      Awaited<ReturnType<typeof update3>>,
       TError,
       { data: TimeUpdateRequest },
       TContext
@@ -119,12 +119,12 @@ export const useUpdate2 = <TError = unknown, TContext = unknown>(
   },
   queryClient?: QueryClient,
 ): UseMutationResult<
-  Awaited<ReturnType<typeof update2>>,
+  Awaited<ReturnType<typeof update3>>,
   TError,
   { data: TimeUpdateRequest },
   TContext
 > => {
-  return useMutation(getUpdate2MutationOptions(options), queryClient);
+  return useMutation(getUpdate3MutationOptions(options), queryClient);
 };
 /**
  * 用于时间快进/回滚，仅 DM、DH、SYS_ADMIN 可操作

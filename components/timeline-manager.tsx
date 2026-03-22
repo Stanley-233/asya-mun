@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { CurrentGameTimeCard } from "@/components/current-game-time-card"
 import { useCurrentGameTime } from "@/lib/hooks/use-current-game-time"
-import { useGetAll1, useGetLatest, useJump, useUpdate2 } from "@/lib/api/endpoints/时间轴管理/时间轴管理"
+import { useGetAll1, useGetLatest, useJump, useUpdate3 } from "@/lib/api/endpoints/时间轴管理/时间轴管理"
 import type { TimeAnchorResponse } from "@/lib/api/endpoints/asyaBackendAPI.schemas"
 import { toast } from 'react-toastify'
 
@@ -33,7 +33,7 @@ export function TimelineManager({ currentSession: _currentSession }: TimelineMan
   const { data: allAnchorsData, isLoading: anchorsLoading, refetch: refetchAnchors } = useGetAll1()
   const { data: latestAnchorData, isLoading: latestLoading, refetch: refetchLatest } = useGetLatest()
   const jumpMutation = useJump()
-  const updateMutation = useUpdate2()
+  const updateMutation = useUpdate3()
 
   const [allAnchors, setAllAnchors] = useState<TimeAnchorResponse[]>([])
   const [latestAnchor, setLatestAnchor] = useState<TimeAnchorResponse | null>(null)
