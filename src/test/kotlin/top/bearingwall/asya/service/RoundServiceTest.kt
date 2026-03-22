@@ -14,7 +14,9 @@ import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
 import org.mockito.junit.jupiter.MockitoExtension
 import top.bearingwall.asya.dto.RoundPublishRequest
+import top.bearingwall.asya.dto.RoundSetCurrentRequest
 import top.bearingwall.asya.dto.RoundSetNextRequest
+import top.bearingwall.asya.dto.RoundUpdateRequest
 import top.bearingwall.asya.model.Conference
 import top.bearingwall.asya.model.Round
 import top.bearingwall.asya.model.RoundStatus
@@ -170,5 +172,81 @@ class RoundServiceTest {
         )
 
         assertEquals(null, response.nextRoundId)
+    }
+
+    @Test
+    fun `updateRound updates name and duration while preserving elapsed time`() {
+        val conferenceId = UUID.randomUUID()
+        val now = LocalDateTime.now()
+        val round = Round(
+            uuid = UUID.randomUUID(),
+            conference = Conference(uuid = conferenceId, name = "conf", description = "desc"),
+            name = "Round 1",
+            durationSeconds = 100,
+            remainingSeconds = 70,
+            status = RoundStatus.PAUSED,
+            isCurrent = false,
+            endAt = null,
+            updatedAt = now
+        )
+
+        `when`(roundRepository.findCurrentForUpdate(conferenceId)).thenReturn(null)
+        `when`(roundRepository.findByUuidAndConferenceUuid(round.uuid!!, conferenceId)).thenReturn(round)
+        `when`(roundRepository.save(any(Round::class.java))).thenAnswer { it.getArgument(0) }
+
+        val response = roundService.updateRound(
+            round.uuid!!,
+            RoundUpdateRequest(name = "Updated Round", durationSeconds = 120),
+            conferenceId
+        )
+
+        assertEquals("Updated Round", response.name)
+        assertEquals(120, response.durationSeconds)
+        assertEquals(90, response.remainingSeconds)
+    }
+
+    @Test
+    fun `setCurrentRound switches current round to an existing round`() {
+        val conferenceId = UUID.randomUUID()
+        val now = LocalDateTime.now()
+        val currentRound = Round(
+            uuid = UUID.randomUUID(),
+            conference = Conference(uuid = conferenceId, name = "conf", description = "desc"),
+            name = "Round 1",
+            durationSeconds = 120,
+            remainingSeconds = 120,
+            status = RoundStatus.RUNNING,
+            isCurrent = true,
+            endAt = now.plusSeconds(80),
+            updatedAt = now
+        )
+
+        val targetRound = Round(
+            uuid = UUID.randomUUID(),
+            conference = currentRound.conference,
+            name = "Round 2",
+            durationSeconds = 150,
+            remainingSeconds = 100,
+            status = RoundStatus.PAUSED,
+            isCurrent = false,
+            endAt = null,
+            updatedAt = now
+        )
+
+        `when`(roundRepository.findCurrentForUpdate(conferenceId)).thenReturn(currentRound, currentRound)
+        `when`(roundRepository.findByUuidAndConferenceUuid(targetRound.uuid!!, conferenceId)).thenReturn(targetRound)
+        `when`(roundRepository.save(any(Round::class.java))).thenAnswer { it.getArgument(0) }
+
+        val response = roundService.setCurrentRound(
+            RoundSetCurrentRequest(roundId = targetRound.uuid.toString()),
+            conferenceId
+        )
+
+        assertEquals(targetRound.uuid.toString(), response.roundId)
+        assertTrue(response.isCurrent)
+        assertEquals(RoundStatus.PAUSED, response.status)
+        assertTrue(currentRound.remainingSeconds in 79..80)
+        assertEquals(RoundStatus.PAUSED, currentRound.status)
+        assertEquals(null, currentRound.endAt)
     }
 }

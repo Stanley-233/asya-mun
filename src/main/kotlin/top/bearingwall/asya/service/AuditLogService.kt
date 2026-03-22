@@ -70,6 +70,8 @@ class AuditLogService(
             AuditActionType.ROUND_PAUSE -> AuditActionType.TIMELINE_UPDATE
             AuditActionType.ROUND_RESUME -> AuditActionType.TIMELINE_UPDATE
             AuditActionType.ROUND_SET_NEXT -> AuditActionType.TIMELINE_UPDATE
+            AuditActionType.ROUND_UPDATE -> AuditActionType.TIMELINE_UPDATE
+            AuditActionType.ROUND_SET_CURRENT -> AuditActionType.TIMELINE_JUMP
             AuditActionType.ROUND_AUTO_ADVANCE -> AuditActionType.TIMELINE_JUMP
             else -> null
         }

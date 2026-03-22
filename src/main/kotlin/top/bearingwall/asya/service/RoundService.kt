@@ -7,6 +7,8 @@ import top.bearingwall.asya.audit.Auditable
 import top.bearingwall.asya.dto.RoundPublishRequest
 import top.bearingwall.asya.dto.RoundResponse
 import top.bearingwall.asya.dto.RoundSetNextRequest
+import top.bearingwall.asya.dto.RoundSetCurrentRequest
+import top.bearingwall.asya.dto.RoundUpdateRequest
 import top.bearingwall.asya.model.AuditActionType
 import top.bearingwall.asya.model.Round
 import top.bearingwall.asya.model.RoundStatus
@@ -65,6 +67,56 @@ class RoundService(
         round.updatedAt = LocalDateTime.now()
 
         return roundRepository.save(round).toResponse(LocalDateTime.now())
+    }
+
+    @Transactional
+    @Auditable(type = AuditActionType.ROUND_UPDATE, content = "修改回合")
+    fun updateRound(roundUuid: UUID, request: RoundUpdateRequest, conferenceUuid: UUID): RoundResponse {
+        advanceIfExpired(conferenceUuid)
+
+        val round = roundRepository.findByUuidAndConferenceUuid(roundUuid, conferenceUuid)
+            ?: throw IllegalArgumentException("Round not found: $roundUuid")
+
+        return updateRound(round, request)
+    }
+
+    @Transactional
+    @Auditable(type = AuditActionType.ROUND_SET_CURRENT, content = "切换当前回合")
+    fun setCurrentRound(request: RoundSetCurrentRequest, conferenceUuid: UUID): RoundResponse {
+        advanceIfExpired(conferenceUuid)
+
+        val targetRoundUuid = runCatching { UUID.fromString(request.roundId) }
+            .getOrElse { throw IllegalArgumentException("Invalid roundId") }
+        val now = LocalDateTime.now()
+
+        val target = roundRepository.findByUuidAndConferenceUuid(targetRoundUuid, conferenceUuid)
+            ?: throw IllegalArgumentException("Round not found: $targetRoundUuid")
+
+        val current = roundRepository.findCurrentForUpdate(conferenceUuid)
+        if (current?.uuid == target.uuid) {
+            return target.toResponse(now)
+        }
+
+        if (current != null) {
+            current.isCurrent = false
+            if (current.status == RoundStatus.RUNNING) {
+                current.remainingSeconds = remainingSeconds(current, now)
+                current.status = RoundStatus.PAUSED
+                current.endAt = null
+            }
+            current.updatedAt = now
+            roundRepository.save(current)
+        }
+
+        target.isCurrent = true
+        if (target.status == RoundStatus.RUNNING) {
+            target.endAt = now.plusSeconds(target.remainingSeconds)
+        } else {
+            target.endAt = null
+        }
+        target.updatedAt = now
+
+        return roundRepository.save(target).toResponse(now)
     }
 
     @Transactional
@@ -183,6 +235,31 @@ class RoundService(
 
         return roundRepository.findByUuidAndConferenceUuid(nextUuid, conferenceUuid)
             ?: throw IllegalArgumentException("nextRoundId not found in current conference")
+    }
+
+    private fun updateRound(round: Round, request: RoundUpdateRequest): RoundResponse {
+        require(request.name.isNotBlank()) { "Round name cannot be blank" }
+        require(request.durationSeconds > 0) { "durationSeconds must be greater than 0" }
+
+        val now = LocalDateTime.now()
+        val currentRemaining = remainingSeconds(round, now)
+        val elapsedSeconds = max(0, round.durationSeconds - currentRemaining)
+        val newRemainingSeconds = max(0, request.durationSeconds - elapsedSeconds)
+
+        round.name = request.name.trim()
+        round.durationSeconds = request.durationSeconds
+        round.remainingSeconds = newRemainingSeconds
+        round.updatedAt = now
+
+        if (round.status == RoundStatus.RUNNING) {
+            round.endAt = now.plusSeconds(newRemainingSeconds)
+        }
+
+        if (round.status == RoundStatus.PAUSED) {
+            round.endAt = null
+        }
+
+        return roundRepository.save(round).toResponse(now)
     }
 
     private fun remainingSeconds(round: Round, now: LocalDateTime): Long {

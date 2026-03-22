@@ -41,6 +41,7 @@ out/
 
 ### Sqlite ###
 data.db
+error.log
 
 ### Claude ###
 .claude

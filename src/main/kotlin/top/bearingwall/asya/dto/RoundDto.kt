@@ -25,6 +25,21 @@ data class RoundSetNextRequest(
     val nextRoundId: String? = null
 )
 
+@Schema(description = "修改回合请求")
+data class RoundUpdateRequest(
+    @Schema(description = "回合名称")
+    val name: String,
+
+    @Schema(description = "回合总时长（秒）")
+    val durationSeconds: Long
+)
+
+@Schema(description = "设置当前回合请求")
+data class RoundSetCurrentRequest(
+    @Schema(description = "要切换成当前回合的 roundId")
+    val roundId: String
+)
+
 @Schema(description = "回合响应")
 data class RoundResponse(
     @Schema(description = "回合ID")

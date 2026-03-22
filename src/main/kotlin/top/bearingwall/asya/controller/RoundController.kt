@@ -56,6 +56,43 @@ class RoundController(
         }
     }
 
+    @Operation(summary = "修改指定回合", description = "DH、DM、SYS_ADMIN 可修改回合名称和总时间")
+    @PutMapping("/{roundId}")
+    fun update(
+        @RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String,
+        @PathVariable roundId: UUID,
+        @RequestBody request: RoundUpdateRequest
+    ): ResponseEntity<Result<RoundResponse>> {
+        return try {
+            val user = userService.getUserFromToken(extractBearer(authorization))
+            assertManagePermission(user.role)
+            val conferenceId = user.conference?.uuid ?: throw IllegalArgumentException("未加入任何会议")
+
+            val resp = roundService.updateRound(roundId, request, conferenceId)
+            ResponseEntity.ok(Result.success(resp))
+        } catch (e: Exception) {
+            handleException(e)
+        }
+    }
+
+    @Operation(summary = "设置当前回合", description = "DH、DM、SYS_ADMIN 可将当前回合切换为已有回合")
+    @PutMapping("/current")
+    fun updateCurrent(
+        @RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String,
+        @RequestBody request: RoundSetCurrentRequest
+    ): ResponseEntity<Result<RoundResponse>> {
+        return try {
+            val user = userService.getUserFromToken(extractBearer(authorization))
+            assertManagePermission(user.role)
+            val conferenceId = user.conference?.uuid ?: throw IllegalArgumentException("未加入任何会议")
+
+            val resp = roundService.setCurrentRound(request, conferenceId)
+            ResponseEntity.ok(Result.success(resp))
+        } catch (e: Exception) {
+            handleException(e)
+        }
+    }
+
     @Operation(summary = "暂停当前回合", description = "DH、DM、SYS_ADMIN 可暂停当前回合")
     @PostMapping("/{roundId}/pause")
     fun pause(
