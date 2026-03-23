@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ImagePreviewDialog } from '@/components/message/image-preview-dialog'
+import { QuickCalculator } from '@/components/status-manage/quick-calculator'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -824,6 +825,8 @@ export default function StatusManagePage() {
                   </div>
                 </div>
               )}
+
+              <QuickCalculator />
             </CardContent>
           </Card>
         ) : activeTab === 'configs' ? (
