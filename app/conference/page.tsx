@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,8 +30,7 @@ import {
   useCreateUserGroup,
   useUpdateUserGroup,
   useDeleteUserGroup,
-  useSetGroupMembers,
-  useRemoveUserFromGroup
+  useSetGroupMembers
 } from "@/lib/api/endpoints/用户组管理/用户组管理"
 import type {
   ConferenceResponse,
@@ -250,6 +249,14 @@ export default function ConferencePage() {
       { id: managingGroup.id, data: { userUuids: selectedUuids } },
       { onSuccess: () => { refetchGroups(); setManagingGroup(null) } }
     )
+  }
+
+  const handleSelectAllUsers = () => {
+    setSelectedUuids(users.map(u => u.uuid))
+  }
+
+  const handleClearSelectedUsers = () => {
+    setSelectedUuids([])
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -605,40 +612,56 @@ export default function ConferencePage() {
           </AlertDialogContent>
         </AlertDialog>
 
-        {/* 管理成员 Sheet */}
-        <Sheet open={managingGroup !== null} onOpenChange={open => !open && setManagingGroup(null)}>
-          <SheetContent>
-            <SheetHeader>
-              <SheetTitle>管理成员 — {managingGroup?.groupName}</SheetTitle>
-            </SheetHeader>
-            <div className="mt-4 space-y-2">
+        {/* 管理成员 Dialog */}
+        <Dialog open={managingGroup !== null} onOpenChange={open => !open && setManagingGroup(null)}>
+          <DialogContent className="max-h-[85vh]">
+            <DialogHeader>
+              <DialogTitle>管理成员 — {managingGroup?.groupName}</DialogTitle>
+              <DialogDescription>
+                已选 {selectedUuids.length} / {users.length} 名用户
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="mt-2 flex items-center gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={handleSelectAllUsers} disabled={users.length === 0}>
+                全选
+              </Button>
+              <Button type="button" variant="outline" size="sm" onClick={handleClearSelectedUsers} disabled={selectedUuids.length === 0}>
+                清空
+              </Button>
+            </div>
+
+            <div className="mt-4 max-h-[55vh] overflow-y-auto rounded-lg border p-2">
               {users.length === 0 ? (
                 <p className="text-sm text-muted-foreground">暂无用户</p>
               ) : (
-                users.map(u => (
-                  <label key={u.uuid} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4"
-                      checked={selectedUuids.includes(u.uuid)}
-                      onChange={() => toggleUserInGroup(u.uuid)}
-                    />
-                    <div>
-                      <p className="text-sm font-medium">{getUserLabel(u)}</p>
-                      <p className="text-xs text-muted-foreground">{roleLabels[u.role as keyof typeof roleLabels] || u.role}</p>
-                    </div>
-                  </label>
-                ))
+                <div className="space-y-2">
+                  {users.map(u => (
+                    <label key={u.uuid} className="flex items-center gap-3 rounded-lg p-2 hover:bg-muted/50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4"
+                        checked={selectedUuids.includes(u.uuid)}
+                        onChange={() => toggleUserInGroup(u.uuid)}
+                      />
+                      <div>
+                        <p className="text-sm font-medium">{getUserLabel(u)}</p>
+                        <p className="text-xs text-muted-foreground">{roleLabels[u.role as keyof typeof roleLabels] || u.role}</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
               )}
             </div>
-            <div className="mt-6 flex gap-2">
-              <Button onClick={handleSaveMembers} disabled={isSettingMembers} className="flex-1">
+
+            <DialogFooter>
+              <Button onClick={handleSaveMembers} disabled={isSettingMembers} className="flex-1 sm:flex-none">
                 {isSettingMembers ? '保存中...' : '保存成员'}
               </Button>
               <Button variant="outline" onClick={() => setManagingGroup(null)}>取消</Button>
-            </div>
-          </SheetContent>
-        </Sheet>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
           </div>
 
           {/* 右栏：时间轴管理 */}
