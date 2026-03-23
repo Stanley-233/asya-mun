@@ -15,6 +15,7 @@ export interface DelegateAttrColumnViewModel {
   type: "TEXT" | "NUMBER";
   sortOrder: number;
   enabled: boolean;
+  visible: boolean;
   configId: string;
 }
 
@@ -51,6 +52,7 @@ export function parseDelegateAttrConfigs(rawResponse: unknown): DelegateAttrColu
       type: config.attrType,
       sortOrder: config.sortOrder,
       enabled: config.enabled,
+      visible: config.visible,
       configId: config.id,
     }))
     .sort((a, b) => a.sortOrder - b.sortOrder);
@@ -71,6 +73,7 @@ export function parseDelegateAttrRecordPage(
         type: config.attrType,
         sortOrder: config.sortOrder,
         enabled: config.enabled,
+        visible: config.visible,
         configId: config.id,
       }))
       .sort((a, b) => a.sortOrder - b.sortOrder),
@@ -198,4 +201,3 @@ export function formatDelegateAttrUpdatedAt(value?: string): string {
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleString("zh-CN");
 }
-

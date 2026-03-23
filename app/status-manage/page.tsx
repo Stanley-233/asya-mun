@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-toastify'
@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { ImagePreviewDialog } from '@/components/message/image-preview-dialog'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,8 +34,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { AXIOS_INSTANCE } from '@/lib/api/client'
 import { useAuth } from '@/lib/contexts/auth-context'
 import { parseApiPayload } from '@/lib/api/response-utils'
+import { useGetAnnouncementImageInfo } from '@/lib/api/endpoints/公告图片/公告图片'
 import { useGetUsers } from '@/lib/api/endpoints/会议管理/会议管理'
 import {
   getListConfigsQueryKey,
@@ -51,6 +54,12 @@ import type {
   DelegateAttrConfigCreateRequestAttrType,
   UserInfoResponse,
 } from '@/lib/api/endpoints/asyaBackendAPI.schemas'
+import {
+  formatFileSize,
+  getAnnouncementFileDisplayName,
+  isImageFile,
+  parseAnnouncementImageMeta,
+} from '@/lib/announcement-image/utils'
 import {
   buildDelegateAttrUpsertValues,
   formatDelegateAttrUpdatedAt,
@@ -70,7 +79,7 @@ const ATTR_KEY_REGEX = /^[A-Za-z_][A-Za-z0-9_]*$/
 
 const EMPTY_PAGE: NormalizedPage<DelegateAttrRecordRowViewModel> = normalizeDelegateAttrPage(undefined)
 
-type ActiveTab = 'records' | 'configs'
+type ActiveTab = 'records' | 'configs' | 'announcement'
 type RecordDialogMode = 'create' | 'edit'
 
 interface ConfigFormState {
@@ -79,6 +88,7 @@ interface ConfigFormState {
   attrType: DelegateAttrConfigCreateRequestAttrType
   sortOrder: string
   enabled: boolean
+  visible: boolean
 }
 
 export default function StatusManagePage() {
@@ -111,10 +121,19 @@ export default function StatusManagePage() {
     attrType: 'TEXT',
     sortOrder: '0',
     enabled: true,
+    visible: true,
   })
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [recordToDelete, setRecordToDelete] = useState<DelegateAttrRecordRowViewModel | null>(null)
+  const [announcementSelectedFile, setAnnouncementSelectedFile] = useState<File | null>(null)
+  const [announcementImageUrl, setAnnouncementImageUrl] = useState<string | null>(null)
+  const [announcementImageLoading, setAnnouncementImageLoading] = useState(false)
+  const [announcementImageError, setAnnouncementImageError] = useState<string | null>(null)
+  const [announcementUploadPending, setAnnouncementUploadPending] = useState(false)
+  const [announcementPreviewOpen, setAnnouncementPreviewOpen] = useState(false)
+  const [announcementRefreshKey, setAnnouncementRefreshKey] = useState(0)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
     if (!authLoading && (!isAuthenticated || !canManageConference)) {
@@ -145,7 +164,7 @@ export default function StatusManagePage() {
       const seatName = (matched.displayName?.trim() || matched.name || fallbackName).trim()
       const delegateName = (matched.name || fallbackName).trim()
 
-      return seatName === delegateName ? seatName : `${seatName}（${delegateName}）`
+      return seatName === delegateName ? seatName : `${seatName}(${delegateName})`
     },
     [delegateUserMap],
   )
@@ -161,6 +180,24 @@ export default function StatusManagePage() {
   })
 
   const columns = useMemo(() => parseDelegateAttrConfigs(configsData), [configsData])
+  const {
+    data: announcementInfoData,
+    isLoading: announcementInfoLoading,
+    refetch: refetchAnnouncementInfo,
+  } = useGetAnnouncementImageInfo({
+    query: {
+      enabled: isAuthenticated && canManageConference,
+      retry: false,
+    },
+  })
+  const announcementMeta = useMemo(
+    () => parseAnnouncementImageMeta(announcementInfoData),
+    [announcementInfoData],
+  )
+  const announcementFileName = useMemo(
+    () => getAnnouncementFileDisplayName(announcementMeta),
+    [announcementMeta],
+  )
 
   const { mutate: queryForManagement, isPending: queryingRecords } = useQueryForManagement()
   const { mutate: createRecord, isPending: creatingRecord } = useCreateRecord()
@@ -239,6 +276,61 @@ export default function StatusManagePage() {
     appliedAttrValues,
     loadRecords,
   ])
+
+  useEffect(() => {
+    let active = true
+    let currentObjectUrl: string | null = null
+
+    const loadAnnouncementImage = async () => {
+      if (!isAuthenticated || !canManageConference) return
+
+      if (!announcementMeta?.uuid) {
+        setAnnouncementImageLoading(false)
+        setAnnouncementImageError(null)
+        setAnnouncementImageUrl(prev => {
+          if (prev) URL.revokeObjectURL(prev)
+          return null
+        })
+        return
+      }
+
+      setAnnouncementImageLoading(true)
+      setAnnouncementImageError(null)
+
+      try {
+        const response = await AXIOS_INSTANCE.get('/api/announcement/image/download', {
+          responseType: 'blob',
+        })
+        if (!active) return
+        currentObjectUrl = URL.createObjectURL(response.data as Blob)
+        setAnnouncementImageUrl(prev => {
+          if (prev) URL.revokeObjectURL(prev)
+          return currentObjectUrl
+        })
+      } catch (error) {
+        if (!active) return
+        setAnnouncementImageError('加载公告图片失败，请稍后重试')
+        setAnnouncementImageUrl(prev => {
+          if (prev) URL.revokeObjectURL(prev)
+          return null
+        })
+        console.error('Load announcement image failed:', error)
+      } finally {
+        if (active) {
+          setAnnouncementImageLoading(false)
+        }
+      }
+    }
+
+    loadAnnouncementImage()
+
+    return () => {
+      active = false
+      if (currentObjectUrl) {
+        URL.revokeObjectURL(currentObjectUrl)
+      }
+    }
+  }, [announcementMeta?.uuid, announcementRefreshKey, isAuthenticated, canManageConference])
 
   const resetRecordForm = useCallback(
     (valuesMap?: DelegateAttrRecordRowViewModel['valuesMap']) => {
@@ -357,6 +449,7 @@ export default function StatusManagePage() {
       attrType: 'TEXT',
       sortOrder: '0',
       enabled: true,
+      visible: true,
     })
     setConfigDialogOpen(true)
   }
@@ -369,6 +462,7 @@ export default function StatusManagePage() {
       attrType: column.type,
       sortOrder: String(column.sortOrder),
       enabled: column.enabled,
+      visible: column.visible,
     })
     setConfigDialogOpen(true)
   }
@@ -421,6 +515,7 @@ export default function StatusManagePage() {
             attrType: configForm.attrType,
             sortOrder,
             enabled: configForm.enabled,
+            visible: configForm.visible,
           },
         },
         {
@@ -444,6 +539,7 @@ export default function StatusManagePage() {
           attrType: configForm.attrType,
           sortOrder,
           enabled: configForm.enabled,
+          visible: configForm.visible,
         },
       },
       {
@@ -456,6 +552,60 @@ export default function StatusManagePage() {
         },
       },
     )
+  }
+
+  const handleAnnouncementFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const selected = event.target.files?.[0]
+    if (!selected) {
+      setAnnouncementSelectedFile(null)
+      return
+    }
+
+    if (!isImageFile(selected)) {
+      toast.warning('请上传图片格式文件')
+      event.target.value = ''
+      setAnnouncementSelectedFile(null)
+      return
+    }
+
+    setAnnouncementSelectedFile(selected)
+  }
+
+  const refreshAnnouncementData = async () => {
+    await refetchAnnouncementInfo()
+    setAnnouncementRefreshKey(prev => prev + 1)
+  }
+
+  const handleUpdateAnnouncementImage = async () => {
+    if (!announcementSelectedFile) {
+      toast.warning('请先选择要上传的图片')
+      return
+    }
+
+    setAnnouncementUploadPending(true)
+
+    try {
+      const formData = new FormData()
+      formData.append('file', announcementSelectedFile)
+
+      await AXIOS_INSTANCE.put('/api/announcement/image', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      })
+
+      toast.success('公告图片更新成功')
+      setAnnouncementSelectedFile(null)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+      await refreshAnnouncementData()
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || '更新公告图片失败，请稍后重试')
+      console.error('Update announcement image failed:', error)
+    } finally {
+      setAnnouncementUploadPending(false)
+    }
   }
 
   if (authLoading || configsLoading) {
@@ -490,6 +640,12 @@ export default function StatusManagePage() {
               </Button>
               <Button variant={activeTab === 'configs' ? 'default' : 'outline'} onClick={() => setActiveTab('configs')}>
                 配置管理
+              </Button>
+              <Button
+                variant={activeTab === 'announcement' ? 'default' : 'outline'}
+                onClick={() => setActiveTab('announcement')}
+              >
+                公告图片管理
               </Button>
             </div>
           </CardContent>
@@ -670,7 +826,7 @@ export default function StatusManagePage() {
               )}
             </CardContent>
           </Card>
-        ) : (
+        ) : activeTab === 'configs' ? (
           <Card>
             <CardHeader>
               <CardTitle>配置管理</CardTitle>
@@ -690,13 +846,14 @@ export default function StatusManagePage() {
                       <th className="px-3 py-2 text-left font-medium">类型</th>
                       <th className="px-3 py-2 text-left font-medium">排序</th>
                       <th className="px-3 py-2 text-left font-medium">启用</th>
+                      <th className="px-3 py-2 text-left font-medium">可见性</th>
                       <th className="px-3 py-2 text-left font-medium">操作</th>
                     </tr>
                   </thead>
                   <tbody>
                     {columns.length === 0 ? (
                       <tr>
-                        <td className="px-3 py-8 text-center text-muted-foreground" colSpan={6}>
+                        <td className="px-3 py-8 text-center text-muted-foreground" colSpan={7}>
                           暂无配置
                         </td>
                       </tr>
@@ -708,6 +865,7 @@ export default function StatusManagePage() {
                           <td className="px-3 py-2">{column.type}</td>
                           <td className="px-3 py-2">{column.sortOrder}</td>
                           <td className="px-3 py-2">{column.enabled ? '是' : '否'}</td>
+                          <td className="px-3 py-2">{column.visible ? '是' : '否'}</td>
                           <td className="px-3 py-2">
                             <Button variant="outline" size="sm" onClick={() => openEditConfigDialog(column)}>
                               编辑
@@ -718,6 +876,93 @@ export default function StatusManagePage() {
                     )}
                   </tbody>
                 </table>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle>公告图片管理</CardTitle>
+              <CardDescription>查看并更新当前公告图片</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid gap-4 rounded-lg border p-4 md:grid-cols-2">
+                <div className="space-y-2 text-sm">
+                  <p>
+                    <span className="text-muted-foreground">当前文件：</span>
+                    <span>{announcementMeta ? announcementFileName : '暂无公告图片'}</span>
+                  </p>
+                  <p>
+                    <span className="text-muted-foreground">文件类型：</span>
+                    <span>{announcementMeta?.fileType || '-'}</span>
+                  </p>
+                  <p>
+                    <span className="text-muted-foreground">文件大小：</span>
+                    <span>{announcementMeta ? formatFileSize(announcementMeta.fileSize) : '-'}</span>
+                  </p>
+                  <p className="text-xs text-muted-foreground">DM / DH / SYS_ADMIN 均可更新公告图片。</p>
+                </div>
+
+                <div className="space-y-3">
+                  <Label htmlFor="announcement-image-upload">选择新公告图片</Label>
+                  <Input
+                    id="announcement-image-upload"
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAnnouncementFileChange}
+                  />
+                  {announcementSelectedFile ? (
+                    <p className="text-xs text-muted-foreground">
+                      已选择：{announcementSelectedFile.name}（{formatFileSize(announcementSelectedFile.size)}）
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">支持常见图片格式</p>
+                  )}
+                  <Button onClick={handleUpdateAnnouncementImage} disabled={announcementUploadPending}>
+                    {announcementUploadPending ? '更新中...' : '更新公告图片'}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-3 rounded-lg border p-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-medium">当前预览</h3>
+                  <Button variant="outline" size="sm" onClick={() => refreshAnnouncementData()}>
+                    刷新
+                  </Button>
+                </div>
+
+                {announcementInfoLoading || announcementImageLoading ? (
+                  <p className="text-sm text-muted-foreground">加载中...</p>
+                ) : announcementImageError ? (
+                  <div className="space-y-2">
+                    <p className="text-sm text-destructive">{announcementImageError}</p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setAnnouncementRefreshKey(prev => prev + 1)}
+                    >
+                      重试
+                    </Button>
+                  </div>
+                ) : !announcementMeta?.uuid || !announcementImageUrl ? (
+                  <p className="text-sm text-muted-foreground">暂无公告图片</p>
+                ) : (
+                  <>
+                    <div className="overflow-hidden rounded-md border bg-muted/20 p-3">
+                      <img
+                        src={announcementImageUrl}
+                        alt={announcementFileName}
+                        className="mx-auto max-h-[420px] w-auto object-contain"
+                      />
+                    </div>
+                    <Button type="button" variant="outline" size="sm" onClick={() => setAnnouncementPreviewOpen(true)}>
+                      查看大图
+                    </Button>
+                  </>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -847,6 +1092,15 @@ export default function StatusManagePage() {
               />
               <Label htmlFor="config-enabled">启用</Label>
             </div>
+            <div className="flex items-center gap-2">
+              <input
+                id="config-visible"
+                type="checkbox"
+                checked={configForm.visible}
+                onChange={event => setConfigForm(prev => ({ ...prev, visible: event.target.checked }))}
+              />
+              <Label htmlFor="config-visible">可见性</Label>
+            </div>
           </div>
 
           <DialogFooter>
@@ -876,6 +1130,13 @@ export default function StatusManagePage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ImagePreviewDialog
+        open={announcementPreviewOpen}
+        imageUrl={announcementImageUrl || undefined}
+        fileName={announcementFileName}
+        onOpenChange={setAnnouncementPreviewOpen}
+      />
     </div>
   )
 }

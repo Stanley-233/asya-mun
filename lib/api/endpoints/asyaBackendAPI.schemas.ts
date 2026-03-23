@@ -367,6 +367,8 @@ export interface DelegateAttrConfigUpdateRequest {
   sortOrder?: number;
   /** 是否启用 */
   enabled?: boolean;
+  /** 是否可见（查询记录时仅返回可见列） */
+  visible?: boolean;
 }
 
 export type DelegateAttrConfigResponseAttrType =
@@ -387,6 +389,7 @@ export interface DelegateAttrConfigResponse {
   attrType: DelegateAttrConfigResponseAttrType;
   sortOrder: number;
   enabled: boolean;
+  visible: boolean;
 }
 
 /**
@@ -459,6 +462,31 @@ export interface ResultConferenceResponse {
   /** 提示信息 */
   message: string;
   data?: ConferenceResponse;
+}
+
+/**
+ * 公告图片信息
+ */
+export interface AnnouncementImageResponse {
+  /** 附件UUID */
+  uuid: string;
+  /** 文件名(不含后缀) */
+  fileName: string;
+  /** 文件后缀 */
+  fileType: string;
+  /** 文件大小(字节) */
+  fileSize: number;
+}
+
+/**
+ * 统一接口返回结构
+ */
+export interface ResultAnnouncementImageResponse {
+  /** 状态码 */
+  code: number;
+  /** 提示信息 */
+  message: string;
+  data?: AnnouncementImageResponse;
 }
 
 /**
@@ -864,30 +892,30 @@ export interface Pageable {
 
 export interface Sortnull {
   empty?: boolean;
-  sorted?: boolean;
   unsorted?: boolean;
+  sorted?: boolean;
 }
 
 export interface Pageablenull {
   offset?: number;
   sort?: Sortnull;
+  unpaged?: boolean;
   paged?: boolean;
   pageNumber?: number;
-  unpaged?: boolean;
   pageSize?: number;
 }
 
 export interface Pagenull {
-  totalElements?: number;
   totalPages?: number;
+  totalElements?: number;
   first?: boolean;
   last?: boolean;
   size?: number;
   content?: DelegateAttrRecordResponse[];
   number?: number;
   sort?: Sortnull;
-  numberOfElements?: number;
   pageable?: Pageablenull;
+  numberOfElements?: number;
   empty?: boolean;
 }
 
@@ -935,6 +963,8 @@ export interface DelegateAttrConfigCreateRequest {
   sortOrder: number;
   /** 是否启用 */
   enabled: boolean;
+  /** 是否可见（查询记录时仅返回可见列） */
+  visible: boolean;
 }
 
 /**
@@ -1134,6 +1164,7 @@ export type AttachmentInfoResponseTargetType =
 export const AttachmentInfoResponseTargetType = {
   MESSAGE: "MESSAGE",
   DIRECTIVE: "DIRECTIVE",
+  ANNOUNCEMENT: "ANNOUNCEMENT",
 } as const;
 
 /**
@@ -1177,6 +1208,10 @@ export interface ResultAttachmentInfoResponse {
   message: string;
   data?: AttachmentInfoResponse;
 }
+
+export type UpdateAnnouncementImageBody = {
+  file: Blob;
+};
 
 export type ResetPasswordBody = { [key: string]: string };
 

@@ -29,7 +29,7 @@ export function Navbar() {
         ? [
             { href: "/profile", label: "个人" },
             { href: "/progress", label: "会议" },
-            ...(isDelegate ? [{ href: "/status", label: "状态" }] : []),
+            ...(isDelegate || canManageConference ? [{ href: "/status", label: "状态" }] : []),
             ...(canManageConference ? [
               { href: "/conference", label: "会议管理" },
               { href: "/status-manage", label: "状态管理" },
