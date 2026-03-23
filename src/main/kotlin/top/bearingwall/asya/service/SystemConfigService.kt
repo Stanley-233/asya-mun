@@ -4,6 +4,7 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import top.bearingwall.asya.model.SystemConfig
 import top.bearingwall.asya.repository.SystemConfigRepository
+import java.util.UUID
 
 @Service
 class SystemConfigService(
@@ -11,6 +12,7 @@ class SystemConfigService(
 ) {
     companion object {
         const val KEY_REGISTRATION_ALLOWED = "REGISTRATION_ALLOWED"
+        const val KEY_ANNOUNCEMENT_IMAGE_UUID = "ANNOUNCEMENT_IMAGE_UUID"
     }
 
     @Transactional(readOnly = true)
@@ -27,6 +29,39 @@ class SystemConfigService(
             .orElse(SystemConfig(key = KEY_REGISTRATION_ALLOWED, value = allowed.toString(), description = "全局用户注册开关"))
 
         config.value = allowed.toString()
+        configRepository.save(config)
+    }
+
+    @Transactional(readOnly = true)
+    fun getAnnouncementImageUuid(): UUID? {
+        val raw = configRepository.findById(KEY_ANNOUNCEMENT_IMAGE_UUID)
+            .map { it.value.trim() }
+            .orElse("")
+        if (raw.isBlank()) {
+            return null
+        }
+        return try {
+            UUID.fromString(raw)
+        } catch (_: IllegalArgumentException) {
+            throw IllegalStateException("公告图配置无效")
+        }
+    }
+
+    @Transactional
+    fun setAnnouncementImageUuid(uuid: UUID?) {
+        if (uuid == null) {
+            configRepository.deleteById(KEY_ANNOUNCEMENT_IMAGE_UUID)
+            return
+        }
+        val config = configRepository.findById(KEY_ANNOUNCEMENT_IMAGE_UUID)
+            .orElse(
+                SystemConfig(
+                    key = KEY_ANNOUNCEMENT_IMAGE_UUID,
+                    value = uuid.toString(),
+                    description = "当前公告图附件UUID"
+                )
+            )
+        config.value = uuid.toString()
         configRepository.save(config)
     }
 }

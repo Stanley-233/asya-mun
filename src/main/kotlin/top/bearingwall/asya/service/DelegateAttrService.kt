@@ -60,6 +60,7 @@ class DelegateAttrService(
                 attrLabel = request.attrLabel.trim(),
                 attrType = request.attrType,
                 enabled = request.enabled,
+                visible = request.visible,
                 sortOrder = request.sortOrder,
                 createdAt = now,
                 updatedAt = now,
@@ -86,6 +87,7 @@ class DelegateAttrService(
         request.attrType?.let { config.attrType = it }
         request.sortOrder?.let { config.sortOrder = it }
         request.enabled?.let { config.enabled = it }
+        request.visible?.let { config.visible = it }
 
         config.updatedAt = LocalDateTime.now()
         config.updatedBy = requester.uuid
@@ -110,11 +112,12 @@ class DelegateAttrService(
 
         val conferenceUuid = requester.conference?.uuid ?: throw IllegalStateException("User not associated with any conference")
         val configs = configRepository.findAllByConferenceUuidOrderBySortOrderAscIdAsc(conferenceUuid)
+        val visibleConfigs = configs.filter { it.visible }
         val recordPage = recordRepository.findAllByDelegateUuidAndConferenceUuid(requester.uuid!!, conferenceUuid, pageable)
 
         return DelegateAttrRecordPageResponse(
-            configs = configs.map { it.toResponse() },
-            records = mapRecordPage(recordPage, configs)
+            configs = visibleConfigs.map { it.toResponse() },
+            records = mapRecordPage(recordPage, visibleConfigs)
         )
     }
 
@@ -146,7 +149,8 @@ class DelegateAttrService(
         val saved = recordRepository.save(record)
 
         val configs = configRepository.findAllByConferenceUuidOrderBySortOrderAscIdAsc(conference.uuid!!)
-        return mapSingleRecord(saved, configs)
+        val visibleConfigs = configs.filter { it.visible }
+        return mapSingleRecord(saved, visibleConfigs)
     }
 
     @Transactional
@@ -170,7 +174,8 @@ class DelegateAttrService(
 
         val saved = recordRepository.save(record)
         val configs = configRepository.findAllByConferenceUuidOrderBySortOrderAscIdAsc(conferenceUuid)
-        return mapSingleRecord(saved, configs)
+        val visibleConfigs = configs.filter { it.visible }
+        return mapSingleRecord(saved, visibleConfigs)
     }
 
     @Transactional
@@ -197,6 +202,7 @@ class DelegateAttrService(
         val conferenceUuid = requester.conference?.uuid ?: throw IllegalStateException("User not associated with any conference")
 
         val configs = configRepository.findAllByConferenceUuidOrderBySortOrderAscIdAsc(conferenceUuid)
+        val visibleConfigs = configs.filter { it.visible }
         val configByKey = configs.associateBy { it.attrKey }
 
         val delegateUuids = request.delegateIds?.map { UUID.fromString(it) }?.toSet().orEmpty()
@@ -215,8 +221,8 @@ class DelegateAttrService(
         val page = recordRepository.findAll(spec, pageable)
 
         return DelegateAttrRecordPageResponse(
-            configs = configs.map { it.toResponse() },
-            records = mapRecordPage(page, configs)
+            configs = visibleConfigs.map { it.toResponse() },
+            records = mapRecordPage(page, visibleConfigs)
         )
     }
 
@@ -446,6 +452,7 @@ class DelegateAttrService(
         attrLabel = this.attrLabel,
         attrType = this.attrType,
         sortOrder = this.sortOrder,
-        enabled = this.enabled
+        enabled = this.enabled,
+        visible = this.visible
     )
 }

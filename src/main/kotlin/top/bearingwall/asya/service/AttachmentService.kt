@@ -6,6 +6,7 @@ import org.springframework.web.multipart.MultipartFile
 import top.bearingwall.asya.dto.AttachmentInfoResponse
 import top.bearingwall.asya.dto.AttachmentUploadResponse
 import top.bearingwall.asya.model.Attachment
+import top.bearingwall.asya.model.AttachmentTargetType
 import top.bearingwall.asya.repository.AttachmentRepository
 import java.util.UUID
 
@@ -16,6 +17,15 @@ class AttachmentService(
 
     @Transactional
     fun uploadAttachment(file: MultipartFile): AttachmentUploadResponse {
+        return uploadAttachment(file, null, null)
+    }
+
+    @Transactional
+    fun uploadAttachment(
+        file: MultipartFile,
+        targetType: AttachmentTargetType?,
+        targetId: UUID?
+    ): AttachmentUploadResponse {
         if (file.isEmpty) {
             throw IllegalArgumentException("文件为空")
         }
@@ -24,7 +34,9 @@ class AttachmentService(
             fileName = fileName,
             fileType = fileType,
             fileSize = file.size,
-            fileBlob = file.bytes
+            fileBlob = file.bytes,
+            targetType = targetType,
+            targetId = targetId
         )
         val saved = attachmentRepository.save(attachment)
         return AttachmentUploadResponse(

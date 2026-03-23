@@ -21,7 +21,10 @@ data class DelegateAttrConfigCreateRequest(
     val sortOrder: Int = 0,
 
     @Schema(description = "是否启用")
-    val enabled: Boolean = true
+    val enabled: Boolean = true,
+
+    @Schema(description = "是否可见（查询记录时仅返回可见列）")
+    val visible: Boolean = true
 )
 
 @Schema(description = "更新属性配置请求")
@@ -36,7 +39,10 @@ data class DelegateAttrConfigUpdateRequest(
     val sortOrder: Int? = null,
 
     @Schema(description = "是否启用")
-    val enabled: Boolean? = null
+    val enabled: Boolean? = null,
+
+    @Schema(description = "是否可见（查询记录时仅返回可见列）")
+    val visible: Boolean? = null
 )
 
 @Schema(description = "属性配置响应")
@@ -46,7 +52,8 @@ data class DelegateAttrConfigResponse(
     val attrLabel: String,
     val attrType: DelegateAttrType,
     val sortOrder: Int,
-    val enabled: Boolean
+    val enabled: Boolean,
+    val visible: Boolean
 )
 
 @Schema(description = "属性值写入项")

@@ -47,6 +47,9 @@ class DelegateAttrConfig(
     @Column(name = "enabled", nullable = false)
     var enabled: Boolean = true,
 
+    @Column(name = "visible", nullable = false, columnDefinition = "boolean default true")
+    var visible: Boolean = true,
+
     @Column(name = "sort_order", nullable = false)
     var sortOrder: Int = 0,
 
