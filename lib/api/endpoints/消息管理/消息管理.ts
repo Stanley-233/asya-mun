@@ -33,6 +33,49 @@ import { customInstance } from "../../client";
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
+const appendQueryParam = (
+  normalizedParams: URLSearchParams,
+  key: string,
+  value: unknown,
+) => {
+  if (value === undefined || value === null) return;
+  if (typeof value === "string" && value.trim() === "") return;
+  normalizedParams.append(key, String(value));
+};
+
+const buildQueryString = (params?: Record<string, unknown>) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value === undefined || value === null) return;
+
+    if (key === "pageable" && typeof value === "object" && !Array.isArray(value)) {
+      const pageable = value as {
+        page?: number;
+        size?: number;
+        sort?: string[];
+      };
+      appendQueryParam(normalizedParams, "page", pageable.page);
+      appendQueryParam(normalizedParams, "size", pageable.size);
+      if (Array.isArray(pageable.sort)) {
+        pageable.sort.forEach((sort) =>
+          appendQueryParam(normalizedParams, "sort", sort),
+        );
+      }
+      return;
+    }
+
+    if (Array.isArray(value)) {
+      value.forEach((item) => appendQueryParam(normalizedParams, key, item));
+      return;
+    }
+
+    appendQueryParam(normalizedParams, key, value);
+  });
+
+  return normalizedParams.toString();
+};
+
 /**
  * 查看消息及完整内容。所有登录用户可查看。若消息为secret则检查请求者是否在receivers列表。
  * @summary 查询单条消息详情
@@ -394,15 +437,7 @@ export type getAllResponseSuccess = getAllResponse200 & {
 export type getAllResponse = getAllResponseSuccess;
 
 export const getGetAllUrl = (params: GetAllParams) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
+  const stringifiedParams = buildQueryString(params as Record<string, unknown>);
 
   return stringifiedParams.length > 0
     ? `/api/messages?${stringifiedParams}`
@@ -813,15 +848,7 @@ export type getSecretMessagesResponseSuccess = getSecretMessagesResponse200 & {
 export type getSecretMessagesResponse = getSecretMessagesResponseSuccess;
 
 export const getGetSecretMessagesUrl = (params: GetSecretMessagesParams) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
+  const stringifiedParams = buildQueryString(params as Record<string, unknown>);
 
   return stringifiedParams.length > 0
     ? `/api/messages/secret?${stringifiedParams}`
@@ -1009,15 +1036,7 @@ export type getAllSecretInConferenceResponse =
 export const getGetAllSecretInConferenceUrl = (
   params: GetAllSecretInConferenceParams,
 ) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
+  const stringifiedParams = buildQueryString(params as Record<string, unknown>);
 
   return stringifiedParams.length > 0
     ? `/api/messages/secret/conference?${stringifiedParams}`

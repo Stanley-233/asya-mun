@@ -22,10 +22,12 @@ import { parseApiPayload } from '@/lib/api/response-utils'
 import { useAuth } from '@/lib/contexts/auth-context'
 import { useGetForManagement } from '@/lib/api/endpoints/指令管理/指令管理'
 import { useGetAllUserGroups } from '@/lib/api/endpoints/用户组管理/用户组管理'
+import { useGetUsers } from '@/lib/api/endpoints/会议管理/会议管理'
 import type {
   GetForManagementInstructionType,
   GetForManagementStatus,
   InstructionResponse,
+  UserInfoResponse,
   UserGroupResponse,
 } from '@/lib/api/endpoints/asyaBackendAPI.schemas'
 
@@ -52,6 +54,7 @@ export default function InstructionsPage() {
   const [statusFilter, setStatusFilter] = useState<GetForManagementStatus | undefined>(undefined)
   const [typeFilter, setTypeFilter] = useState<GetForManagementInstructionType | undefined>(undefined)
   const [userGroupIdFilter, setUserGroupIdFilter] = useState<number | undefined>(undefined)
+  const [submitterUuidsFilter, setSubmitterUuidsFilter] = useState<string[]>([])
   const [currentPage, setCurrentPage] = useState(0)
   const [selectedInstructionUuid, setSelectedInstructionUuid] = useState<string | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
@@ -61,6 +64,7 @@ export default function InstructionsPage() {
       status: statusFilter,
       instructionType: typeFilter,
       userGroupId: userGroupIdFilter,
+      submitterUuids: submitterUuidsFilter.length > 0 ? submitterUuidsFilter : undefined,
       pageable: {
         page: currentPage,
         size: 10,
@@ -78,8 +82,23 @@ export default function InstructionsPage() {
       enabled: isAuthenticated && canManageConference,
     },
   })
+  const { data: usersData } = useGetUsers({
+    query: {
+      enabled: isAuthenticated && canManageConference,
+    },
+  })
 
   const groups = useMemo(() => parseApiPayload<UserGroupResponse[]>(groupsData) || [], [groupsData])
+  const delegateUsers = useMemo(() => {
+    const users = parseApiPayload<UserInfoResponse[]>(usersData) || []
+    return users
+      .filter(user => user.role === 'DELEGATE')
+      .sort((a, b) => {
+        const aLabel = (a.displayName?.trim() || a.name).trim()
+        const bLabel = (b.displayName?.trim() || b.name).trim()
+        return aLabel.localeCompare(bLabel, 'zh-CN')
+      })
+  }, [usersData])
   const instructionPage = parseInstructionPage(parseApiPayload<unknown>(instructionsData))
 
   useEffect(() => {
@@ -118,7 +137,7 @@ export default function InstructionsPage() {
         <Card>
           <CardHeader>
             <CardTitle>指令管理</CardTitle>
-            <CardDescription>分页查看当前会议的全部指令，并按状态、类型和用户组筛选</CardDescription>
+            <CardDescription>分页查看当前会议的全部指令，并按状态、类型、用户组和代表筛选</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 md:grid-cols-4">
@@ -191,6 +210,35 @@ export default function InstructionsPage() {
                 </Select>
               </div>
 
+              <div className="space-y-2 md:col-span-3">
+                <Label>代表多选</Label>
+                <div className="max-h-32 overflow-y-auto rounded-md border p-2">
+                  {delegateUsers.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">暂无可选代表</p>
+                  ) : (
+                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                      {delegateUsers.map(user => (
+                        <label key={user.uuid} className="flex items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={submitterUuidsFilter.includes(user.uuid)}
+                            onChange={event => {
+                              setSubmitterUuidsFilter(prev =>
+                                event.target.checked
+                                  ? [...prev, user.uuid]
+                                  : prev.filter(uuid => uuid !== user.uuid),
+                              )
+                              setCurrentPage(0)
+                            }}
+                          />
+                          <span>{(user.displayName?.trim() || user.name).trim()}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <div className="flex items-end">
                 <Button
                   variant="outline"
@@ -199,6 +247,7 @@ export default function InstructionsPage() {
                     setStatusFilter(undefined)
                     setTypeFilter(undefined)
                     setUserGroupIdFilter(undefined)
+                    setSubmitterUuidsFilter([])
                     setCurrentPage(0)
                   }}
                 >

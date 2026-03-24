@@ -693,11 +693,12 @@ export default function StatusManagePage() {
                   {columns.length === 0 ? (
                     <p className="text-sm text-muted-foreground">暂无属性配置</p>
                   ) : (
-                    <div className="grid gap-3 md:grid-cols-2">
+                    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                       {columns.map(column => (
                         <div key={`filter-${column.key}`} className="space-y-1">
-                          <Label>{column.label}</Label>
+                          <Label className="text-xs">{column.label}</Label>
                           <Input
+                            className="h-8"
                             placeholder={column.type === 'NUMBER' ? '输入数字' : '输入文本'}
                             value={
                               column.type === 'NUMBER'

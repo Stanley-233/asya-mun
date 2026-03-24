@@ -1244,6 +1244,8 @@ export type GetAllSecretInConferenceParams = {
 
 export type GetMyInstructionsParams = {
   status?: GetMyInstructionsStatus;
+  current?: number;
+  pageNum?: number;
   pageable: Pageable;
 };
 
@@ -1261,6 +1263,9 @@ export type GetForManagementParams = {
   status?: GetForManagementStatus;
   instructionType?: GetForManagementInstructionType;
   userGroupId?: number;
+  submitterUuids?: string[];
+  current?: number;
+  pageNum?: number;
   pageable: Pageable;
 };
 

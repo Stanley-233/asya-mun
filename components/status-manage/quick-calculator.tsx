@@ -297,6 +297,7 @@ export function QuickCalculator() {
   const [defenderUnits, setDefenderUnits] = useState<CombatUnit[]>([])
   const [representativeSide, setRepresentativeSide] = useState<RepresentativeSide>('none')
   const [defenderCityAdvantage, setDefenderCityAdvantage] = useState(false)
+  const [attackerLandingArmyDisadvantage, setAttackerLandingArmyDisadvantage] = useState(false)
   const [attackerSupply, setAttackerSupply] = useState<SupplyLevel>('normal')
   const [defenderSupply, setDefenderSupply] = useState<SupplyLevel>('normal')
   const [result, setResult] = useState<CalculationResult | null>(null)
@@ -352,8 +353,9 @@ export function QuickCalculator() {
 
     const representativeShift = getShiftDirectionByRepresentativeSide(representativeSide)
     const cityShift = defenderCityAdvantage ? -1 : 0
+    const landingArmyShift = attackerLandingArmyDisadvantage ? -1 : 0
     const supplyShift = getSupplyShift(attackerSupply, defenderSupply)
-    const shift = representativeShift + cityShift + supplyShift
+    const shift = representativeShift + cityShift + landingArmyShift + supplyShift
 
     setResult(calculateCombat(parsed.attacker, parsed.defender, shift))
   }
@@ -418,8 +420,8 @@ export function QuickCalculator() {
         </div>
       </div>
 
-      <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-5">
-        <div className="space-y-1 rounded-md border p-2">
+      <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-6">
+        <div className="space-y-2 rounded-md border p-2">
           <Label className="text-xs">代表受益方</Label>
           <div className="flex flex-wrap gap-2 text-xs">
             <label className="flex items-center gap-1">
@@ -447,7 +449,7 @@ export function QuickCalculator() {
           </div>
         </div>
 
-        <div className="space-y-1 rounded-md border p-2">
+        <div className="space-y-2 rounded-md border p-2">
           <Label className="text-xs">守城优势</Label>
           <label className="flex items-center gap-2 text-xs">
             <input
@@ -455,7 +457,19 @@ export function QuickCalculator() {
               checked={defenderCityAdvantage}
               onChange={event => setDefenderCityAdvantage(event.target.checked)}
             />
-            <span>本次守城优势生效（守方 +1 列）</span>
+            <span>本次守城优势生效</span>
+          </label>
+        </div>
+
+        <div className="space-y-2 rounded-md border p-2">
+          <Label className="text-xs">下船陆军劣势</Label>
+          <label className="flex items-center gap-2 text-xs">
+            <input
+              type="checkbox"
+              checked={attackerLandingArmyDisadvantage}
+              onChange={event => setAttackerLandingArmyDisadvantage(event.target.checked)}
+            />
+            <span>攻方下船陆军劣势</span>
           </label>
         </div>
 
@@ -477,7 +491,7 @@ export function QuickCalculator() {
           </select>
         </div>
 
-        <div className="rounded-md border p-2 text-xs">
+        <div className="space-y-2 rounded-md border p-2 text-xs">
           <p className="text-muted-foreground">预览战力比</p>
           <p>
             原始值：{Number.isFinite(currentRatioRaw) ? currentRatioRaw.toFixed(3) : '∞'} / 区间：{RATIO_COLUMN_LABELS[currentBaseColumnIndex]}

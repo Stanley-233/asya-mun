@@ -32,6 +32,49 @@ import { customInstance } from "../../client";
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
+const appendQueryParam = (
+  normalizedParams: URLSearchParams,
+  key: string,
+  value: unknown,
+) => {
+  if (value === undefined || value === null) return;
+  if (typeof value === "string" && value.trim() === "") return;
+  normalizedParams.append(key, String(value));
+};
+
+const buildQueryString = (params?: Record<string, unknown>) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value === undefined || value === null) return;
+
+    if (key === "pageable" && typeof value === "object" && !Array.isArray(value)) {
+      const pageable = value as {
+        page?: number;
+        size?: number;
+        sort?: string[];
+      };
+      appendQueryParam(normalizedParams, "page", pageable.page);
+      appendQueryParam(normalizedParams, "size", pageable.size);
+      if (Array.isArray(pageable.sort)) {
+        pageable.sort.forEach((sort) =>
+          appendQueryParam(normalizedParams, "sort", sort),
+        );
+      }
+      return;
+    }
+
+    if (Array.isArray(value)) {
+      value.forEach((item) => appendQueryParam(normalizedParams, key, item));
+      return;
+    }
+
+    appendQueryParam(normalizedParams, key, value);
+  });
+
+  return normalizedParams.toString();
+};
+
 /**
  * 仅代表可提交，提交后不可修改
  * @summary 提交指令
@@ -399,15 +442,7 @@ export type getMyInstructionsResponseSuccess = getMyInstructionsResponse200 & {
 export type getMyInstructionsResponse = getMyInstructionsResponseSuccess;
 
 export const getGetMyInstructionsUrl = (params: GetMyInstructionsParams) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
+  const stringifiedParams = buildQueryString(params as Record<string, unknown>);
 
   return stringifiedParams.length > 0
     ? `/api/instructions/my?${stringifiedParams}`
@@ -577,7 +612,7 @@ export function useGetMyInstructions<
 }
 
 /**
- * DH/DM/SYS_ADMIN 可按状态、类型、用户组筛选当前会议的指令
+ * DH/DM/SYS_ADMIN 可按状态、类型、用户组、代表多选筛选当前会议的指令
  * @summary 管理端分页查询指令
  */
 export type getForManagementResponse200 = {
@@ -591,15 +626,7 @@ export type getForManagementResponseSuccess = getForManagementResponse200 & {
 export type getForManagementResponse = getForManagementResponseSuccess;
 
 export const getGetForManagementUrl = (params: GetForManagementParams) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
+  const stringifiedParams = buildQueryString(params as Record<string, unknown>);
 
   return stringifiedParams.length > 0
     ? `/api/instructions/manage?${stringifiedParams}`

@@ -34,6 +34,49 @@ import { customInstance } from "../../client";
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
+const appendQueryParam = (
+  normalizedParams: URLSearchParams,
+  key: string,
+  value: unknown,
+) => {
+  if (value === undefined || value === null) return;
+  if (typeof value === "string" && value.trim() === "") return;
+  normalizedParams.append(key, String(value));
+};
+
+const buildQueryString = (params?: Record<string, unknown>) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value === undefined || value === null) return;
+
+    if (key === "pageable" && typeof value === "object" && !Array.isArray(value)) {
+      const pageable = value as {
+        page?: number;
+        size?: number;
+        sort?: string[];
+      };
+      appendQueryParam(normalizedParams, "page", pageable.page);
+      appendQueryParam(normalizedParams, "size", pageable.size);
+      if (Array.isArray(pageable.sort)) {
+        pageable.sort.forEach((sort) =>
+          appendQueryParam(normalizedParams, "sort", sort),
+        );
+      }
+      return;
+    }
+
+    if (Array.isArray(value)) {
+      value.forEach((item) => appendQueryParam(normalizedParams, key, item));
+      return;
+    }
+
+    appendQueryParam(normalizedParams, key, value);
+  });
+
+  return normalizedParams.toString();
+};
+
 /**
  * 仅 SYS_ADMIN / DH / DM 可访问
  * @summary 覆盖更新代表属性记录
@@ -366,15 +409,7 @@ export type queryForManagementResponseSuccess =
 export type queryForManagementResponse = queryForManagementResponseSuccess;
 
 export const getQueryForManagementUrl = (params: QueryForManagementParams) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
+  const stringifiedParams = buildQueryString(params as Record<string, unknown>);
 
   return stringifiedParams.length > 0
     ? `/api/delegate-attrs/manage/query?${stringifiedParams}`
@@ -823,15 +858,7 @@ export type listMyRecordsResponseSuccess = listMyRecordsResponse200 & {
 export type listMyRecordsResponse = listMyRecordsResponseSuccess;
 
 export const getListMyRecordsUrl = (params: ListMyRecordsParams) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
+  const stringifiedParams = buildQueryString(params as Record<string, unknown>);
 
   return stringifiedParams.length > 0
     ? `/api/delegate-attrs/my-records?${stringifiedParams}`

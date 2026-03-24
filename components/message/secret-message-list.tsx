@@ -46,14 +46,28 @@ export function SecretMessageList({
   const parsedData = parseApiPayload<{
     content?: MessageResponse[]
     totalPages?: number
+    totalElements?: number
+    number?: number
     first?: boolean
     last?: boolean
+    page?: {
+      totalPages?: number
+      totalElements?: number
+      number?: number
+      first?: boolean
+      last?: boolean
+    }
   }>(data)
 
   const messages = parsedData?.content || []
-  const totalPages = parsedData?.totalPages || 0
-  const isFirstPage = parsedData?.first ?? true
-  const isLastPage = parsedData?.last ?? true
+  const totalPages = parsedData?.totalPages || parsedData?.page?.totalPages || 0
+  const totalElements = parsedData?.totalElements || parsedData?.page?.totalElements || 0
+  const currentPageNumber = parsedData?.number ?? parsedData?.page?.number ?? currentPage
+  const isFirstPage = parsedData?.first ?? parsedData?.page?.first ?? currentPageNumber === 0
+  const isLastPage =
+    parsedData?.last ??
+    parsedData?.page?.last ??
+    (totalPages > 0 ? currentPageNumber >= totalPages - 1 : true)
 
   const users = parseApiPayload<UserInfoResponse[]>(usersData) || []
 
@@ -109,14 +123,14 @@ export function SecretMessageList({
           {totalPages > 1 && (
             <div className="flex items-center justify-between border-t pt-4">
               <div className="text-sm text-muted-foreground">
-                第 {currentPage + 1} 页，共 {totalPages} 页
+                第 {currentPageNumber + 1} 页，共 {totalPages} 页 · 共 {totalElements} 条消息
               </div>
               <div className="flex gap-2">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setCurrentPage((p) => p - 1)}
-                  disabled={isFirstPage}
+                  disabled={isFirstPage || currentPage === 0}
                 >
                   <ChevronLeft />
                   上一页
