@@ -82,17 +82,20 @@ class InstructionService(
         pageable: Pageable,
         status: InstructionStatus?,
         instructionType: InstructionType?,
-        userGroupId: Long?
+        userGroupId: Long?,
+        submitterUuids: List<UUID>?
     ): Page<InstructionResponse> {
         val requester = getUser(requesterUuid)
         requireManagementRole(requester)
         val conferenceUuid = requester.conference?.uuid ?: throw IllegalStateException("User not associated with any conference")
+        val normalizedSubmitterUuids = submitterUuids?.toSet()?.takeIf { it.isNotEmpty() }
 
         return instructionRepository.findForConferenceManagement(
             conferenceUuid = conferenceUuid,
             status = status,
             instructionType = instructionType,
             userGroupId = userGroupId,
+            submitterUuids = normalizedSubmitterUuids,
             pageable = pageable
         ).map { it.toResponse() }
     }

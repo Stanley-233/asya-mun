@@ -146,6 +146,7 @@ class InstructionServiceTest {
             submitGameTime = LocalDateTime.now()
         )
         val pageable = PageRequest.of(0, 20)
+        val submitterUuids = setOf(submitter.uuid!!)
 
         `when`(userRepository.findById(manager.uuid!!)).thenReturn(Optional.of(manager))
         `when`(instructionRepository.findForConferenceManagement(
@@ -153,6 +154,7 @@ class InstructionServiceTest {
             InstructionStatus.SUBMITTED,
             InstructionType.DIPLOMACY,
             5L,
+            submitterUuids,
             pageable
         )).thenReturn(PageImpl(listOf(instruction), pageable, 1))
 
@@ -161,7 +163,8 @@ class InstructionServiceTest {
             pageable = pageable,
             status = InstructionStatus.SUBMITTED,
             instructionType = InstructionType.DIPLOMACY,
-            userGroupId = 5L
+            userGroupId = 5L,
+            submitterUuids = listOf(submitter.uuid!!)
         )
 
         assertEquals(1, page.totalElements)
@@ -171,6 +174,7 @@ class InstructionServiceTest {
             InstructionStatus.SUBMITTED,
             InstructionType.DIPLOMACY,
             5L,
+            submitterUuids,
             pageable
         )
     }

@@ -15,7 +15,7 @@ interface InstructionRepository : JpaRepository<Instruction, UUID> {
         SELECT i FROM Instruction i
         WHERE i.submitter.uuid = :submitterUuid
         AND (:status IS NULL OR i.status = :status)
-        ORDER BY i.submitRealTime DESC
+        ORDER BY i.submitRealTime DESC, i.uuid DESC
     """)
     fun findAllBySubmitterUuid(submitterUuid: UUID, status: InstructionStatus?, pageable: Pageable): Page<Instruction>
 
@@ -27,13 +27,15 @@ interface InstructionRepository : JpaRepository<Instruction, UUID> {
         AND (:status IS NULL OR i.status = :status)
         AND (:instructionType IS NULL OR i.instructionType = :instructionType)
         AND (:userGroupId IS NULL OR (ug.id = :userGroupId AND ugu.uuid = i.submitter.uuid))
-        ORDER BY i.submitRealTime DESC
+        AND (:submitterUuids IS NULL OR i.submitter.uuid IN :submitterUuids)
+        ORDER BY i.submitRealTime DESC, i.uuid DESC
     """)
     fun findForConferenceManagement(
         conferenceUuid: UUID,
         status: InstructionStatus?,
         instructionType: InstructionType?,
         userGroupId: Long?,
+        submitterUuids: Set<UUID>?,
         pageable: Pageable
     ): Page<Instruction>
 }

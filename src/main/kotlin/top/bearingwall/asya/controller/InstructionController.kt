@@ -3,6 +3,7 @@ package top.bearingwall.asya.controller
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.data.domain.Page
+import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Pageable
 import org.springframework.data.domain.Sort
 import org.springframework.data.web.PageableDefault
@@ -53,11 +54,14 @@ class InstructionController(
     fun getMyInstructions(
         @RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String,
         @RequestParam(required = false) status: InstructionStatus?,
-        @PageableDefault(sort = ["submitRealTime"], direction = Sort.Direction.DESC) pageable: Pageable
+        @RequestParam(required = false) current: Int?,
+        @RequestParam(required = false) pageNum: Int?,
+        @PageableDefault(sort = ["submitRealTime", "uuid"], direction = Sort.Direction.DESC) pageable: Pageable
     ): ResponseEntity<Result<Page<InstructionResponse>>> {
         return try {
             val user = userService.getUserFromToken(extractBearer(authorization))
-            ResponseEntity.ok(Result.success(instructionService.getMyInstructions(user.uuid!!, pageable, status)))
+            val effectivePageable = resolvePageable(pageable, current, pageNum)
+            ResponseEntity.ok(Result.success(instructionService.getMyInstructions(user.uuid!!, effectivePageable, status)))
         } catch (e: Exception) {
             handleException(e)
         }
@@ -77,31 +81,42 @@ class InstructionController(
         }
     }
 
-    @Operation(summary = "管理端分页查询指令", description = "DH/DM/SYS_ADMIN 可按状态、类型、用户组筛选当前会议的指令")
+    @Operation(summary = "管理端分页查询指令", description = "DH/DM/SYS_ADMIN 可按状态、类型、用户组、代表多选筛选当前会议的指令")
     @GetMapping("/manage")
     fun getForManagement(
         @RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String,
         @RequestParam(required = false) status: InstructionStatus?,
         @RequestParam(required = false) instructionType: InstructionType?,
         @RequestParam(required = false) userGroupId: Long?,
-        @PageableDefault(sort = ["submitRealTime"], direction = Sort.Direction.DESC) pageable: Pageable
+        @RequestParam(required = false) submitterUuids: List<UUID>?,
+        @RequestParam(required = false) current: Int?,
+        @RequestParam(required = false) pageNum: Int?,
+        @PageableDefault(sort = ["submitRealTime", "uuid"], direction = Sort.Direction.DESC) pageable: Pageable
     ): ResponseEntity<Result<Page<InstructionResponse>>> {
         return try {
             val user = userService.getUserFromToken(extractBearer(authorization))
+            val effectivePageable = resolvePageable(pageable, current, pageNum)
             ResponseEntity.ok(
                 Result.success(
                     instructionService.queryInstructionsForManagement(
                         requesterUuid = user.uuid!!,
-                        pageable = pageable,
+                        pageable = effectivePageable,
                         status = status,
                         instructionType = instructionType,
-                        userGroupId = userGroupId
+                        userGroupId = userGroupId,
+                        submitterUuids = submitterUuids
                     )
                 )
             )
         } catch (e: Exception) {
             handleException(e)
         }
+    }
+
+    private fun resolvePageable(pageable: Pageable, current: Int?, pageNum: Int?): Pageable {
+        val oneBasedPage = current ?: pageNum ?: return pageable
+        val zeroBasedPage = (oneBasedPage - 1).coerceAtLeast(0)
+        return PageRequest.of(zeroBasedPage, pageable.pageSize, pageable.sort)
     }
 
     @Operation(summary = "批改指令", description = "DH/DM/SYS_ADMIN 可更新状态并写入当前批阅评语")
