@@ -90,6 +90,7 @@ export default function StatusPage() {
   const parsedRecordPage = useMemo(() => parseDelegateAttrRecordPage(myRecordsData), [myRecordsData])
   const rows = parsedRecordPage.records.content
   const totalPages = parsedRecordPage.records.totalPages
+  const totalElements = parsedRecordPage.records.totalElements
   const isFirstPage = parsedRecordPage.records.isFirstPage || currentPage <= 0
   const isLastPage =
     parsedRecordPage.records.isLastPage || (totalPages > 0 ? currentPage >= totalPages - 1 : true)
@@ -220,10 +221,10 @@ export default function StatusPage() {
               </table>
             </div>
 
-            {totalPages > 1 && (
+            {totalElements > 0 && (
               <div className="flex items-center justify-between border-t pt-4">
                 <div className="text-sm text-muted-foreground">
-                  第 {currentPage + 1} 页，共 {totalPages} 页
+                  第 {currentPage + 1}/{totalPages} 页，共 {totalElements} 条记录
                 </div>
                 <div className="flex gap-2">
                   <Button
