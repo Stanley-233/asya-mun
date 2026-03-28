@@ -162,7 +162,11 @@ function pickUnitsForRemoval(units: CombatUnit[], removeCount: number, side: 'at
 
 function ceilDivision(total: number, divisor: number) {
   if (total <= 0) return 0
-  return Math.ceil(total / divisor)
+  let result = total / divisor
+  let floor = Math.floor(result)
+  let remain = result - floor
+  if (remain > 0.35) floor += 1
+  return floor
 }
 
 function getLossByCode(code: CombatResultCode, attackerTotal: number, defenderTotal: number) {
