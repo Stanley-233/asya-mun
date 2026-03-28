@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -55,6 +56,7 @@ export default function InstructionsPage() {
   const [typeFilter, setTypeFilter] = useState<GetForManagementInstructionType | undefined>(undefined)
   const [userGroupIdFilter, setUserGroupIdFilter] = useState<number | undefined>(undefined)
   const [submitterUuidsFilter, setSubmitterUuidsFilter] = useState<string[]>([])
+  const [delegateKeyword, setDelegateKeyword] = useState('')
   const [currentPage, setCurrentPage] = useState(0)
   const [selectedInstructionUuid, setSelectedInstructionUuid] = useState<string | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
@@ -99,6 +101,15 @@ export default function InstructionsPage() {
         return aLabel.localeCompare(bLabel, 'zh-CN')
       })
   }, [usersData])
+  const filteredDelegateUsers = useMemo(() => {
+    const keyword = delegateKeyword.trim().toLowerCase()
+    if (!keyword) return delegateUsers
+
+    return delegateUsers.filter(user => {
+      const normalizedName = (user.displayName?.trim() || user.name || '').toLowerCase()
+      return normalizedName.includes(keyword)
+    })
+  }, [delegateKeyword, delegateUsers])
   const instructionPage = parseInstructionPage(parseApiPayload<unknown>(instructionsData))
 
   useEffect(() => {
@@ -212,12 +223,17 @@ export default function InstructionsPage() {
 
               <div className="space-y-2 md:col-span-3">
                 <Label>代表多选</Label>
+                <Input
+                  value={delegateKeyword}
+                  onChange={event => setDelegateKeyword(event.target.value)}
+                  placeholder="输入代表 displayName 筛选"
+                />
                 <div className="max-h-32 overflow-y-auto rounded-md border p-2">
-                  {delegateUsers.length === 0 ? (
+                  {filteredDelegateUsers.length === 0 ? (
                     <p className="text-sm text-muted-foreground">暂无可选代表</p>
                   ) : (
                     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                      {delegateUsers.map(user => (
+                      {filteredDelegateUsers.map(user => (
                         <label key={user.uuid} className="flex items-center gap-2 text-sm">
                           <input
                             type="checkbox"
@@ -248,6 +264,7 @@ export default function InstructionsPage() {
                     setTypeFilter(undefined)
                     setUserGroupIdFilter(undefined)
                     setSubmitterUuidsFilter([])
+                    setDelegateKeyword('')
                     setCurrentPage(0)
                   }}
                 >

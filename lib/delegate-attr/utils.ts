@@ -41,6 +41,10 @@ export interface NormalizedPage<T> {
   isLastPage: boolean;
 }
 
+function isObject(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object";
+}
+
 export function parseDelegateAttrConfigs(rawResponse: unknown): DelegateAttrColumnViewModel[] {
   const parsed = parseApiPayload<DelegateAttrConfigResponse[] | null>(rawResponse);
   const list = Array.isArray(parsed) ? parsed : [];
@@ -62,8 +66,8 @@ export function parseDelegateAttrRecordPage(
   rawResponse: unknown,
 ): { configs: DelegateAttrColumnViewModel[]; records: NormalizedPage<DelegateAttrRecordRowViewModel> } {
   const parsed = parseApiPayload<DelegateAttrRecordPageResponse | null>(rawResponse);
-  const configs = parsed?.configs ?? [];
-  const records = parsed?.records ?? {};
+  const parsedAny = (parsed ?? {}) as Record<string, unknown>;
+  const configs = Array.isArray(parsedAny.configs) ? (parsedAny.configs as DelegateAttrConfigResponse[]) : [];
 
   return {
     configs: configs
@@ -77,26 +81,87 @@ export function parseDelegateAttrRecordPage(
         configId: config.id,
       }))
       .sort((a, b) => a.sortOrder - b.sortOrder),
-    records: normalizeDelegateAttrPage(records),
+    records: normalizeDelegateAttrPage(parsedAny),
   };
 }
 
 export function normalizeDelegateAttrPage(
-  pageLike: Pagenull | null | undefined,
+  pageLike: Pagenull | Record<string, unknown> | null | undefined,
 ): NormalizedPage<DelegateAttrRecordRowViewModel> {
-  const content: DelegateAttrRecordResponse[] = Array.isArray(pageLike?.content)
-    ? pageLike.content
+  const source = (pageLike ?? {}) as Record<string, unknown>;
+
+  const recordsNode = isObject(source.records) ? source.records : null;
+  const sourcePageNode = isObject(source.page) ? source.page : null;
+  const recordsPageNode = recordsNode && isObject(recordsNode.page) ? recordsNode.page : null;
+  const primaryNode = recordsPageNode ?? recordsNode ?? sourcePageNode ?? source;
+
+  const contentRaw =
+    (Array.isArray(primaryNode.content) && primaryNode.content) ||
+    (recordsNode && Array.isArray(recordsNode.content) && recordsNode.content) ||
+    (sourcePageNode && Array.isArray(sourcePageNode.content) && sourcePageNode.content) ||
+    (Array.isArray(source.content) && source.content) ||
+    [];
+  const content: DelegateAttrRecordResponse[] = Array.isArray(contentRaw)
+    ? (contentRaw as DelegateAttrRecordResponse[])
     : [];
 
-  const totalElements = pageLike?.totalElements ?? content.length;
-  const size = pageLike?.size ?? pageLike?.pageable?.pageSize ?? 10;
+  const totalElementsCandidate =
+    primaryNode.totalElements ??
+    primaryNode.total ??
+    recordsNode?.totalElements ??
+    recordsNode?.total ??
+    sourcePageNode?.totalElements ??
+    sourcePageNode?.total ??
+    source.totalElements ??
+    source.total;
+  const totalElements =
+    typeof totalElementsCandidate === "number"
+      ? totalElementsCandidate
+      : content.length;
+
+  const sizeCandidate =
+    primaryNode.size ??
+    primaryNode.pageSize ??
+    (isObject(primaryNode.pageable) ? primaryNode.pageable.pageSize : undefined) ??
+    recordsNode?.size ??
+    (isObject(recordsNode?.pageable) ? recordsNode.pageable.pageSize : undefined) ??
+    sourcePageNode?.size ??
+    (isObject(sourcePageNode?.pageable) ? sourcePageNode.pageable.pageSize : undefined) ??
+    source.size;
+  const size = typeof sizeCandidate === "number" && sizeCandidate > 0 ? sizeCandidate : 10;
+
+  const rawTotalPages =
+    primaryNode.totalPages ??
+    primaryNode.totalPage ??
+    recordsNode?.totalPages ??
+    (recordsNode?.["totalPage"] as number | undefined) ??
+    sourcePageNode?.totalPages ??
+    (sourcePageNode?.["totalPage"] as number | undefined) ??
+    source.totalPages ??
+    source.totalPage;
+
   const totalPages =
-    typeof pageLike?.totalPages === "number"
-      ? pageLike.totalPages
+    typeof rawTotalPages === "number"
+      ? rawTotalPages
       : size > 0
         ? Math.ceil(totalElements / size)
         : 0;
-  const pageNumber = pageLike?.number ?? pageLike?.pageable?.pageNumber ?? 0;
+
+  const pageNumberCandidate =
+    primaryNode.number ??
+    primaryNode.pageNumber ??
+    (isObject(primaryNode.pageable) ? primaryNode.pageable.pageNumber : undefined) ??
+    recordsNode?.number ??
+    (recordsNode?.["pageNumber"] as number | undefined) ??
+    (isObject(recordsNode?.pageable) ? recordsNode.pageable.pageNumber : undefined) ??
+    sourcePageNode?.number ??
+    (sourcePageNode?.["pageNumber"] as number | undefined) ??
+    (isObject(sourcePageNode?.pageable) ? sourcePageNode.pageable.pageNumber : undefined) ??
+    source.number;
+  const pageNumber = typeof pageNumberCandidate === "number" ? pageNumberCandidate : 0;
+
+  const firstCandidate = primaryNode.first ?? recordsNode?.first ?? sourcePageNode?.first ?? source.first;
+  const lastCandidate = primaryNode.last ?? recordsNode?.last ?? sourcePageNode?.last ?? source.last;
 
   return {
     content: content.map((record) => ({
@@ -109,8 +174,13 @@ export function normalizeDelegateAttrPage(
     totalPages,
     totalElements,
     pageNumber,
-    isFirstPage: pageLike?.first ?? pageNumber <= 0,
-    isLastPage: pageLike?.last ?? (totalPages > 0 ? pageNumber >= totalPages - 1 : true),
+    isFirstPage: typeof firstCandidate === "boolean" ? firstCandidate : pageNumber <= 0,
+    isLastPage:
+      typeof lastCandidate === "boolean"
+        ? lastCandidate
+        : totalPages > 0
+          ? pageNumber >= totalPages - 1
+          : true,
   };
 }
 

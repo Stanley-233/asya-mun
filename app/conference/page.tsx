@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -105,7 +105,18 @@ export default function ConferencePage() {
   const [showGroupForm, setShowGroupForm] = useState(false)
   const [managingGroup, setManagingGroup] = useState<UserGroupResponse | null>(null)
   const [selectedUuids, setSelectedUuids] = useState<string[]>([])
+  const [memberKeyword, setMemberKeyword] = useState('')
   const [deletingGroupId, setDeletingGroupId] = useState<number | null>(null)
+
+  const filteredUsers = useMemo(() => {
+    const keyword = memberKeyword.trim().toLowerCase()
+    if (!keyword) return users
+
+    return users.filter(user => {
+      const normalizedName = (user.displayName?.trim() || user.name || '').toLowerCase()
+      return normalizedName.includes(keyword)
+    })
+  }, [memberKeyword, users])
 
   useEffect(() => {
     if (!authLoading && (!isAuthenticated || !canManageConference)) {
@@ -235,6 +246,7 @@ export default function ConferencePage() {
   const openMemberManagement = (group: UserGroupResponse) => {
     setManagingGroup(group)
     setSelectedUuids([...group.userUuids])
+    setMemberKeyword('')
   }
 
   const toggleUserInGroup = (uuid: string) => {
@@ -247,7 +259,7 @@ export default function ConferencePage() {
     if (!managingGroup) return
     setMembers(
       { id: managingGroup.id, data: { userUuids: selectedUuids } },
-      { onSuccess: () => { refetchGroups(); setManagingGroup(null) } }
+      { onSuccess: () => { refetchGroups(); setManagingGroup(null); setMemberKeyword('') } }
     )
   }
 
@@ -613,7 +625,15 @@ export default function ConferencePage() {
         </AlertDialog>
 
         {/* 管理成员 Dialog */}
-        <Dialog open={managingGroup !== null} onOpenChange={open => !open && setManagingGroup(null)}>
+        <Dialog
+          open={managingGroup !== null}
+          onOpenChange={open => {
+            if (!open) {
+              setManagingGroup(null)
+              setMemberKeyword('')
+            }
+          }}
+        >
           <DialogContent className="max-h-[85vh]">
             <DialogHeader>
               <DialogTitle>管理成员 — {managingGroup?.groupName}</DialogTitle>
@@ -623,6 +643,11 @@ export default function ConferencePage() {
             </DialogHeader>
 
             <div className="mt-2 flex items-center gap-2">
+              <Input
+                value={memberKeyword}
+                onChange={event => setMemberKeyword(event.target.value)}
+                placeholder="输入用户 displayName 筛选"
+              />
               <Button type="button" variant="outline" size="sm" onClick={handleSelectAllUsers} disabled={users.length === 0}>
                 全选
               </Button>
@@ -632,11 +657,11 @@ export default function ConferencePage() {
             </div>
 
             <div className="mt-4 max-h-[55vh] overflow-y-auto rounded-lg border p-2">
-              {users.length === 0 ? (
+              {filteredUsers.length === 0 ? (
                 <p className="text-sm text-muted-foreground">暂无用户</p>
               ) : (
                 <div className="space-y-2">
-                  {users.map(u => (
+                  {filteredUsers.map(u => (
                     <label key={u.uuid} className="flex items-center gap-3 rounded-lg p-2 hover:bg-muted/50 cursor-pointer">
                       <input
                         type="checkbox"
@@ -658,7 +683,15 @@ export default function ConferencePage() {
               <Button onClick={handleSaveMembers} disabled={isSettingMembers} className="flex-1 sm:flex-none">
                 {isSettingMembers ? '保存中...' : '保存成员'}
               </Button>
-              <Button variant="outline" onClick={() => setManagingGroup(null)}>取消</Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setManagingGroup(null)
+                  setMemberKeyword('')
+                }}
+              >
+                取消
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

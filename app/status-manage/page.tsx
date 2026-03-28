@@ -101,6 +101,7 @@ export default function StatusManagePage() {
   const [currentPage, setCurrentPage] = useState(0)
 
   const [filterDelegateIds, setFilterDelegateIds] = useState<string[]>([])
+  const [delegateFilterKeyword, setDelegateFilterKeyword] = useState('')
   const [filterAttrValues, setFilterAttrValues] = useState<Record<string, DelegateAttrFilterFormValue>>({})
 
   const [appliedDelegateIds, setAppliedDelegateIds] = useState<string[]>([])
@@ -152,6 +153,15 @@ export default function StatusManagePage() {
     const parsed = parseApiPayload<UserInfoResponse[]>(usersData) || []
     return parsed.filter(user => user.role === 'DELEGATE')
   }, [usersData])
+  const filteredDelegateUsers = useMemo(() => {
+    const keyword = delegateFilterKeyword.trim().toLowerCase()
+    if (!keyword) return delegateUsers
+
+    return delegateUsers.filter(user => {
+      const normalizedName = (user.displayName?.trim() || user.name || '').toLowerCase()
+      return normalizedName.includes(keyword)
+    })
+  }, [delegateFilterKeyword, delegateUsers])
   const delegateUserMap = useMemo(
     () => new Map(delegateUsers.map(user => [user.uuid, user])),
     [delegateUsers],
@@ -348,6 +358,7 @@ export default function StatusManagePage() {
 
   const handleClearFilters = () => {
     setFilterDelegateIds([])
+    setDelegateFilterKeyword('')
     setFilterAttrValues({})
     setAppliedDelegateIds([])
     setAppliedAttrValues({})
@@ -662,12 +673,18 @@ export default function StatusManagePage() {
               <div className="space-y-4 rounded-lg border p-4">
                 <div>
                   <Label className="mb-2 block">代表多选</Label>
+                  <Input
+                    className="mb-2"
+                    value={delegateFilterKeyword}
+                    onChange={event => setDelegateFilterKeyword(event.target.value)}
+                    placeholder="输入代表 displayName 筛选"
+                  />
                   <div className="max-h-44 overflow-y-auto rounded-md border p-2">
-                    {delegateUsers.length === 0 ? (
+                    {filteredDelegateUsers.length === 0 ? (
                       <p className="text-sm text-muted-foreground">暂无可选代表</p>
                     ) : (
                       <div className="grid gap-2 sm:grid-cols-2">
-                        {delegateUsers.map(delegate => (
+                        {filteredDelegateUsers.map(delegate => (
                           <label key={delegate.uuid} className="flex items-center gap-2 text-sm">
                             <input
                               type="checkbox"
