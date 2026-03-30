@@ -165,7 +165,7 @@ function ceilDivision(total: number, divisor: number) {
   let result = total / divisor
   let floor = Math.floor(result)
   let remain = result - floor
-  if (remain > 0.35) floor += 1
+  if (remain > 0.5) floor += 1
   return floor
 }
 
