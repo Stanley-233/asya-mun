@@ -45,6 +45,10 @@ export const INSTRUCTION_STATUS_VARIANTS: Record<
   FEEDBACKED: 'outline',
 }
 
+export const INSTRUCTION_STATUS_CLASSNAMES: Partial<Record<InstructionResponseStatus, string>> = {
+  FEEDBACKED: 'border-orange-500 bg-orange-500 text-white',
+}
+
 export function formatInstructionRealTime(value?: string) {
   if (!value) return '未知'
   const date = new Date(value)

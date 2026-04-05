@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import type { InstructionResponse } from '@/lib/api/endpoints/asyaBackendAPI.schemas'
 import { ChevronLeft, ChevronRight, FileText } from 'lucide-react'
 import {
+  INSTRUCTION_STATUS_CLASSNAMES,
   formatInstructionRealTime,
   INSTRUCTION_STATUS_LABELS,
   INSTRUCTION_STATUS_VARIANTS,
@@ -26,6 +27,7 @@ interface InstructionListProps {
   onNextPage: () => void
   onInstructionClick: (instruction: InstructionResponse) => void
   showSubmitter?: boolean
+  submitterLabelMap?: Record<string, string>
 }
 
 export function InstructionList({
@@ -42,6 +44,7 @@ export function InstructionList({
   onNextPage,
   onInstructionClick,
   showSubmitter = false,
+  submitterLabelMap,
 }: InstructionListProps) {
   if (error) {
     return (
@@ -83,7 +86,10 @@ export function InstructionList({
                       <Badge variant="secondary">
                         {INSTRUCTION_TYPE_LABELS[instruction.instructionType]}
                       </Badge>
-                      <Badge variant={INSTRUCTION_STATUS_VARIANTS[instruction.status]}>
+                      <Badge
+                        variant={INSTRUCTION_STATUS_VARIANTS[instruction.status]}
+                        className={INSTRUCTION_STATUS_CLASSNAMES[instruction.status]}
+                      >
                         {INSTRUCTION_STATUS_LABELS[instruction.status]}
                       </Badge>
                     </div>
@@ -91,7 +97,8 @@ export function InstructionList({
                       <p className="font-medium">{instruction.title}</p>
                       {showSubmitter && (
                         <p className="mt-1 text-sm text-muted-foreground">
-                          提交人：{instruction.submitterName}
+                          提交人：
+                          {submitterLabelMap?.[instruction.submitterId] || instruction.submitterName}
                         </p>
                       )}
                     </div>

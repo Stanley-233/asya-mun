@@ -20,6 +20,7 @@ import {
   formatInstructionGameTime,
   formatInstructionRealTime,
   getInstructionSubmitterGroupNames,
+  INSTRUCTION_STATUS_CLASSNAMES,
   INSTRUCTION_STATUS_LABELS,
   INSTRUCTION_STATUS_VARIANTS,
   INSTRUCTION_TYPE_LABELS,
@@ -83,7 +84,10 @@ export function InstructionDetailDialog({
                       <Badge variant="secondary">
                         {INSTRUCTION_TYPE_LABELS[instruction.instructionType]}
                       </Badge>
-                      <Badge variant={INSTRUCTION_STATUS_VARIANTS[instruction.status]}>
+                      <Badge
+                        variant={INSTRUCTION_STATUS_VARIANTS[instruction.status]}
+                        className={INSTRUCTION_STATUS_CLASSNAMES[instruction.status]}
+                      >
                         {INSTRUCTION_STATUS_LABELS[instruction.status]}
                       </Badge>
                     </>

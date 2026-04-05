@@ -110,6 +110,14 @@ export default function InstructionsPage() {
       return normalizedName.includes(keyword)
     })
   }, [delegateKeyword, delegateUsers])
+  const submitterLabelMap = useMemo(() => {
+    return delegateUsers.reduce<Record<string, string>>((acc, user) => {
+      const username = user.name?.trim() || ''
+      const displayName = user.displayName?.trim() || ''
+      acc[user.uuid] = displayName ? `${displayName} + ${username}` : username
+      return acc
+    }, {})
+  }, [delegateUsers])
   const instructionPage = parseInstructionPage(parseApiPayload<unknown>(instructionsData))
 
   useEffect(() => {
@@ -295,6 +303,7 @@ export default function InstructionsPage() {
               onNextPage={() => setCurrentPage(page => page + 1)}
               onInstructionClick={handleInstructionClick}
               showSubmitter
+              submitterLabelMap={submitterLabelMap}
             />
           </CardContent>
         </Card>
