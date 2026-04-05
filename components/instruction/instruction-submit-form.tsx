@@ -39,6 +39,8 @@ interface ActionFieldTemplate {
   id: string
   label: string
   multiline?: boolean
+  required?: boolean
+  hint?: string
 }
 
 interface StructuredActionTemplate {
@@ -72,7 +74,7 @@ const MILITARY_TEMPLATE: StructuredTypeTemplate = {
           label: '跟随军团',
           fields: [
             { id: 'currentNode', label: '当前节点' },
-            { id: 'targetLegion', label: 'X军团' },
+            { id: 'targetLegion', label: '目标军团' },
           ],
           renderSentence: row =>
             `本回合起跟随/脱离同在【${row.currentNode}】的【${row.targetLegion}】行动。`,
@@ -87,7 +89,7 @@ const MILITARY_TEMPLATE: StructuredTypeTemplate = {
           id: 'military-follow-move',
           label: '跟随移动',
           fields: [
-            { id: 'subject', label: 'X军团/X个算子' },
+            { id: 'subject', label: '目标X军团/X个算子' },
             { id: 'fromNode', label: '当前节点/出发地点' },
             { id: 'toNode', label: '目标节点' },
             { id: 'mission', label: '进攻/驻防' },
@@ -99,7 +101,7 @@ const MILITARY_TEMPLATE: StructuredTypeTemplate = {
           id: 'military-remote-command',
           label: '远程指挥',
           fields: [
-            { id: 'subject', label: 'X军团/X个算子' },
+            { id: 'subject', label: '目标X军团/X个算子' },
             { id: 'viaNodes', label: '途经的所有节点' },
             { id: 'toNode', label: '目标节点' },
             { id: 'mission', label: '进攻/驻防' },
@@ -111,7 +113,7 @@ const MILITARY_TEMPLATE: StructuredTypeTemplate = {
           id: 'military-joint-operation',
           label: '协同联军',
           fields: [
-            { id: 'subject', label: 'X军团/X算子' },
+            { id: 'subject', label: '目标我方X军团/X个算子' },
             { id: 'allyLegion', label: '盟友军团名' },
           ],
           renderSentence: row =>
@@ -121,7 +123,7 @@ const MILITARY_TEMPLATE: StructuredTypeTemplate = {
           id: 'military-boarding-landing',
           label: '上船下船',
           fields: [
-            { id: 'landSubject', label: '陆军X军团/X个算子' },
+            { id: 'landSubject', label: '目标陆军X军团/X个算子' },
             { id: 'fromNode', label: '当前节点（上船）' },
             { id: 'seaArea', label: '海域（登陆出发海域）' },
             { id: 'toNode', label: '目标节点（登陆地）' },
@@ -141,7 +143,7 @@ const MILITARY_TEMPLATE: StructuredTypeTemplate = {
           fields: [
             { id: 'node', label: '某节点' },
             { id: 'operators', label: 'X个算子' },
-            { id: 'newLegion', label: 'X军团' },
+            { id: 'newLegion', label: '新组建军团名(势力+数字)' },
           ],
           renderSentence: row =>
             `将位于【${row.node}】的【${row.operators}】组成【${row.newLegion}】。`,
@@ -152,7 +154,7 @@ const MILITARY_TEMPLATE: StructuredTypeTemplate = {
           fields: [
             { id: 'node', label: '某节点' },
             { id: 'source', label: 'X个算子/X军团' },
-            { id: 'targetLegion', label: '军团Y' },
+            { id: 'targetLegion', label: '目标军团' },
           ],
           renderSentence: row =>
             `将位于【${row.node}】的【${row.source}】合并进入【${row.targetLegion}】。`,
@@ -161,8 +163,8 @@ const MILITARY_TEMPLATE: StructuredTypeTemplate = {
           id: 'military-split-legion',
           label: '军团拆分',
           fields: [
-            { id: 'legion', label: '军团X' },
-            { id: 'operators', label: 'X个算子' },
+            { id: 'legion', label: '原军团X' },
+            { id: 'operators', label: 'X个算子/新军团名(势力+数字)' },
           ],
           renderSentence: row =>
             `【${row.legion}】拆分出【${row.operators}】驻守原地。`,
@@ -245,13 +247,23 @@ const DIPLOMACY_TEMPLATE: StructuredTypeTemplate = {
       actions: [
         {
           id: 'diplomacy-public-declaration',
-          label: '发布公开声明',
+          label: '发布公开声明/公开协议',
           fields: [
-            { id: 'parties', label: '缔约方A、缔约方B...' },
+            {
+              id: 'parties',
+              label: '缔约方A、缔约方B...',
+              required: false,
+              hint: '留空则视为个人公开声明',
+            },
             { id: 'content', label: '声明/协议内容', multiline: true },
           ],
-          renderSentence: row =>
-            `本方/本方与【${row.parties}】共同签订公开协议/发表声明，内容如下：${row.content}`,
+          renderSentence: row => {
+            const parties = String(row.parties || '').trim()
+            if (!parties) {
+              return `本方发表公开声明，内容如下：${row.content}`
+            }
+            return `本方与【${parties}】共同签订公开协议，内容如下：${row.content}`
+          },
         },
         {
           id: 'diplomacy-secret-treaty',
@@ -370,10 +382,9 @@ export function InstructionSubmitForm({
 
   const rowsByAction = isStructuredType(instructionType) ? structuredRowsByType[instructionType] : {}
 
-  const orderedSelectedActions = useMemo(() => {
-    if (!currentCategory) return [] as StructuredActionTemplate[]
-    return currentCategory.actions.filter(action => selectedActionIds.includes(action.id))
-  }, [currentCategory, selectedActionIds])
+  const orderedSelectedActions = currentCategory
+    ? currentCategory.actions.filter(action => selectedActionIds.includes(action.id))
+    : []
 
   const handleInstructionTypeChange = (value: InstructionCreateRequestInstructionType) => {
     setInstructionType(value)
@@ -426,7 +437,8 @@ export function InstructionSubmitForm({
         }
       }
 
-      const { [action.id]: _removed, ...restTypeRows } = typeRows
+      const restTypeRows = { ...typeRows }
+      delete restTypeRows[action.id]
       return {
         ...prev,
         [type]: restTypeRows,
@@ -549,6 +561,8 @@ export function InstructionSubmitForm({
         for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
           const row = rows[rowIndex]
           for (const field of action.fields) {
+            const isRequired = field.required ?? true
+            if (!isRequired) continue
             if (!String(row[field.id] || '').trim()) {
               toast.error(`请填写「${action.label}」第${rowIndex + 1}条的「${field.label}」`)
               return
@@ -763,8 +777,14 @@ export function InstructionSubmitForm({
                                   disabled={disabled || isPending}
                                 />
                               )}
+                              {field.hint && <p className="text-xs text-muted-foreground">{field.hint}</p>}
                             </div>
                           ))}
+                        </div>
+
+                        <div className="rounded-md border bg-background p-2">
+                          <p className="text-xs text-muted-foreground">句式预览</p>
+                          <p className="mt-1 text-sm break-all">{action.renderSentence(row)}</p>
                         </div>
                       </div>
                     ))}
