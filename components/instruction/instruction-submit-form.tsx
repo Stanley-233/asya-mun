@@ -24,6 +24,7 @@ const instructionTypes: InstructionCreateRequestInstructionType[] = [
   'INTERNAL',
   'OTHER',
 ]
+const INSTRUCTION_INPUT_MAX_CHARS = 1500
 
 type StructuredInstructionType = Extract<InstructionCreateRequestInstructionType, 'MILITARY' | 'DIPLOMACY'>
 type MilitaryCategoryKey = '1' | '2' | '3' | '4'
@@ -334,6 +335,14 @@ function buildStructuredContent(
   return `【${categoryLabel}】\n${actionSections.join('\n')}`.trim()
 }
 
+function limitInstructionInput(value: string) {
+  return Array.from(value).slice(0, INSTRUCTION_INPUT_MAX_CHARS).join('')
+}
+
+function getInstructionInputLength(value: string) {
+  return Array.from(value).length
+}
+
 interface InstructionSubmitFormProps {
   disabled?: boolean
   disabledReason?: string
@@ -621,10 +630,14 @@ export function InstructionSubmitForm({
             <Input
               id="instruction-title"
               value={title}
-              onChange={event => setTitle(event.target.value)}
+              onChange={event => setTitle(limitInstructionInput(event.target.value))}
               placeholder="标题格式：【军事/内政/外交-会期数.份数】摘要，如【军事1.1】后勤保障"
               disabled={disabled || isPending}
+              maxLength={INSTRUCTION_INPUT_MAX_CHARS}
             />
+            <p className="text-right text-xs text-muted-foreground">
+              {getInstructionInputLength(title)}/{INSTRUCTION_INPUT_MAX_CHARS}
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -753,12 +766,13 @@ export function InstructionSubmitForm({
                                       action.id,
                                       rowIndex,
                                       field.id,
-                                      event.target.value,
+                                      limitInstructionInput(event.target.value),
                                     )
                                   }
                                   rows={4}
                                   placeholder={`请输入${field.label}`}
                                   disabled={disabled || isPending}
+                                  maxLength={INSTRUCTION_INPUT_MAX_CHARS}
                                 />
                               ) : (
                                 <Input
@@ -770,13 +784,17 @@ export function InstructionSubmitForm({
                                       action.id,
                                       rowIndex,
                                       field.id,
-                                      event.target.value,
+                                      limitInstructionInput(event.target.value),
                                     )
                                   }
                                   placeholder={`请输入${field.label}`}
                                   disabled={disabled || isPending}
+                                  maxLength={INSTRUCTION_INPUT_MAX_CHARS}
                                 />
                               )}
+                              <p className="text-right text-xs text-muted-foreground">
+                                {getInstructionInputLength(row[field.id] || '')}/{INSTRUCTION_INPUT_MAX_CHARS}
+                              </p>
                               {field.hint && <p className="text-xs text-muted-foreground">{field.hint}</p>}
                             </div>
                           ))}
@@ -798,11 +816,15 @@ export function InstructionSubmitForm({
               <Textarea
                 id="instruction-content"
                 value={content}
-                onChange={event => setContent(event.target.value)}
+                onChange={event => setContent(limitInstructionInput(event.target.value))}
                 placeholder="请输入具体指令内容"
                 rows={8}
                 disabled={disabled || isPending}
+                maxLength={INSTRUCTION_INPUT_MAX_CHARS}
               />
+              <p className="text-right text-xs text-muted-foreground">
+                {getInstructionInputLength(content)}/{INSTRUCTION_INPUT_MAX_CHARS}
+              </p>
             </div>
           )}
 
