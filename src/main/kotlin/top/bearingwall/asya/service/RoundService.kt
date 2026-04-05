@@ -147,9 +147,11 @@ class RoundService(
             ?: throw IllegalStateException("No current round")
         require(current.uuid == roundUuid) { "Only current round can be resumed" }
         require(current.status == RoundStatus.PAUSED) { "Round is not paused" }
-        require(current.remainingSeconds > 0) { "Round has no remaining time" }
 
         val now = LocalDateTime.now()
+        if (current.remainingSeconds <= 0) {
+            current.remainingSeconds = current.durationSeconds
+        }
         current.status = RoundStatus.RUNNING
         current.endAt = now.plusSeconds(current.remainingSeconds)
         current.updatedAt = now

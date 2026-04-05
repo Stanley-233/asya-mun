@@ -249,4 +249,32 @@ class RoundServiceTest {
         assertEquals(RoundStatus.PAUSED, currentRound.status)
         assertEquals(null, currentRound.endAt)
     }
+
+    @Test
+    fun `resumeRound resets to full duration when no remaining time`() {
+        val conferenceId = UUID.randomUUID()
+        val now = LocalDateTime.now()
+        val round = Round(
+            uuid = UUID.randomUUID(),
+            conference = Conference(uuid = conferenceId, name = "conf", description = "desc"),
+            name = "Round 1",
+            durationSeconds = 90,
+            remainingSeconds = 0,
+            status = RoundStatus.PAUSED,
+            isCurrent = true,
+            endAt = null,
+            updatedAt = now
+        )
+
+        `when`(roundRepository.findCurrentForUpdate(conferenceId)).thenReturn(round, round)
+        `when`(roundRepository.save(any(Round::class.java))).thenAnswer { it.getArgument(0) }
+
+        val response = roundService.resumeRound(round.uuid!!, conferenceId)
+
+        assertEquals(RoundStatus.RUNNING, response.status)
+        assertEquals(90, response.remainingSeconds)
+        assertNotNull(response.endAt)
+        assertEquals(90, round.remainingSeconds)
+        assertEquals(RoundStatus.RUNNING, round.status)
+    }
 }
