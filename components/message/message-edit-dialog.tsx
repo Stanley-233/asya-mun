@@ -734,7 +734,7 @@ export function MessageEditDialog({
     }
 
     if (!formData.publishGameTime.trim()) {
-      toast.warning('请输入发布游戏时间')
+      toast.warning('请输入发布会议次元时间')
       return
     }
 
@@ -906,9 +906,9 @@ export function MessageEditDialog({
 
             {/* 右栏：发布设置和用户选择 */}
             <div className="space-y-4">
-              {/* Game Time */}
+              {/* Conference Dimensional Time */}
               <div className="space-y-2">
-                <Label htmlFor="publishGameTime">发布游戏时间 *</Label>
+                <Label htmlFor="publishGameTime">发布会议次元时间 *</Label>
                 <Input
                   id="publishGameTime"
                   value={formData.publishGameTime}

@@ -222,7 +222,7 @@ export function TimelineManager({ currentSession: _currentSession }: TimelineMan
       <Card>
         <CardHeader>
           <CardTitle>时间跨度跳跃</CardTitle>
-          <CardDescription>快进或回溯到指定游戏时间</CardDescription>
+          <CardDescription>快进或回溯到指定会议次元时间</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="rounded-lg border bg-muted/20 p-3">
@@ -287,7 +287,7 @@ export function TimelineManager({ currentSession: _currentSession }: TimelineMan
         <AlertDialogContent className="!max-w-3xl max-h-[90vh] overflow-y-auto">
           <AlertDialogHeader>
             <AlertDialogTitle>时间跨度跳跃</AlertDialogTitle>
-            <AlertDialogDescription>快进或回溯到指定游戏时间，并设置目标流速</AlertDialogDescription>
+            <AlertDialogDescription>快进或回溯到指定会议次元时间，并设置目标流速</AlertDialogDescription>
           </AlertDialogHeader>
 
           <div className="space-y-4">
@@ -306,7 +306,7 @@ export function TimelineManager({ currentSession: _currentSession }: TimelineMan
                     setTargetSecond(0)
                   }}
                 >
-                  游戏开始 (BC 450)
+                  会议开始 (BC 450)
                 </Button>
                 <Button
                   variant="outline"

@@ -477,7 +477,7 @@ export function MessageDetailDialog({
                     </span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">游戏时间: </span>
+                    <span className="text-muted-foreground">会议次元时间: </span>
                     <span>{formatGameTime(message.publishGameTime)}</span>
                   </div>
                 </div>

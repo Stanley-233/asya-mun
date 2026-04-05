@@ -134,7 +134,7 @@ export function MessageCard({ message, senderDisplayName, onEdit, onDelete, onCl
         <div className="flex flex-col gap-1 text-xs text-muted-foreground">
           <div className="flex justify-between">
             <span>发布者: {getSenderDisplayName(message, senderDisplayName)}</span>
-            <span>游戏时间: {formatGameTime(message.publishGameTime)}</span>
+            <span>会议次元时间: {formatGameTime(message.publishGameTime)}</span>
           </div>
           <div className="text-right">
             现实时间: {new Date(message.publishRealTime).toLocaleString('zh-CN')}

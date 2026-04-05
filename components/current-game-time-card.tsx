@@ -10,7 +10,7 @@ interface CurrentGameTimeCardProps {
   } | null
 }
 
-// 格式化游戏时间显示
+// 格式化会议次元时间显示
 // JavaScript Date遵循ISO 8601: 0年=BC1, -1年=BC2, -420年=BC421
 function formatGameTime(date: Date | null): string {
   if (!date) return '未知'
@@ -52,7 +52,7 @@ export function CurrentGameTimeCard({ currentGameTime, latestAnchor }: CurrentGa
   return (
     <Card className="border-2 border-primary">
       <CardHeader>
-        <CardTitle className="text-2xl">当前游戏时间</CardTitle>
+        <CardTitle className="text-2xl">当前会议次元时间</CardTitle>
         <CardDescription>基于最新锚点的实时计算</CardDescription>
       </CardHeader>
       <CardContent>

@@ -107,13 +107,6 @@ export function InstructionDetailDialog({
                 加载中...
               </div>
             )}
-
-            {!isLoading && error && (
-              <AlertDialogDescription className="text-destructive">
-                指令详情加载失败，请稍后重试。
-              </AlertDialogDescription>
-            )}
-
             {!isLoading && !error && instruction && (
               <div className="space-y-6">
                 <div className="grid gap-4 rounded-lg bg-muted/40 p-4 md:grid-cols-2">
@@ -132,7 +125,7 @@ export function InstructionDetailDialog({
                     <p className="mt-1 text-sm">{formatInstructionRealTime(instruction.submitRealTime)}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">提交游戏时间</p>
+                    <p className="text-xs text-muted-foreground">提交会议次元时间</p>
                     <p className="mt-1 text-sm">{formatInstructionGameTime(instruction.submitGameTime)}</p>
                   </div>
                   <div>

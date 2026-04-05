@@ -24,7 +24,7 @@ const statusLabels = {
   'COMPLETED': '已结束'
 }
 
-// 格式化游戏时间为表单输入格式
+// 格式化会议次元时间为表单输入格式
 function formatGameTimeForInput(date: Date | null): string {
   if (!date) return ''
   
@@ -70,37 +70,8 @@ export default function ProgressPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [messageToDelete, setMessageToDelete] = useState<MessageResponse | null>(null)
   
-  // 使用共享的 hook 计算当前游戏时间
+  // 使用共享的 hook 计算当前会议次元时间
   const currentGameTime = useCurrentGameTime(latestAnchor)
-
-  // ===== SSE 时间轴订阅功能已禁用 =====
-  // // 订阅时间轴事件流
-  // useTimelineStream({
-  //   enabled: isAuthenticated && !!currentSession,
-  //   onTimeJump: (event) => {
-  //     console.log('⏭️ 时间跳跃事件:', event)
-  //     setAlertMessage({
-  //       title: '时间跳跃',
-  //       description: '游戏时间发生了跳跃，时间轴已更新',
-  //     })
-  //     setShowAlert(true)
-  //     // 刷新最新锚点数据
-  //     refetchLatest()
-  //   },
-  //   onTimeUpdate: (event) => {
-  //     console.log('🔄 时间更新事件:', event)
-  //     setAlertMessage({
-  //       title: '时间流速变化',
-  //       description: '游戏时间流速已调整',
-  //     })
-  //     setShowAlert(true)
-  //     // 刷新最新锚点数据
-  //     refetchLatest()
-  //   },
-  //   onError: (error) => {
-  //     console.error('SSE 连接错误:', error)
-  //   },
-  // })
 
   useEffect(() => {
     if (conferenceData && !conferenceLoading) {
@@ -224,7 +195,7 @@ export default function ProgressPage() {
           <p className="text-muted-foreground">查看当前会议和会期状态</p>
         </div> */}
 
-        {/* 当前游戏时间 */}
+        {/* 当前会议次元时间 */}
         <CurrentGameTimeCard 
           currentGameTime={currentGameTime}
           latestAnchor={latestAnchor}
