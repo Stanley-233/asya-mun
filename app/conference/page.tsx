@@ -113,8 +113,9 @@ export default function ConferencePage() {
     if (!keyword) return users
 
     return users.filter(user => {
-      const normalizedName = (user.displayName?.trim() || user.name || '').toLowerCase()
-      return normalizedName.includes(keyword)
+      const normalizedDisplayName = (user.displayName?.trim() || '').toLowerCase()
+      const normalizedName = (user.name || '').toLowerCase()
+      return normalizedDisplayName.includes(keyword) || normalizedName.includes(keyword)
     })
   }, [memberKeyword, users])
 
@@ -646,7 +647,7 @@ export default function ConferencePage() {
               <Input
                 value={memberKeyword}
                 onChange={event => setMemberKeyword(event.target.value)}
-                placeholder="输入用户 displayName 筛选"
+                placeholder="输入用户 displayName / name 筛选"
               />
               <Button type="button" variant="outline" size="sm" onClick={handleSelectAllUsers} disabled={users.length === 0}>
                 全选

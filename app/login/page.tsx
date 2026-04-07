@@ -171,7 +171,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <Card>
           <CardHeader className="text-center">
-            <CardTitle className="text-3xl font-bold">Asya 系统</CardTitle>
+            <CardTitle className="text-3xl font-bold">ASYA 系统</CardTitle>
             <CardDescription className="mt-2">
               {tab === 'login' ? '登录您的账户' : '创建新账户'}
             </CardDescription>

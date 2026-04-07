@@ -56,7 +56,7 @@ export function Navbar() {
             </SheetTrigger>
             <SheetContent side="left" className="w-[250px] sm:w-[300px]">
               <SheetHeader>
-                <SheetTitle>Asya</SheetTitle>
+                <SheetTitle>ASYA</SheetTitle>
               </SheetHeader>
               <div className="flex flex-col gap-4 mt-6">
                 {menuItems.map((item) => (

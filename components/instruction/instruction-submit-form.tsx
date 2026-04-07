@@ -103,12 +103,17 @@ const MILITARY_TEMPLATE: StructuredTypeTemplate = {
           label: '远程指挥',
           fields: [
             { id: 'subject', label: '目标X军团/X个算子' },
-            { id: 'viaNodes', label: '途经的所有节点' },
+            { id: 'viaNodes', label: '途经的所有节点', required: false },
             { id: 'toNode', label: '目标节点' },
             { id: 'mission', label: '进攻/驻防' },
           ],
-          renderSentence: row =>
-            `【${row.subject}】经【${row.viaNodes}】前往【${row.toNode}】，执行【${row.mission}】。`,
+          renderSentence: row => {
+            const viaNodes = String(row.viaNodes || '').trim()
+            if (!viaNodes) {
+              return `【${row.subject}】前往【${row.toNode}】，执行【${row.mission}】。`
+            }
+            return `【${row.subject}】经【${viaNodes}】前往【${row.toNode}】，执行【${row.mission}】。`
+          },
         },
         {
           id: 'military-joint-operation',
@@ -182,9 +187,10 @@ const MILITARY_TEMPLATE: StructuredTypeTemplate = {
           fields: [
             { id: 'region', label: '本土城市/封建主领地' },
             { id: 'troopType', label: '直属/封建主部队' },
+            { id: 'details', label: '具体征兵手段', multiline: true },
           ],
           renderSentence: row =>
-            `在【${row.region}】招募【${row.troopType}】。`,
+            `在【${row.region}】招募【${row.troopType}】，具体采取措施如下：【${row.details}】`,
         },
         {
           id: 'military-local-recruit',
@@ -192,9 +198,10 @@ const MILITARY_TEMPLATE: StructuredTypeTemplate = {
           fields: [
             { id: 'node', label: '当前所在节点' },
             { id: 'troopType', label: '本地部队描述' },
+            { id: 'details', label: '具体征兵手段', multiline: true },
           ],
           renderSentence: row =>
-            `在【${row.node}】直接招募【${row.troopType}】。`,
+            `在【${row.node}】招募【${row.troopType}】，具体采取措施如下：【${row.details}】`,
         },
         {
           id: 'military-other-operation',
@@ -280,8 +287,18 @@ const DIPLOMACY_TEMPLATE: StructuredTypeTemplate = {
     },
     {
       key: '3',
-      label: '3.特殊行动',
+      label: '3.特殊行动与外交信函',
       actions: [
+        {
+          id: 'diplomacy-letter',
+          label: '外交信函',
+          fields: [
+            { id: 'targetRepresentative', label: '目标代表/NPC' },
+            { id: 'letterContent', label: '信件内容', multiline: true },
+          ],
+          renderSentence: row =>
+            `向【${row.targetRepresentative}】发送外交信函，内容如下：${row.letterContent}`,
+        },
         {
           id: 'diplomacy-assassination',
           label: '阿萨辛刺杀',

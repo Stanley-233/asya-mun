@@ -158,8 +158,9 @@ export default function StatusManagePage() {
     if (!keyword) return delegateUsers
 
     return delegateUsers.filter(user => {
-      const normalizedName = (user.displayName?.trim() || user.name || '').toLowerCase()
-      return normalizedName.includes(keyword)
+      const normalizedDisplayName = (user.displayName?.trim() || '').toLowerCase()
+      const normalizedName = (user.name || '').toLowerCase()
+      return normalizedDisplayName.includes(keyword) || normalizedName.includes(keyword)
     })
   }, [delegateFilterKeyword, delegateUsers])
   const delegateUserMap = useMemo(
@@ -677,7 +678,7 @@ export default function StatusManagePage() {
                     className="mb-2"
                     value={delegateFilterKeyword}
                     onChange={event => setDelegateFilterKeyword(event.target.value)}
-                    placeholder="输入代表 displayName 筛选"
+                    placeholder="输入代表 displayName / name 筛选"
                   />
                   <div className="max-h-44 overflow-y-auto rounded-md border p-2">
                     {filteredDelegateUsers.length === 0 ? (

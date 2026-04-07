@@ -349,6 +349,7 @@ export function MessageEditDialog({
   })
 
   const [secretReceivers, setSecretReceivers] = useState<SecretReceiverConfig[]>([])
+  const [receiverSearchKeyword, setReceiverSearchKeyword] = useState('')
   const [selectedGroupConfigs, setSelectedGroupConfigs] = useState<GroupReceiverConfig[]>([])
   const [attachments, setAttachments] = useState<AttachmentItem[]>([])
   const [isUploadingAttachments, setIsUploadingAttachments] = useState(false)
@@ -397,6 +398,17 @@ export function MessageEditDialog({
   const selectedGroupMap = useMemo(() => {
     return new Map(selectedGroupConfigs.map((item) => [item.groupId, item]))
   }, [selectedGroupConfigs])
+
+  const filteredSelectableUsers = useMemo(() => {
+    const keyword = receiverSearchKeyword.trim().toLowerCase()
+    if (!keyword) return selectableUsers
+
+    return selectableUsers.filter((user) => {
+      const name = user.name?.toLowerCase() || ''
+      const displayName = user.displayName?.toLowerCase() || ''
+      return name.includes(keyword) || displayName.includes(keyword)
+    })
+  }, [selectableUsers, receiverSearchKeyword])
 
   const resolvedReceivers = useMemo(() => {
     return resolveReceiversFromGroupsAndManual(
@@ -538,6 +550,7 @@ export function MessageEditDialog({
         isSecret: false,
       })
       setSecretReceivers([])
+      setReceiverSearchKeyword('')
       setSelectedGroupConfigs([])
       setAttachments([])
     }
@@ -571,6 +584,7 @@ export function MessageEditDialog({
       isSecret: false,
     })
     setSecretReceivers([])
+    setReceiverSearchKeyword('')
     setSelectedGroupConfigs([])
     setAttachments([])
   }
@@ -984,6 +998,7 @@ export function MessageEditDialog({
                     setFormData({ ...formData, isSecret: e.target.checked })
                     if (!e.target.checked) {
                       setSecretReceivers([])
+                      setReceiverSearchKeyword('')
                       setSelectedGroupConfigs([])
                     }
                   }}
@@ -1133,11 +1148,18 @@ export function MessageEditDialog({
                         </button>
                       </div>
                     </div>
+                    <Input
+                      value={receiverSearchKeyword}
+                      onChange={(e) => setReceiverSearchKeyword(e.target.value)}
+                      placeholder="搜索用户：支持 displayName / name"
+                    />
                     <div className="max-h-72 overflow-y-auto space-y-2 border rounded p-2 bg-muted/20">
                       {selectableUsers.length === 0 ? (
                         <p className="text-sm text-muted-foreground p-2">加载用户列表...</p>
+                      ) : filteredSelectableUsers.length === 0 ? (
+                        <p className="text-sm text-muted-foreground p-2">未找到匹配用户</p>
                       ) : (
-                        selectableUsers.map((conferenceUser) => {
+                        filteredSelectableUsers.map((conferenceUser) => {
                           const selectedReceiver = secretReceivers.find((item) => item.receiverId === conferenceUser.uuid)
                           const isSelected = !!selectedReceiver
                           return (
