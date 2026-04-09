@@ -103,6 +103,7 @@ const MILITARY_TEMPLATE: StructuredTypeTemplate = {
           label: '远程指挥',
           fields: [
             { id: 'subject', label: '目标X军团/X个算子' },
+            { id: 'fromNode', label: '出发点' },
             { id: 'viaNodes', label: '途经的所有节点', required: false },
             { id: 'toNode', label: '目标节点' },
             { id: 'mission', label: '进攻/驻防' },
@@ -110,9 +111,9 @@ const MILITARY_TEMPLATE: StructuredTypeTemplate = {
           renderSentence: row => {
             const viaNodes = String(row.viaNodes || '').trim()
             if (!viaNodes) {
-              return `【${row.subject}】前往【${row.toNode}】，执行【${row.mission}】。`
+              return `【${row.subject}】自【${row.fromNode}】前往【${row.toNode}】，执行【${row.mission}】。`
             }
-            return `【${row.subject}】经【${viaNodes}】前往【${row.toNode}】，执行【${row.mission}】。`
+            return `【${row.subject}】自【${row.fromNode}】经【${viaNodes}】前往【${row.toNode}】，执行【${row.mission}】。`
           },
         },
         {
@@ -126,16 +127,26 @@ const MILITARY_TEMPLATE: StructuredTypeTemplate = {
             `【${row.subject}】协同跟随主导方【${row.allyLegion}】行动。`,
         },
         {
-          id: 'military-boarding-landing',
-          label: '上船下船',
+          id: 'military-boarding',
+          label: '上船',
           fields: [
             { id: 'landSubject', label: '目标陆军X军团/X个算子' },
             { id: 'fromNode', label: '当前节点（上船）' },
+            { id: 'shipFaction', label: '船只势力归属' },
+          ],
+          renderSentence: row =>
+            `【${row.landSubject}】从【${row.fromNode}】登上【${row.shipFaction}】船只。`,
+        },
+        {
+          id: 'military-landing',
+          label: '登陆',
+          fields: [
+            { id: 'landSubject', label: '目标陆军X军团/X个算子' },
             { id: 'seaArea', label: '海域（登陆出发海域）' },
             { id: 'toNode', label: '目标节点（登陆地）' },
           ],
           renderSentence: row =>
-            `【${row.landSubject}】从【${row.fromNode}】上船 / 乘船陆军自【${row.seaArea}】登陆【${row.toNode}】。`,
+            `【${row.landSubject}】乘船陆军自【${row.seaArea}】登陆【${row.toNode}】。`,
         },
       ],
     },
