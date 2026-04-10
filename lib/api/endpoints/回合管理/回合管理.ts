@@ -25,6 +25,7 @@ import type {
   RoundPublishRequest,
   RoundSetCurrentRequest,
   RoundSetNextRequest,
+  RoundSetRemainingRequest,
   RoundUpdateRequest,
 } from "../asyaBackendAPI.schemas";
 
@@ -283,6 +284,106 @@ export const useUpdate = <TError = unknown, TContext = unknown>(
   TContext
 > => {
   return useMutation(getUpdateMutationOptions(options), queryClient);
+};
+/**
+ * DH、DM、SYS_ADMIN 可修改回合剩余时间（秒）
+ * @summary 设置回合剩余时间
+ */
+export type updateRemainingResponse200 = {
+  data: Blob;
+  status: 200;
+};
+
+export type updateRemainingResponseSuccess = updateRemainingResponse200 & {
+  headers: Headers;
+};
+export type updateRemainingResponse = updateRemainingResponseSuccess;
+
+export const getUpdateRemainingUrl = (roundId: string) => {
+  return `/api/round/${roundId}/remaining`;
+};
+
+export const updateRemaining = async (
+  roundId: string,
+  roundSetRemainingRequest: RoundSetRemainingRequest,
+  options?: RequestInit,
+): Promise<updateRemainingResponse> => {
+  return customInstance<updateRemainingResponse>(
+    getUpdateRemainingUrl(roundId),
+    {
+      ...options,
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(roundSetRemainingRequest),
+    },
+  );
+};
+
+export const getUpdateRemainingMutationOptions = <
+  TError = unknown,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateRemaining>>,
+    TError,
+    { roundId: string; data: RoundSetRemainingRequest },
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateRemaining>>,
+  TError,
+  { roundId: string; data: RoundSetRemainingRequest },
+  TContext
+> => {
+  const mutationKey = ["updateRemaining"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateRemaining>>,
+    { roundId: string; data: RoundSetRemainingRequest }
+  > = (props) => {
+    const { roundId, data } = props ?? {};
+
+    return updateRemaining(roundId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateRemainingMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateRemaining>>
+>;
+export type UpdateRemainingMutationBody = RoundSetRemainingRequest;
+export type UpdateRemainingMutationError = unknown;
+
+/**
+ * @summary 设置回合剩余时间
+ */
+export const useUpdateRemaining = <TError = unknown, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof updateRemaining>>,
+      TError,
+      { roundId: string; data: RoundSetRemainingRequest },
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof updateRemaining>>,
+  TError,
+  { roundId: string; data: RoundSetRemainingRequest },
+  TContext
+> => {
+  return useMutation(getUpdateRemainingMutationOptions(options), queryClient);
 };
 /**
  * DH、DM、SYS_ADMIN 可设置某个 round 的 nextRoundId（可清空）

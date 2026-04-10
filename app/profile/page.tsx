@@ -19,7 +19,7 @@ import { useGetMine } from "@/lib/api/endpoints/会议管理/会议管理"
 import { SecretMessageList, MessageDetailDialog } from "@/components/message"
 import { InstructionDetailDialog, InstructionList, InstructionSubmitForm } from '@/components/instruction'
 import { parseApiPayload } from '@/lib/api/response-utils'
-import { useGetMyInstructions } from '@/lib/api/endpoints/指令管理/指令管理'
+import { useGetMyInstructions, useGetSubmissionSwitch } from '@/lib/api/endpoints/指令管理/指令管理'
 import {
   INSTRUCTION_STATUS_LABELS,
   parseInstructionPage,
@@ -87,6 +87,13 @@ export default function ProfilePage() {
       },
     },
   )
+  const { data: submissionSwitchData } = useGetSubmissionSwitch({
+    query: {
+      enabled: isAuthenticated && canSubmitInstruction,
+      refetchInterval: 30_000,
+      refetchIntervalInBackground: true,
+    },
+  })
 
   const parsedInstructionData = parseApiPayload<unknown>(myInstructionsData)
   const instructionPage = parseInstructionPage(parsedInstructionData)
@@ -94,6 +101,16 @@ export default function ProfilePage() {
     () => parseApiPayload<ConferenceResponse>(conferenceData),
     [conferenceData],
   )
+  const submissionSwitch = useMemo(
+    () => parseApiPayload<{ paused?: boolean }>(submissionSwitchData),
+    [submissionSwitchData],
+  )
+  const isInstructionSubmissionPaused = !!submissionSwitch?.paused
+  const instructionSubmitDisabledReason = !conference
+    ? '尚未关联会议，暂时无法提交指令，请联系管理员。'
+    : isInstructionSubmissionPaused
+      ? '系统已全局暂停指令提交，请等待管理员恢复。'
+      : undefined
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -231,8 +248,8 @@ export default function ProfilePage() {
 
           {canSubmitInstruction && (
             <InstructionSubmitForm
-              disabled={!conference}
-              disabledReason={!conference ? '尚未关联会议，暂时无法提交指令，请联系管理员。' : undefined}
+              disabled={!!instructionSubmitDisabledReason}
+              disabledReason={instructionSubmitDisabledReason}
               onSuccess={() => {
                 if (instructionCurrentPage === 0) {
                   refetchMyInstructions()

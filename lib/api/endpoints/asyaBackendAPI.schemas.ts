@@ -162,6 +162,14 @@ export interface ResultRoundResponse {
 }
 
 /**
+ * 设置回合剩余时间请求
+ */
+export interface RoundSetRemainingRequest {
+  /** 剩余时长（秒） */
+  remainingSeconds: number;
+}
+
+/**
  * 设置下一回合请求
  */
 export interface RoundSetNextRequest {
@@ -892,17 +900,17 @@ export interface Pageable {
 
 export interface Sortnull {
   empty?: boolean;
-  unsorted?: boolean;
   sorted?: boolean;
+  unsorted?: boolean;
 }
 
 export interface Pageablenull {
   offset?: number;
   sort?: Sortnull;
-  unpaged?: boolean;
   paged?: boolean;
   pageNumber?: number;
   pageSize?: number;
+  unpaged?: boolean;
 }
 
 export interface Pagenull {
@@ -1221,6 +1229,10 @@ export type SetRegistrationSwitchParams = {
 
 export type GetAllParams = {
   pageable: Pageable;
+};
+
+export type SetSubmissionSwitchParams = {
+  paused: boolean;
 };
 
 export type QueryForManagementParams = {

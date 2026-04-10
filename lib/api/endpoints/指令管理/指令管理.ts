@@ -26,6 +26,7 @@ import type {
   GetMyInstructionsParams,
   InstructionCreateRequest,
   InstructionReviewRequest,
+  SetSubmissionSwitchParams,
 } from "../asyaBackendAPI.schemas";
 
 import { customInstance } from "../../client";
@@ -267,6 +268,290 @@ export const useReview = <TError = unknown, TContext = unknown>(
   TContext
 > => {
   return useMutation(getReviewMutationOptions(options), queryClient);
+};
+/**
+ * @summary 查询全局指令提交暂停开关
+ */
+export type getSubmissionSwitchResponse200 = {
+  data: Blob;
+  status: 200;
+};
+
+export type getSubmissionSwitchResponseSuccess =
+  getSubmissionSwitchResponse200 & {
+    headers: Headers;
+  };
+export type getSubmissionSwitchResponse = getSubmissionSwitchResponseSuccess;
+
+export const getGetSubmissionSwitchUrl = () => {
+  return `/api/instructions/submission-switch`;
+};
+
+export const getSubmissionSwitch = async (
+  options?: RequestInit,
+): Promise<getSubmissionSwitchResponse> => {
+  return customInstance<getSubmissionSwitchResponse>(
+    getGetSubmissionSwitchUrl(),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetSubmissionSwitchQueryKey = () => {
+  return [`/api/instructions/submission-switch`] as const;
+};
+
+export const getGetSubmissionSwitchQueryOptions = <
+  TData = Awaited<ReturnType<typeof getSubmissionSwitch>>,
+  TError = unknown,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<
+      Awaited<ReturnType<typeof getSubmissionSwitch>>,
+      TError,
+      TData
+    >
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetSubmissionSwitchQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getSubmissionSwitch>>
+  > = ({ signal }) => getSubmissionSwitch({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getSubmissionSwitch>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetSubmissionSwitchQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getSubmissionSwitch>>
+>;
+export type GetSubmissionSwitchQueryError = unknown;
+
+export function useGetSubmissionSwitch<
+  TData = Awaited<ReturnType<typeof getSubmissionSwitch>>,
+  TError = unknown,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getSubmissionSwitch>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSubmissionSwitch>>,
+          TError,
+          Awaited<ReturnType<typeof getSubmissionSwitch>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetSubmissionSwitch<
+  TData = Awaited<ReturnType<typeof getSubmissionSwitch>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getSubmissionSwitch>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSubmissionSwitch>>,
+          TError,
+          Awaited<ReturnType<typeof getSubmissionSwitch>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetSubmissionSwitch<
+  TData = Awaited<ReturnType<typeof getSubmissionSwitch>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getSubmissionSwitch>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary 查询全局指令提交暂停开关
+ */
+
+export function useGetSubmissionSwitch<
+  TData = Awaited<ReturnType<typeof getSubmissionSwitch>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getSubmissionSwitch>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getGetSubmissionSwitchQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * 仅 SYS_ADMIN 可设置。paused=true 表示暂停提交
+ * @summary 设置全局指令提交暂停开关
+ */
+export type setSubmissionSwitchResponse200 = {
+  data: Blob;
+  status: 200;
+};
+
+export type setSubmissionSwitchResponseSuccess =
+  setSubmissionSwitchResponse200 & {
+    headers: Headers;
+  };
+export type setSubmissionSwitchResponse = setSubmissionSwitchResponseSuccess;
+
+export const getSetSubmissionSwitchUrl = (
+  params: SetSubmissionSwitchParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/instructions/submission-switch?${stringifiedParams}`
+    : `/api/instructions/submission-switch`;
+};
+
+export const setSubmissionSwitch = async (
+  params: SetSubmissionSwitchParams,
+  options?: RequestInit,
+): Promise<setSubmissionSwitchResponse> => {
+  return customInstance<setSubmissionSwitchResponse>(
+    getSetSubmissionSwitchUrl(params),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getSetSubmissionSwitchMutationOptions = <
+  TError = unknown,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setSubmissionSwitch>>,
+    TError,
+    { params: SetSubmissionSwitchParams },
+    TContext
+  >;
+  request?: SecondParameter<typeof customInstance>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof setSubmissionSwitch>>,
+  TError,
+  { params: SetSubmissionSwitchParams },
+  TContext
+> => {
+  const mutationKey = ["setSubmissionSwitch"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof setSubmissionSwitch>>,
+    { params: SetSubmissionSwitchParams }
+  > = (props) => {
+    const { params } = props ?? {};
+
+    return setSubmissionSwitch(params, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SetSubmissionSwitchMutationResult = NonNullable<
+  Awaited<ReturnType<typeof setSubmissionSwitch>>
+>;
+
+export type SetSubmissionSwitchMutationError = unknown;
+
+/**
+ * @summary 设置全局指令提交暂停开关
+ */
+export const useSetSubmissionSwitch = <TError = unknown, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof setSubmissionSwitch>>,
+      TError,
+      { params: SetSubmissionSwitchParams },
+      TContext
+    >;
+    request?: SecondParameter<typeof customInstance>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof setSubmissionSwitch>>,
+  TError,
+  { params: SetSubmissionSwitchParams },
+  TContext
+> => {
+  return useMutation(
+    getSetSubmissionSwitchMutationOptions(options),
+    queryClient,
+  );
 };
 /**
  * 代表仅可查看自己的，DH/DM/SYS_ADMIN 可查看当前会议全部

@@ -83,7 +83,7 @@ export function Navbar() {
 
         {/* Logo - Center on mobile, left on desktop */}
         <Link href="/" className="text-xl font-bold md:order-first">
-          Asya
+          ASYA
         </Link>
 
         {/* Desktop Menu */}

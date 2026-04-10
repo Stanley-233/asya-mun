@@ -113,6 +113,7 @@ export default function StatusManagePage() {
   const [recordDialogMode, setRecordDialogMode] = useState<RecordDialogMode>('create')
   const [editingRecord, setEditingRecord] = useState<DelegateAttrRecordRowViewModel | null>(null)
   const [recordDelegateId, setRecordDelegateId] = useState<string>('')
+  const [recordDelegateKeyword, setRecordDelegateKeyword] = useState('')
   const [recordFormValues, setRecordFormValues] = useState<Record<string, string>>({})
 
   const [configDialogOpen, setConfigDialogOpen] = useState(false)
@@ -163,6 +164,16 @@ export default function StatusManagePage() {
       return normalizedDisplayName.includes(keyword) || normalizedName.includes(keyword)
     })
   }, [delegateFilterKeyword, delegateUsers])
+  const filteredRecordDelegateUsers = useMemo(() => {
+    const keyword = recordDelegateKeyword.trim().toLowerCase()
+    if (!keyword) return delegateUsers
+
+    return delegateUsers.filter(user => {
+      const normalizedDisplayName = (user.displayName?.trim() || '').toLowerCase()
+      const normalizedName = (user.name || '').toLowerCase()
+      return normalizedDisplayName.includes(keyword) || normalizedName.includes(keyword)
+    })
+  }, [recordDelegateKeyword, delegateUsers])
   const delegateUserMap = useMemo(
     () => new Map(delegateUsers.map(user => [user.uuid, user])),
     [delegateUsers],
@@ -370,6 +381,7 @@ export default function StatusManagePage() {
     setRecordDialogMode('create')
     setEditingRecord(null)
     setRecordDelegateId('')
+    setRecordDelegateKeyword('')
     resetRecordForm()
     setRecordDialogOpen(true)
   }
@@ -378,6 +390,7 @@ export default function StatusManagePage() {
     setRecordDialogMode('edit')
     setEditingRecord(record)
     setRecordDelegateId(record.delegateId)
+    setRecordDelegateKeyword('')
     resetRecordForm(record.valuesMap)
     setRecordDialogOpen(true)
   }
@@ -991,29 +1004,45 @@ export default function StatusManagePage() {
         )}
       </div>
 
-      <Dialog open={recordDialogOpen} onOpenChange={setRecordDialogOpen}>
-        <DialogContent>
+      <Dialog
+        open={recordDialogOpen}
+        onOpenChange={open => {
+          setRecordDialogOpen(open)
+          if (!open) {
+            setRecordDelegateKeyword('')
+          }
+        }}
+      >
+        <DialogContent className="flex max-h-[90vh] flex-col overflow-hidden sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{recordDialogMode === 'create' ? '新增记录' : '编辑记录'}</DialogTitle>
             <DialogDescription>提交时将按整条记录覆盖保存</DialogDescription>
           </DialogHeader>
 
-          <div className="mt-4 space-y-4">
+          <div className="mt-4 flex-1 space-y-4 overflow-y-auto pr-1">
             {recordDialogMode === 'create' ? (
               <div className="space-y-2">
                 <Label>代表</Label>
+                <Input
+                  value={recordDelegateKeyword}
+                  onChange={event => setRecordDelegateKeyword(event.target.value)}
+                  placeholder="输入代表 displayName / name 筛选"
+                />
                 <Select value={recordDelegateId} onValueChange={setRecordDelegateId}>
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="请选择代表" />
                   </SelectTrigger>
-                  <SelectContent>
-                    {delegateUsers.map(delegate => (
+                  <SelectContent className="max-h-72">
+                    {filteredRecordDelegateUsers.map(delegate => (
                       <SelectItem key={delegate.uuid} value={delegate.uuid}>
                         {delegate.displayName?.trim() || delegate.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {filteredRecordDelegateUsers.length === 0 && (
+                  <p className="text-sm text-muted-foreground">暂无匹配代表</p>
+                )}
               </div>
             ) : (
               <div className="space-y-1">

@@ -26,11 +26,12 @@ const instructionTypes: InstructionCreateRequestInstructionType[] = [
 ]
 const INSTRUCTION_INPUT_MAX_CHARS = 1500
 
-type StructuredInstructionType = Extract<InstructionCreateRequestInstructionType, 'MILITARY' | 'DIPLOMACY'>
-type MilitaryCategoryKey = '1' | '2' | '3' | '4'
+type StructuredInstructionType = Extract<InstructionCreateRequestInstructionType, 'MILITARY' | 'DIPLOMACY' | 'INTERNAL'>
+type MilitaryCategoryKey = '1' | '2' | '3'
 type DiplomacyCategoryKey = '1' | '2' | '3'
+type InternalCategoryKey = '1'
 
-type StructuredCategoryKey = MilitaryCategoryKey | DiplomacyCategoryKey
+type StructuredCategoryKey = MilitaryCategoryKey | DiplomacyCategoryKey | InternalCategoryKey
 
 type StructuredRowsByType = Record<StructuredInstructionType, Record<string, Record<string, string>[]>>
 type StructuredCategoryByType = Record<StructuredInstructionType, StructuredCategoryKey | ''>
@@ -188,12 +189,18 @@ const MILITARY_TEMPLATE: StructuredTypeTemplate = {
         },
       ],
     },
+  ],
+}
+
+const INTERNAL_TEMPLATE: StructuredTypeTemplate = {
+  instructionType: 'INTERNAL',
+  categories: [
     {
-      key: '4',
-      label: '4.补员与其他',
+      key: '1',
+      label: '1.征兵与补员',
       actions: [
         {
-          id: 'military-homeland-recruit',
+          id: 'internal-homeland-recruit',
           label: '本土/封地招募',
           fields: [
             { id: 'region', label: '本土城市/封建主领地' },
@@ -204,7 +211,7 @@ const MILITARY_TEMPLATE: StructuredTypeTemplate = {
             `在【${row.region}】招募【${row.troopType}】，具体采取措施如下：【${row.details}】`,
         },
         {
-          id: 'military-local-recruit',
+          id: 'internal-local-recruit',
           label: '就地募兵',
           fields: [
             { id: 'node', label: '当前所在节点' },
@@ -215,7 +222,7 @@ const MILITARY_TEMPLATE: StructuredTypeTemplate = {
             `在【${row.node}】招募【${row.troopType}】，具体采取措施如下：【${row.details}】`,
         },
         {
-          id: 'military-other-operation',
+          id: 'internal-other-operation',
           label: '其他',
           fields: [{ id: 'content', label: '其他希望进行的操作', multiline: true }],
           renderSentence: row => `其他操作：${row.content}`,
@@ -329,10 +336,11 @@ const DIPLOMACY_TEMPLATE: StructuredTypeTemplate = {
 const STRUCTURED_TEMPLATES: Record<StructuredInstructionType, StructuredTypeTemplate> = {
   MILITARY: MILITARY_TEMPLATE,
   DIPLOMACY: DIPLOMACY_TEMPLATE,
+  INTERNAL: INTERNAL_TEMPLATE,
 }
 
 function isStructuredType(type: InstructionCreateRequestInstructionType): type is StructuredInstructionType {
-  return type === 'MILITARY' || type === 'DIPLOMACY'
+  return type === 'MILITARY' || type === 'DIPLOMACY' || type === 'INTERNAL'
 }
 
 function getStructuredCategory(
@@ -389,15 +397,18 @@ export function InstructionSubmitForm({
   const [structuredCategoryByType, setStructuredCategoryByType] = useState<StructuredCategoryByType>({
     MILITARY: '',
     DIPLOMACY: '',
+    INTERNAL: '',
   })
   const [structuredSelectedActionsByType, setStructuredSelectedActionsByType] =
     useState<StructuredSelectedActionsByType>({
       MILITARY: [],
       DIPLOMACY: [],
+      INTERNAL: [],
     })
   const [structuredRowsByType, setStructuredRowsByType] = useState<StructuredRowsByType>({
     MILITARY: {},
     DIPLOMACY: {},
+    INTERNAL: {},
   })
 
   const currentTemplate = isStructuredType(instructionType)
@@ -542,14 +553,17 @@ export function InstructionSubmitForm({
     setStructuredCategoryByType({
       MILITARY: '',
       DIPLOMACY: '',
+      INTERNAL: '',
     })
     setStructuredSelectedActionsByType({
       MILITARY: [],
       DIPLOMACY: [],
+      INTERNAL: [],
     })
     setStructuredRowsByType({
       MILITARY: {},
       DIPLOMACY: {},
+      INTERNAL: {},
     })
   }
 

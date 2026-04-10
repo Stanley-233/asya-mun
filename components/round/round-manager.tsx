@@ -30,6 +30,7 @@ import {
   useSetNext,
   useUpdate,
   useUpdateCurrent,
+  useUpdateRemaining,
 } from '@/lib/api/endpoints/回合管理/回合管理'
 import type {
   RoundPublishRequestInitialStatus,
@@ -38,6 +39,7 @@ import type {
 import { toast } from 'react-toastify'
 
 type NextDraftMap = Record<string, string>
+type RemainingDraftMap = Record<string, string>
 
 function formatDuration(totalSeconds: number) {
   const safe = Math.max(0, Math.floor(totalSeconds))
@@ -70,7 +72,9 @@ export function RoundManager() {
   const [publishNextRoundId, setPublishNextRoundId] = useState('')
   const [publishDialogOpen, setPublishDialogOpen] = useState(false)
   const [nextDrafts, setNextDrafts] = useState<NextDraftMap>({})
+  const [remainingDrafts, setRemainingDrafts] = useState<RemainingDraftMap>({})
   const [savingRoundId, setSavingRoundId] = useState<string | null>(null)
+  const [savingRemainingRoundId, setSavingRemainingRoundId] = useState<string | null>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [editingRoundId, setEditingRoundId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
@@ -97,6 +101,7 @@ export function RoundManager() {
   const pauseMutation = usePause()
   const resumeMutation = useResume()
   const setNextMutation = useSetNext()
+  const updateRemainingMutation = useUpdateRemaining()
   const updateMutation = useUpdate()
   const updateCurrentMutation = useUpdateCurrent()
 
@@ -119,6 +124,18 @@ export function RoundManager() {
       const nextMap: NextDraftMap = {}
       for (const round of rounds) {
         nextMap[round.roundId] = prev[round.roundId] ?? round.nextRoundId ?? ''
+      }
+      return nextMap
+    })
+  }, [rounds])
+
+  useEffect(() => {
+    setRemainingDrafts((prev) => {
+      const nextMap: RemainingDraftMap = {}
+      for (const round of rounds) {
+        const existing = prev[round.roundId]
+        nextMap[round.roundId] =
+          existing !== undefined ? existing : String(Math.max(0, Math.floor(round.remainingSeconds)))
       }
       return nextMap
     })
@@ -225,6 +242,35 @@ export function RoundManager() {
       toast.error('设置下一回合失败，请稍后重试')
     } finally {
       setSavingRoundId(null)
+    }
+  }
+
+  const handleSaveRemaining = async (roundId: string) => {
+    const rawValue = (remainingDrafts[roundId] ?? '').trim()
+    const remainingSeconds = Number(rawValue)
+
+    if (!rawValue) {
+      toast.warning('请输入剩余秒数')
+      return
+    }
+    if (!Number.isFinite(remainingSeconds) || remainingSeconds < 0) {
+      toast.warning('剩余秒数必须是大于等于 0 的数字')
+      return
+    }
+
+    try {
+      setSavingRemainingRoundId(roundId)
+      await updateRemainingMutation.mutateAsync({
+        roundId,
+        data: { remainingSeconds: Math.floor(remainingSeconds) },
+      })
+      toast.success('剩余时间已更新')
+      await invalidateRoundQueries()
+    } catch (error) {
+      console.error('Update round remaining failed:', error)
+      toast.error('设置剩余时间失败，请稍后重试')
+    } finally {
+      setSavingRemainingRoundId(null)
     }
   }
 
@@ -405,7 +451,7 @@ export function RoundManager() {
                 </div>
 
                 <div className="grid grid-cols-1 gap-1 text-xs text-muted-foreground sm:grid-cols-2">
-                  <p>总时长: {formatDuration(round.durationSeconds)}</p>
+                  <p>当前回合总时长: {formatDuration(round.durationSeconds)}</p>
                   <p>剩余时长: {formatDuration(round.remainingSeconds)}</p>
                 </div>
 
@@ -430,6 +476,29 @@ export function RoundManager() {
                     disabled={setNextMutation.isPending && savingRoundId === round.roundId}
                   >
                     {setNextMutation.isPending && savingRoundId === round.roundId ? '保存中...' : '保存'}
+                  </Button>
+                </div>
+
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <Input
+                    type="number"
+                    min="0"
+                    value={remainingDrafts[round.roundId] ?? ''}
+                    onChange={(e) =>
+                      setRemainingDrafts((prev) => ({ ...prev, [round.roundId]: e.target.value }))
+                    }
+                    placeholder="设置剩余秒数"
+                    disabled={updateRemainingMutation.isPending && savingRemainingRoundId === round.roundId}
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleSaveRemaining(round.roundId)}
+                    disabled={updateRemainingMutation.isPending && savingRemainingRoundId === round.roundId}
+                  >
+                    {updateRemainingMutation.isPending && savingRemainingRoundId === round.roundId
+                      ? '设置中...'
+                      : '设置剩余时间'}
                   </Button>
                 </div>
 

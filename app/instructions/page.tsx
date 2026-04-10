@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
@@ -21,9 +22,15 @@ import {
 } from '@/components/instruction/instruction-utils'
 import { parseApiPayload } from '@/lib/api/response-utils'
 import { useAuth } from '@/lib/contexts/auth-context'
-import { useGetForManagement } from '@/lib/api/endpoints/指令管理/指令管理'
+import {
+  getGetSubmissionSwitchQueryKey,
+  useGetForManagement,
+  useGetSubmissionSwitch,
+  useSetSubmissionSwitch,
+} from '@/lib/api/endpoints/指令管理/指令管理'
 import { useGetAllUserGroups } from '@/lib/api/endpoints/用户组管理/用户组管理'
 import { useGetUsers } from '@/lib/api/endpoints/会议管理/会议管理'
+import { toast } from 'react-toastify'
 import type {
   GetForManagementInstructionType,
   GetForManagementStatus,
@@ -49,8 +56,10 @@ const typeOptions: Array<GetForManagementInstructionType> = [
 ]
 
 export default function InstructionsPage() {
+  const queryClient = useQueryClient()
   const router = useRouter()
-  const { isLoading: authLoading, isAuthenticated, canManageConference } = useAuth()
+  const { user, isLoading: authLoading, isAuthenticated, canManageConference } = useAuth()
+  const canToggleSubmissionSwitch = user?.role === 'DH' || user?.role === 'SYS_ADMIN'
 
   const [statusFilter, setStatusFilter] = useState<GetForManagementStatus | undefined>(undefined)
   const [typeFilter, setTypeFilter] = useState<GetForManagementInstructionType | undefined>(undefined)
@@ -89,6 +98,14 @@ export default function InstructionsPage() {
       enabled: isAuthenticated && canManageConference,
     },
   })
+  const { data: submissionSwitchData } = useGetSubmissionSwitch({
+    query: {
+      enabled: isAuthenticated && canManageConference,
+      refetchInterval: 30_000,
+      refetchIntervalInBackground: true,
+    },
+  })
+  const setSubmissionSwitchMutation = useSetSubmissionSwitch()
 
   const groups = useMemo(() => parseApiPayload<UserGroupResponse[]>(groupsData) || [], [groupsData])
   const delegateUsers = useMemo(() => {
@@ -106,8 +123,9 @@ export default function InstructionsPage() {
     if (!keyword) return delegateUsers
 
     return delegateUsers.filter(user => {
-      const normalizedName = (user.displayName?.trim() || user.name || '').toLowerCase()
-      return normalizedName.includes(keyword)
+      const normalizedDisplayName = (user.displayName?.trim() || '').toLowerCase()
+      const normalizedName = (user.name || '').toLowerCase()
+      return normalizedDisplayName.includes(keyword) || normalizedName.includes(keyword)
     })
   }, [delegateKeyword, delegateUsers])
   const submitterLabelMap = useMemo(() => {
@@ -119,6 +137,11 @@ export default function InstructionsPage() {
     }, {})
   }, [delegateUsers])
   const instructionPage = parseInstructionPage(parseApiPayload<unknown>(instructionsData))
+  const submissionSwitch = useMemo(
+    () => parseApiPayload<{ paused?: boolean }>(submissionSwitchData),
+    [submissionSwitchData],
+  )
+  const isSubmissionPaused = !!submissionSwitch?.paused
 
   useEffect(() => {
     if (!authLoading && (!isAuthenticated || !canManageConference)) {
@@ -134,6 +157,21 @@ export default function InstructionsPage() {
   const handleInstructionClick = (instruction: InstructionResponse) => {
     setSelectedInstructionUuid(instruction.uuid)
     setDetailOpen(true)
+  }
+
+  const handleToggleSubmissionSwitch = async () => {
+    if (!canToggleSubmissionSwitch) return
+
+    try {
+      await setSubmissionSwitchMutation.mutateAsync({
+        params: { paused: !isSubmissionPaused },
+      })
+      toast.success(!isSubmissionPaused ? '已暂停全局指令提交' : '已恢复全局指令提交')
+      await queryClient.invalidateQueries({ queryKey: getGetSubmissionSwitchQueryKey() })
+    } catch (error) {
+      console.error('Set submission switch failed:', error)
+      toast.error('更新全局指令提交开关失败，请稍后重试')
+    }
   }
 
   if (authLoading) {
@@ -153,6 +191,33 @@ export default function InstructionsPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>全局指令提交开关</CardTitle>
+            <CardDescription>可查看当前暂停状态；DH / SYS_ADMIN 可切换暂停与恢复</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="rounded-lg border bg-muted/20 p-3 text-sm">
+              <span className="text-muted-foreground">当前状态: </span>
+              {isSubmissionPaused ? '已暂停提交' : '允许提交'}
+            </div>
+            {!canToggleSubmissionSwitch && (
+              <p className="text-sm text-muted-foreground">仅 DH 与系统管理员可切换开关</p>
+            )}
+            <Button
+              onClick={handleToggleSubmissionSwitch}
+              disabled={!canToggleSubmissionSwitch || setSubmissionSwitchMutation.isPending}
+              variant={isSubmissionPaused ? 'default' : 'outline'}
+            >
+              {setSubmissionSwitchMutation.isPending
+                ? '更新中...'
+                : isSubmissionPaused
+                  ? '恢复提交'
+                  : '暂停提交'}
+            </Button>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle>指令管理</CardTitle>
@@ -234,7 +299,7 @@ export default function InstructionsPage() {
                 <Input
                   value={delegateKeyword}
                   onChange={event => setDelegateKeyword(event.target.value)}
-                  placeholder="输入代表 displayName 筛选"
+                  placeholder="输入代表 displayName / name 筛选"
                 />
                 <div className="max-h-32 overflow-y-auto rounded-md border p-2">
                   {filteredDelegateUsers.length === 0 ? (
