@@ -16,6 +16,7 @@ import org.mockito.junit.jupiter.MockitoExtension
 import top.bearingwall.asya.dto.RoundPublishRequest
 import top.bearingwall.asya.dto.RoundSetCurrentRequest
 import top.bearingwall.asya.dto.RoundSetNextRequest
+import top.bearingwall.asya.dto.RoundSetRemainingRequest
 import top.bearingwall.asya.dto.RoundUpdateRequest
 import top.bearingwall.asya.model.Conference
 import top.bearingwall.asya.model.Round
@@ -276,5 +277,36 @@ class RoundServiceTest {
         assertNotNull(response.endAt)
         assertEquals(90, round.remainingSeconds)
         assertEquals(RoundStatus.RUNNING, round.status)
+    }
+
+    @Test
+    fun `setRoundRemaining updates remaining time and endAt for running round`() {
+        val conferenceId = UUID.randomUUID()
+        val now = LocalDateTime.now()
+        val round = Round(
+            uuid = UUID.randomUUID(),
+            conference = Conference(uuid = conferenceId, name = "conf", description = "desc"),
+            name = "Round 1",
+            durationSeconds = 120,
+            remainingSeconds = 80,
+            status = RoundStatus.RUNNING,
+            isCurrent = true,
+            endAt = now.plusSeconds(80),
+            updatedAt = now
+        )
+
+        `when`(roundRepository.findCurrentForUpdate(conferenceId)).thenReturn(round)
+        `when`(roundRepository.findByUuidAndConferenceUuid(round.uuid!!, conferenceId)).thenReturn(round)
+        `when`(roundRepository.save(any(Round::class.java))).thenAnswer { it.getArgument(0) }
+
+        val response = roundService.setRoundRemaining(
+            round.uuid!!,
+            RoundSetRemainingRequest(remainingSeconds = 45),
+            conferenceId
+        )
+
+        assertEquals(45, response.remainingSeconds)
+        assertEquals(45, round.remainingSeconds)
+        assertNotNull(round.endAt)
     }
 }

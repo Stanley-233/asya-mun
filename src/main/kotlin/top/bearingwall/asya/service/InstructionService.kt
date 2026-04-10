@@ -23,7 +23,8 @@ import java.util.UUID
 class InstructionService(
     private val instructionRepository: InstructionRepository,
     private val userRepository: UserRepository,
-    private val timeService: TimeService
+    private val timeService: TimeService,
+    private val systemConfigService: SystemConfigService
 ) {
 
     @Transactional
@@ -31,6 +32,7 @@ class InstructionService(
     fun createInstruction(request: InstructionCreateRequest, submitterUuid: UUID): InstructionResponse {
         val submitter = getUser(submitterUuid)
         require(submitter.role == UserRole.DELEGATE) { "Only DELEGATE can submit instruction" }
+        require(!systemConfigService.isInstructionSubmissionPaused()) { "Instruction submission is paused" }
 
         val conference = submitter.conference ?: throw IllegalStateException("Submitter not associated with any conference")
         val submitRealTime = LocalDateTime.now()

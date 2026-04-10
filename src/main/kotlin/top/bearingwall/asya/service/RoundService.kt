@@ -8,6 +8,7 @@ import top.bearingwall.asya.dto.RoundPublishRequest
 import top.bearingwall.asya.dto.RoundResponse
 import top.bearingwall.asya.dto.RoundSetNextRequest
 import top.bearingwall.asya.dto.RoundSetCurrentRequest
+import top.bearingwall.asya.dto.RoundSetRemainingRequest
 import top.bearingwall.asya.dto.RoundUpdateRequest
 import top.bearingwall.asya.model.AuditActionType
 import top.bearingwall.asya.model.Round
@@ -117,6 +118,28 @@ class RoundService(
         target.updatedAt = now
 
         return roundRepository.save(target).toResponse(now)
+    }
+
+    @Transactional
+    @Auditable(type = AuditActionType.ROUND_SET_REMAINING, content = "设置回合剩余时间")
+    fun setRoundRemaining(roundUuid: UUID, request: RoundSetRemainingRequest, conferenceUuid: UUID): RoundResponse {
+        require(request.remainingSeconds >= 0) { "remainingSeconds must be greater than or equal to 0" }
+
+        advanceIfExpired(conferenceUuid)
+
+        val round = roundRepository.findByUuidAndConferenceUuid(roundUuid, conferenceUuid)
+            ?: throw IllegalArgumentException("Round not found: $roundUuid")
+
+        val now = LocalDateTime.now()
+        round.remainingSeconds = request.remainingSeconds
+        if (round.status == RoundStatus.RUNNING) {
+            round.endAt = now.plusSeconds(request.remainingSeconds)
+        } else {
+            round.endAt = null
+        }
+        round.updatedAt = now
+
+        return roundRepository.save(round).toResponse(now)
     }
 
     @Transactional

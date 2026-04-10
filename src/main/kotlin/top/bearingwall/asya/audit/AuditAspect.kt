@@ -62,8 +62,17 @@ class AuditAspect(
         }
 
         val registrationArg = args.filterIsInstance<UserRegistrationRequest>().firstOrNull()
-        if (registrationArg != null && resolvedName == null) {
-            resolvedName = registrationArg.name
+        if (registrationArg != null) {
+            val userByName = userRepository.findByName(registrationArg.name)
+            if (userByName?.uuid != null && resolvedUuid == null) {
+                resolvedUuid = userByName.uuid
+            }
+            if (!userByName?.name.isNullOrBlank() && resolvedName == null) {
+                resolvedName = userByName?.name
+            }
+            if (resolvedName == null) {
+                resolvedName = registrationArg.name
+            }
         }
 
         val uuidArg = args.filterIsInstance<UUID>().firstOrNull()

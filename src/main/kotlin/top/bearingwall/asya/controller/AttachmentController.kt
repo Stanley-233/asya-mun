@@ -1,5 +1,6 @@
 package top.bearingwall.asya.controller
 
+import io.jsonwebtoken.JwtException
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.http.ContentDisposition
@@ -145,8 +146,9 @@ class AttachmentController(
     }
 
     private fun <T> handleException(e: Exception): ResponseEntity<Result<T>> {
-        e.printStackTrace()
         return when (e) {
+            is JwtException -> ResponseEntity.status(HttpStatus.OK)
+                .body(Result.failure(BizCode.TOKEN_INVALID, "Token已失效，请重新登录"))
             is UnsupportedOperationException -> ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
                 .body(Result.failure(BizCode.PARAM_ERROR, e.message ?: "未实现"))
             is IllegalArgumentException -> ResponseEntity.status(HttpStatus.OK)

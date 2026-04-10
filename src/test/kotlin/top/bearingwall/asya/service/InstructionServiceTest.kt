@@ -40,6 +40,9 @@ class InstructionServiceTest {
     @Mock
     lateinit var timeService: TimeService
 
+    @Mock
+    lateinit var systemConfigService: SystemConfigService
+
     @InjectMocks
     lateinit var instructionService: InstructionService
 
@@ -61,6 +64,7 @@ class InstructionServiceTest {
         )
 
         `when`(userRepository.findById(submitter.uuid!!)).thenReturn(Optional.of(submitter))
+        `when`(systemConfigService.isInstructionSubmissionPaused()).thenReturn(false)
         `when`(timeService.getCurrentGameTime(conference.uuid!!)).thenReturn(submitGameTime)
         `when`(instructionRepository.save(any(Instruction::class.java))).thenAnswer { invocation ->
             val instruction = invocation.getArgument<Instruction>(0)
@@ -78,6 +82,32 @@ class InstructionServiceTest {
         assertEquals(submitGameTime, saved.submitGameTime)
         assertEquals("Mobilize", response.title)
         assertEquals(InstructionStatus.SUBMITTED, response.status)
+    }
+
+    @Test
+    fun `createInstruction fails when submission switch is paused`() {
+        val conference = Conference(uuid = UUID.randomUUID(), name = "conf", description = "desc")
+        val submitter = User(
+            uuid = UUID.randomUUID(),
+            name = "delegate1",
+            password = "pwd",
+            role = UserRole.DELEGATE,
+            conference = conference
+        )
+        val request = InstructionCreateRequest(
+            title = "Mobilize",
+            instructionType = InstructionType.MILITARY,
+            content = "Move forces"
+        )
+
+        `when`(userRepository.findById(submitter.uuid!!)).thenReturn(Optional.of(submitter))
+        `when`(systemConfigService.isInstructionSubmissionPaused()).thenReturn(true)
+
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            instructionService.createInstruction(request, submitter.uuid!!)
+        }
+
+        assertTrue(ex.message!!.contains("paused"))
     }
 
     @Test

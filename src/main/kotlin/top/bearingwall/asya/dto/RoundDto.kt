@@ -40,6 +40,12 @@ data class RoundSetCurrentRequest(
     val roundId: String
 )
 
+@Schema(description = "设置回合剩余时间请求")
+data class RoundSetRemainingRequest(
+    @Schema(description = "剩余时长（秒）")
+    val remainingSeconds: Long
+)
+
 @Schema(description = "回合响应")
 data class RoundResponse(
     @Schema(description = "回合ID")

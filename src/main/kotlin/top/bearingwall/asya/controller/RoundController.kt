@@ -93,6 +93,25 @@ class RoundController(
         }
     }
 
+    @Operation(summary = "设置回合剩余时间", description = "DH、DM、SYS_ADMIN 可修改回合剩余时间（秒）")
+    @PutMapping("/{roundId}/remaining")
+    fun updateRemaining(
+        @RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String,
+        @PathVariable roundId: UUID,
+        @RequestBody request: RoundSetRemainingRequest
+    ): ResponseEntity<Result<RoundResponse>> {
+        return try {
+            val user = userService.getUserFromToken(extractBearer(authorization))
+            assertManagePermission(user.role)
+            val conferenceId = user.conference?.uuid ?: throw IllegalArgumentException("未加入任何会议")
+
+            val resp = roundService.setRoundRemaining(roundId, request, conferenceId)
+            ResponseEntity.ok(Result.success(resp))
+        } catch (e: Exception) {
+            handleException(e)
+        }
+    }
+
     @Operation(summary = "暂停当前回合", description = "DH、DM、SYS_ADMIN 可暂停当前回合")
     @PostMapping("/{roundId}/pause")
     fun pause(
