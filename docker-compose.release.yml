@@ -1,6 +1,6 @@
 services:
   app:
-    image: ${ASYA_IMAGE:-stanley-233/asya-mun:latest}
+    image: ${ASYA_IMAGE:-stanleyzh/asya-mun:latest}
     depends_on:
       db:
         condition: service_healthy
