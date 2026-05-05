@@ -56,12 +56,11 @@ jobs:
             echo "latest_tag=${latest_tag}"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Build application image
-        run: |
-          docker build \
-            --tag "${{ steps.meta.outputs.version_tag }}" \
-            --tag "${{ steps.meta.outputs.latest_tag }}" \
-            .
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Login to DockerHub
         uses: docker/login-action@v3
@@ -69,10 +68,15 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Push application image
-        run: |
-          docker push "${{ steps.meta.outputs.version_tag }}"
-          docker push "${{ steps.meta.outputs.latest_tag }}"
+      - name: Build and push application image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.version_tag }}
+            ${{ steps.meta.outputs.latest_tag }}
 
       - name: Persist release metadata
         run: |
@@ -85,6 +89,7 @@ jobs:
             "VERSION_TAG=${{ steps.meta.outputs.version_tag }}" \
             "LATEST_TAG=${{ steps.meta.outputs.latest_tag }}" \
             "SOURCE_SHA=${GITHUB_SHA}" \
+            "PLATFORMS=linux/amd64,linux/arm64" \
             > release-metadata/release-metadata.env
 
       - name: Upload release metadata
@@ -92,4 +97,4 @@ jobs:
         with:
           name: release-metadata
           path: release-metadata/release-metadata.env
-          retention-days: 1
+          retention-days: 7
