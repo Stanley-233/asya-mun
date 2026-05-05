@@ -1,0 +1,74 @@
+name: Build and Upload Artifact
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up JDK 21
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
+
+    - name: Build with Gradle
+      run: ./gradlew bootJar
+
+    - name: Upload Build Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: executable-jar
+        path: |
+          build/libs/*.jar
+          !build/libs/*-plain.jar
+
+#  deploy:
+#    needs: build
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Download deployment package
+#        uses: actions/download-artifact@v4
+#        with:
+#          name: executable-jar
+#          path: build/libs
+#
+#      - name: Prepare deployment jar
+#        run: |
+#          set -euo pipefail
+#          JAR_PATH=$(ls -1 build/libs/*.jar | grep -v -- '-plain.jar' | head -n 1)
+#          cp "$JAR_PATH" build/libs/asya-backend.jar
+#
+#      - name: Upload to Server
+#        uses: appleboy/scp-action@master
+#        with:
+#          host: ${{ secrets.SERVER_HOST }}
+#          username: ${{ secrets.SERVER_USER }}
+#          key: ${{ secrets.SERVER_SSH_KEY }}
+#          source: build/libs/asya-backend.jar
+#          target: /home/ubuntu/asya-backend/
+#          strip_components: 2
+#
+#      - name: Deploy
+#        uses: appleboy/ssh-action@master
+#        with:
+#          host: ${{ secrets.SERVER_HOST }}
+#          username: ${{ secrets.SERVER_USER }}
+#          key: ${{ secrets.SERVER_SSH_KEY }}
+#          script: |
+#            cd /home/ubuntu/asya-backend
+#            sudo systemctl restart asya-backend.service
+#
