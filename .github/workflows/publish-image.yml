@@ -1,0 +1,95 @@
+name: Publish Docker Image
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+env:
+  IMAGE_NAME: asya-mun
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate release tag
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          expected_tag="v$(tr -d '\n' < VERSION)"
+
+          if ! printf '%s' "$tag" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Invalid release tag: $tag"
+            exit 1
+          fi
+
+          if [ "$tag" != "$expected_tag" ]; then
+            echo "Release tag $tag does not match VERSION file ($expected_tag)."
+            exit 1
+          fi
+
+      - name: Set image metadata
+        id: meta
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${DOCKERHUB_USERNAME:-}" ]; then
+            echo "DOCKERHUB_USERNAME secret is required."
+            exit 1
+          fi
+
+          image="${DOCKERHUB_USERNAME}/${IMAGE_NAME}"
+          version_tag="${image}:${GITHUB_REF_NAME}"
+          latest_tag="${image}:latest"
+
+          {
+            echo "image=${image}"
+            echo "version_tag=${version_tag}"
+            echo "latest_tag=${latest_tag}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build application image
+        run: |
+          docker build \
+            --tag "${{ steps.meta.outputs.version_tag }}" \
+            --tag "${{ steps.meta.outputs.latest_tag }}" \
+            .
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Push application image
+        run: |
+          docker push "${{ steps.meta.outputs.version_tag }}"
+          docker push "${{ steps.meta.outputs.latest_tag }}"
+
+      - name: Persist release metadata
+        run: |
+          set -euo pipefail
+          mkdir -p release-metadata
+          printf '%s\n' \
+            "APP_VERSION=$(tr -d '\n' < VERSION)" \
+            "RELEASE_TAG=${GITHUB_REF_NAME}" \
+            "IMAGE_NAME=${{ steps.meta.outputs.image }}" \
+            "VERSION_TAG=${{ steps.meta.outputs.version_tag }}" \
+            "LATEST_TAG=${{ steps.meta.outputs.latest_tag }}" \
+            "SOURCE_SHA=${GITHUB_SHA}" \
+            > release-metadata/release-metadata.env
+
+      - name: Upload release metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-metadata
+          path: release-metadata/release-metadata.env
+          retention-days: 1

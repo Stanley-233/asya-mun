@@ -2,11 +2,15 @@ package top.bearingwall.asya.config
 
 import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.info.Info
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
 @Configuration
-class OpenApiConfig {
+class OpenApiConfig(
+    @Value("\${app.version}")
+    private val appVersion: String,
+) {
 
     @Bean
     fun customOpenAPI(): OpenAPI {
@@ -14,9 +18,8 @@ class OpenApiConfig {
             .info(
                 Info()
                     .title("Asya Backend API")
-                    .version("1.0.0")
+                    .version(appVersion)
                     .description("API documentation for Asya Backend application")
             )
     }
 }
-

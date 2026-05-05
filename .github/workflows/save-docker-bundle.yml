@@ -1,0 +1,74 @@
+name: Save Docker Bundle
+
+on:
+  workflow_run:
+    workflows:
+      - Publish Docker Image
+    types:
+      - completed
+
+env:
+  POSTGRES_IMAGE: postgres:16-alpine
+
+jobs:
+  bundle:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+
+    steps:
+      - name: Download release metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p release-metadata
+          gh run download "${{ github.event.workflow_run.id }}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --name release-metadata \
+            --dir release-metadata
+
+      - name: Load release metadata
+        id: meta
+        run: |
+          set -euo pipefail
+          . release-metadata/release-metadata.env
+          {
+            echo "release_tag=${RELEASE_TAG}"
+            echo "version_tag=${VERSION_TAG}"
+            echo "source_sha=${SOURCE_SHA}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Checkout release source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.meta.outputs.source_sha }}
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Pull release images
+        run: |
+          docker pull "${{ steps.meta.outputs.version_tag }}"
+          docker pull "${POSTGRES_IMAGE}"
+
+      - name: Save Docker bundle
+        run: |
+          mkdir -p docker-artifacts
+          docker save \
+            "${{ steps.meta.outputs.version_tag }}" \
+            "${POSTGRES_IMAGE}" \
+            -o "docker-artifacts/asya-mun-docker-images-${{ steps.meta.outputs.release_tag }}.tar"
+          cp docker-compose.release.yml docker-artifacts/docker-compose.release.yml
+
+      - name: Upload Docker bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: asya-mun-docker-bundle-${{ steps.meta.outputs.release_tag }}
+          path: docker-artifacts/
+          retention-days: 1

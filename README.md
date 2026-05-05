@@ -4,6 +4,31 @@ ASYA 系统（非对称联动自动化系统，Asymmetric SYnergy Automation Sys
 
 项目期望以信息化的手段，逐渐改善传统模拟联合国特委（如联动会场）中，由于代表与学团之间信息交互渠道不足而导致的参会体验问题。
 
+## 部署指南
+
+当前版本号统一由根目录的 [VERSION](./VERSION) 文件管理。更新版本时，先修改 `VERSION`，再创建并推送对应的 Git 标签 `vX.Y.Z`。GitHub Actions 会校验 tag 必须等于 `v$(cat VERSION)`。
+
+正式发布通过推送语义化标签 `vX.Y.Z` 触发。发布成功后：
+
+- DockerHub 会推送 `DOCKERHUB_USERNAME/asya-mun:vX.Y.Z`
+- DockerHub 会同步更新 `DOCKERHUB_USERNAME/asya-mun:latest`
+- GitHub Release 会自动生成提交历史摘要
+- GitHub Release 不上传自定义二进制或 Docker 镜像附件，仅保留 GitHub 自带源码包
+
+使用 DockerHub 镜像启动：
+
+```bash
+sudo docker compose -f docker-compose.release.yml pull
+sudo docker compose -f docker-compose.release.yml up -d
+```
+
+如果需要覆盖默认镜像地址，可以在执行前设置 `ASYA_IMAGE`，例如：
+
+```bash
+ASYA_IMAGE=your-dockerhub-user/asya-mun:v1.2.3 \
+  sudo docker compose -f docker-compose.release.yml up -d
+```
+
 ## 许可证
 
 ASYA 采用双许可证授权模式。

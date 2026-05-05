@@ -1,0 +1,37 @@
+services:
+  app:
+    image: ${ASYA_IMAGE:-asya-mun:local}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/asya
+      DB_USERNAME: asya
+      DB_PASSWORD: ${DB_PASSWORD:-asya-local-password}
+      JWT_SECRET: ${JWT_SECRET:-asya-local-jwt-secret-key-change-me-32chars}
+      NEXT_PUBLIC_API_BASE_URL: ""
+      NEXT_PROXY_API_TO_BACKEND: "true"
+      SERVER_PORT: "8080"
+      PORT: "3000"
+    ports:
+      - "3000:3000"
+
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: asya
+      POSTGRES_USER: asya
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-asya-local-password}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U asya -d asya"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  pgdata:
