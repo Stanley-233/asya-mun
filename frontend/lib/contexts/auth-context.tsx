@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useMemo, useState } from 'react'
+import React, { createContext, useContext, useMemo, useSyncExternalStore } from 'react'
 import { useGetCurrentUser } from '@/lib/api/endpoints/用户管理/用户管理'
 import { parseApiPayload } from '@/lib/api/response-utils'
 import type { UserInfoResponse } from '@/lib/api/endpoints/asyaBackendAPI.schemas'
@@ -16,10 +16,32 @@ export interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+const TOKEN_STORAGE_EVENT = 'auth-token-change'
+
+function subscribeToTokenChange(onStoreChange: () => void) {
+  window.addEventListener('storage', onStoreChange)
+  window.addEventListener(TOKEN_STORAGE_EVENT, onStoreChange)
+
+  return () => {
+    window.removeEventListener('storage', onStoreChange)
+    window.removeEventListener(TOKEN_STORAGE_EVENT, onStoreChange)
+  }
+}
+
+function getTokenSnapshot() {
+  return !!localStorage.getItem('token')
+}
+
+function getServerTokenSnapshot() {
+  return false
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [hasToken, setHasToken] = useState(() => (
-    typeof window !== 'undefined' ? !!localStorage.getItem('token') : false
-  ))
+  const hasToken = useSyncExternalStore(
+    subscribeToTokenChange,
+    getTokenSnapshot,
+    getServerTokenSnapshot,
+  )
   
   // 只在有 token 时才调用 API
   const { data: currentUserData, isLoading: queryLoading, error } = useGetCurrentUser({
@@ -36,9 +58,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [currentUserData, error, hasToken])
 
   const logout = () => {
-    setHasToken(false)
     if (typeof window !== 'undefined') {
       localStorage.removeItem('token')
+      window.dispatchEvent(new Event(TOKEN_STORAGE_EVENT))
       window.location.href = '/login'
     }
   }
