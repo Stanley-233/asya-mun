@@ -25,10 +25,14 @@ function getApiErrorMessage(error: unknown, fallback: string) {
   return apiError.message || apiError.response?.data?.message || fallback
 }
 
+const LICENSE_ACKNOWLEDGED_KEY = 'asya-license-acknowledged'
+
 export default function LoginPage() {
   const [tab, setTab] = useState<'login' | 'register'>('login')
   const [loading, setLoading] = useState(false)
   const [allowRegister, setAllowRegister] = useState(true)
+  const [termsOpen, setTermsOpen] = useState(false)
+  const [pendingRedirect, setPendingRedirect] = useState(false)
 
   const { data: registrationSwitchData } = useGetRegistrationSwitch({
     query: {
@@ -63,6 +67,47 @@ export default function LoginPage() {
     }
   }, [registrationSwitchData, tab])
 
+  const finishLogin = () => {
+    window.location.href = '/'
+  }
+
+  const handleAuthSuccess = (message: string) => {
+    const hasAcknowledged = localStorage.getItem(LICENSE_ACKNOWLEDGED_KEY) === 'true'
+
+    if (hasAcknowledged) {
+      toast.success(message, {
+        closeOnClick: false,
+        draggable: false,
+        onClose: finishLogin,
+      })
+      return
+    }
+
+    toast.success('登录成功，请先确认 AGPL 授权与使用说明后进入系统', {
+      closeOnClick: false,
+      draggable: false,
+    })
+    setPendingRedirect(true)
+    setTermsOpen(true)
+  }
+
+  const handleTermsOpenChange = (nextOpen: boolean) => {
+    if (!pendingRedirect && !nextOpen) {
+      setTermsOpen(false)
+      return
+    }
+
+    if (!nextOpen && pendingRedirect) {
+      localStorage.setItem(LICENSE_ACKNOWLEDGED_KEY, 'true')
+      setPendingRedirect(false)
+      setTermsOpen(false)
+      finishLogin()
+      return
+    }
+
+    setTermsOpen(nextOpen)
+  }
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -89,14 +134,7 @@ export default function LoginPage() {
       if (token) {
         localStorage.setItem('token', token)
         localStorage.setItem('user', JSON.stringify(responseData))
-        toast.success('登录成功，正在跳转到主页...', {
-          closeOnClick: false,
-          draggable: false,
-          onClose: () => {
-            // Toast 结束后再跳转，确保提示完整展示
-            window.location.href = '/'
-          },
-        })
+        handleAuthSuccess('登录成功，正在跳转到主页...')
       } else {
         console.warn('未找到 token，响应数据:', responseData)
         toast.error('登录成功但未获取到 Token')
@@ -154,14 +192,7 @@ export default function LoginPage() {
         localStorage.setItem('token', token)
         localStorage.setItem('user', JSON.stringify(loginData))
         setRegisterForm({ name: '', displayName: '', password: '', confirmPassword: '', role: 'DM' })
-        toast.success('注册成功，正在跳转到主页...', {
-          closeOnClick: false,
-          draggable: false,
-          onClose: () => {
-            // Toast 结束后再跳转，确保提示完整展示
-            window.location.href = '/'
-          },
-        })
+        handleAuthSuccess('注册成功，正在跳转到主页...')
       } else {
         toast.warning('注册成功，但自动登录失败，请手动登录')
         setTab('login')
@@ -367,6 +398,13 @@ export default function LoginPage() {
         <div className="flex justify-center mt-4">
           <TermsDialog variant="link" />
         </div>
+
+        <TermsDialog
+          open={termsOpen}
+          onOpenChange={handleTermsOpenChange}
+          showTrigger={false}
+          confirmLabel="确认并进入系统"
+        />
       </div>
     </div>
   )

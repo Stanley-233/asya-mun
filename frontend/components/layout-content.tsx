@@ -2,13 +2,23 @@
 
 import { Navbar } from "@/components/navbar"
 
+const REPOSITORY_URL = 'https://www.github.com/Stanley-233/asya-mun'
+
 export function LayoutContent({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
       <main className="flex-1">{children}</main>
       <footer className="border-t bg-muted/20 px-4 py-4 text-center text-sm text-muted-foreground">
-        ASYA - 非对称联动推演自动化系统 | Copyright © 2026 Stanley. All Rights Reserved.
+        <p>ASYA - 非对称联动推演自动化系统</p>
+        <p className="mt-1">
+          Licensed under AGPL-3.0-or-later · 开源仓库：
+          {' '}
+          <a href={REPOSITORY_URL} target="_blank" rel="noreferrer" className="underline underline-offset-4 hover:text-foreground">
+            {REPOSITORY_URL}
+          </a>
+        </p>
+        <p className="mt-1 text-xs">闭源商业使用请联系开发者获取商业授权。</p>
       </footer>
     </div>
   )
