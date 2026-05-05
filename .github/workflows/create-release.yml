@@ -49,13 +49,12 @@ jobs:
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const guidance = [
-              '## Deployment',
+              '## 部署说明',
               '',
-              '- This release does not upload custom binary or Docker image assets.',
-              '- Source archives are available in GitHub\\'s built-in `Source code (zip)` and `Source code (tar.gz)` downloads.',
-              '- Pull the latest published image before starting:',
+              '- 源码压缩包可直接使用 GitHub 自带的 `Source code (zip)` 和 `Source code (tar.gz)` 下载。',
+              '- 部署前先拉取最新已发布镜像：',
               '  `sudo docker compose -f docker-compose.release.yml pull`',
-              '- Start the stack from DockerHub with:',
+              '- 然后使用 DockerHub 上的镜像启动服务：',
               '  `sudo docker compose -f docker-compose.release.yml up -d`',
             ].join('\\n');
 
