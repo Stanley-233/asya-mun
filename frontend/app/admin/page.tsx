@@ -1,7 +1,9 @@
 'use client'
 
+import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { toast } from 'react-toastify'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -28,6 +30,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import type { UserInfoResponse, UserUpdateRequestRole, ConferenceRequestStatus, ConferenceResponse, BatchRegisterUserItem } from "@/lib/api/endpoints/asyaBackendAPI.schemas"
+import { getListAll1QueryKey } from "@/lib/api/endpoints/用户管理/用户管理"
+import { getListAll2QueryKey } from "@/lib/api/endpoints/会议管理/会议管理"
 
 const roleLabels: Record<string, string> = {
   'SYS_ADMIN': '系统管理员',
@@ -49,24 +53,74 @@ const statusOptions = [
   { value: 'COMPLETED', label: '已结束' },
 ]
 
+const UNASSIGNED_CONFERENCE_VALUE = '__UNASSIGNED__'
+
+type UserWithConference = UserInfoResponse & {
+  conferenceId?: string
+  conferenceUuid?: string
+  conferenceName?: string
+}
+
+type UserEditFormValue = {
+  name: string
+  displayName: string
+  role: UserUpdateRequestRole
+  conferenceId: string
+}
+
+type ApiEnvelope<T> = {
+  data?: T
+}
+
+type ApiResponseLike<T> = {
+  data?: Blob | string | T | ApiEnvelope<T>
+}
+
+const getUserConferenceId = (user: UserInfoResponse) => {
+  const userWithConference = user as UserWithConference
+  return userWithConference.conferenceId || userWithConference.conferenceUuid || ''
+}
+
+const parseApiPayload = <T,>(response: ApiResponseLike<T> | undefined, fallback: T): T => {
+  if (!response?.data) return fallback
+
+  try {
+    if (response.data instanceof Blob) {
+      return fallback
+    }
+
+    const parsedData = typeof response.data === 'string'
+      ? JSON.parse(response.data) as T | ApiEnvelope<T>
+      : response.data as T | ApiEnvelope<T>
+
+    if (parsedData && typeof parsedData === 'object' && 'data' in parsedData) {
+      return (parsedData.data ?? fallback) as T
+    }
+
+    return parsedData as T
+  } catch (err) {
+    console.error('Failed to parse API response:', err)
+    return fallback
+  }
+}
+
 export default function AdminPage() {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const { isLoading: authLoading, isSysAdmin, isAuthenticated } = useAuth()
-  const { data: usersData, isLoading: usersLoading } = useListAll1()
-  const { data: conferencesData, isLoading: conferencesLoading } = useListAll2()
-  const { mutate: updateUser, isPending: isUpdating } = useUpdateUser()
+  const { data: usersData, isLoading: usersLoading, refetch: refetchUsers } = useListAll1()
+  const { data: conferencesData, refetch: refetchConferences } = useListAll2()
+  const { mutateAsync: updateUserAsync, isPending: isUpdating } = useUpdateUser()
   const { mutate: deleteUser, isPending: isDeleting } = useDeleteUser()
   const { data: registrationSwitchData, isLoading: registrationSwitchLoading, refetch: refetchRegistrationSwitch } = useGetRegistrationSwitch()
   const { mutate: setRegistrationSwitch, isPending: isSettingRegistrationSwitch } = useSetRegistrationSwitch()
   const { mutate: resetPassword, isPending: isResettingPassword } = useResetPassword()
   const { mutate: batchRegister, isPending: isBatchRegistering } = useBatchRegister()
   const { mutate: createConference, isPending: isCreating } = useCreate()
-  const { mutate: assignUser, isPending: isAssigning } = useAssignUser()
+  const { mutateAsync: assignUserAsync, isPending: isAssigning } = useAssignUser()
 
-  const [users, setUsers] = useState<UserInfoResponse[]>([])
-  const [conferences, setConferences] = useState<ConferenceResponse[]>([])
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [editForm, setEditForm] = useState<Record<string, { name: string; displayName: string; role: UserUpdateRequestRole }>>({})
+  const [editForm, setEditForm] = useState<Record<string, UserEditFormValue>>({})
   const [showCreateConference, setShowCreateConference] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [userToDelete, setUserToDelete] = useState<UserInfoResponse | null>(null)
@@ -75,91 +129,41 @@ export default function AdminPage() {
     description: '',
     status: 'PREPARING' as ConferenceRequestStatus
   })
-  const [assigningUserId, setAssigningUserId] = useState<string | null>(null)
-  const [selectedConferenceId, setSelectedConferenceId] = useState<string>('')
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
-  const [registrationAllowed, setRegistrationAllowed] = useState<boolean | null>(null)
   const [resetDialogOpen, setResetDialogOpen] = useState(false)
   const [userToReset, setUserToReset] = useState<UserInfoResponse | null>(null)
   const [resetForm, setResetForm] = useState({ password: '', confirmPassword: '' })
-  const [columnSpacing, setColumnSpacing] = useState(24)
+  const [columnSpacing] = useState(24)
   const [batchDialogOpen, setBatchDialogOpen] = useState(false)
   const [batchConferenceId, setBatchConferenceId] = useState('')
   const [batchUsers, setBatchUsers] = useState<BatchRegisterUserItem[]>([])
   const [batchCsvError, setBatchCsvError] = useState<string | null>(null)
+
+  const users = useMemo(
+    () => {
+      const parsed = parseApiPayload<UserInfoResponse[] | UserInfoResponse>(usersData, [])
+      return Array.isArray(parsed) ? parsed : []
+    },
+    [usersData]
+  )
+
+  const conferences = useMemo(
+    () => {
+      const parsed = parseApiPayload<ConferenceResponse[] | ConferenceResponse>(conferencesData, [])
+      return Array.isArray(parsed) ? parsed : []
+    },
+    [conferencesData]
+  )
+
+  const registrationAllowed = useMemo(
+    () => parseApiPayload<boolean | null>(registrationSwitchData, null),
+    [registrationSwitchData]
+  )
 
   useEffect(() => {
     if (!authLoading && (!isAuthenticated || !isSysAdmin)) {
       router.push('/')
     }
   }, [authLoading, isAuthenticated, isSysAdmin, router])
-
-  useEffect(() => {
-    if (usersData && !usersLoading) {
-      try {
-        const responseData = (usersData as any).data
-        if (responseData) {
-          const parsedData = typeof responseData === 'string'
-            ? JSON.parse(responseData)
-            : responseData
-
-          // 提取用户列表
-          const usersList = parsedData.data || parsedData
-          const userArray = Array.isArray(usersList) ? usersList : []
-          setUsers(userArray)
-
-          // 初始化编辑表单
-          const formData: Record<string, { name: string; displayName: string; role: UserUpdateRequestRole }> = {}
-          userArray.forEach((user: UserInfoResponse) => {
-            formData[user.uuid] = {
-              name: user.name,
-              displayName: user.displayName || '',
-              role: user.role as UserUpdateRequestRole
-            }
-          })
-          setEditForm(formData)
-        }
-      } catch (err) {
-        console.error('Failed to parse users data:', err)
-        setUsers([])
-      }
-    }
-  }, [usersData, usersLoading])
-
-  useEffect(() => {
-    if (conferencesData && !conferencesLoading) {
-      try {
-        const responseData = (conferencesData as any).data
-        if (responseData) {
-          const parsedData = typeof responseData === 'string'
-            ? JSON.parse(responseData)
-            : responseData
-
-          const conferencesList = parsedData.data || parsedData
-          const conferenceArray = Array.isArray(conferencesList) ? conferencesList : []
-          setConferences(conferenceArray)
-        }
-      } catch (err) {
-        console.error('Failed to parse conferences data:', err)
-        setConferences([])
-      }
-    }
-  }, [conferencesData, conferencesLoading])
-
-  useEffect(() => {
-    if (!registrationSwitchData) return
-    try {
-      const responseData = (registrationSwitchData as any).data
-      if (!responseData) return
-      const parsedData = typeof responseData === 'string' ? JSON.parse(responseData) : responseData
-      const allowed = typeof parsedData?.data === 'boolean' ? parsedData.data : parsedData
-      if (typeof allowed === 'boolean') {
-        setRegistrationAllowed(allowed)
-      }
-    } catch (err) {
-      console.error('Failed to parse registration switch data:', err)
-    }
-  }, [registrationSwitchData])
 
   const parseCsvLine = (line: string) => {
     const result: string[] = []
@@ -227,7 +231,7 @@ export default function AdminPage() {
         return
       }
       setBatchUsers(parsedUsers)
-    } catch (error) {
+    } catch {
       setBatchCsvError('读取 CSV 失败，请检查文件格式')
     }
   }
@@ -262,15 +266,26 @@ export default function AdminPage() {
   }
 
   const handleEditStart = (userId: string) => {
+    const user = users.find(item => item.uuid === userId)
+    if (user) {
+      setEditForm(prev => ({
+        ...prev,
+        [userId]: {
+          name: user.name,
+          displayName: user.displayName || '',
+          role: user.role as UserUpdateRequestRole,
+          conferenceId: getUserConferenceId(user),
+        }
+      }))
+    }
     setEditingId(userId)
-    setMessage(null)
   }
 
   const handleEditCancel = () => {
     setEditingId(null)
   }
 
-  const handleFieldChange = (userId: string, field: 'name' | 'displayName' | 'role', value: string) => {
+  const handleFieldChange = (userId: string, field: keyof UserEditFormValue, value: string) => {
     setEditForm(prev => ({
       ...prev,
       [userId]: {
@@ -280,32 +295,211 @@ export default function AdminPage() {
     }))
   }
 
-  const handleSave = (userId: string) => {
+  const syncUserInCache = (userId: string, formData: UserEditFormValue) => {
+    const matchedConference = conferences.find(conf => conf.uuid === formData.conferenceId)
+
+    queryClient.setQueryData(getListAll1QueryKey(), (current: unknown) => {
+      if (!current || typeof current !== 'object' || !('data' in (current as object))) {
+        return current
+      }
+
+      const response = current as { data?: string | ApiEnvelope<UserInfoResponse[]> | UserInfoResponse[] }
+      const parsed = parseApiPayload<UserInfoResponse[] | UserInfoResponse>(response, [])
+      const userArray = Array.isArray(parsed) ? parsed : []
+
+      const nextUsers = userArray.map((user) => {
+        if (user.uuid !== userId) return user
+
+        const original = user as UserWithConference
+        const nextConferenceId = formData.conferenceId || original.conferenceId || original.conferenceUuid || ''
+
+        return {
+          ...user,
+          name: formData.name,
+          displayName: formData.displayName,
+          role: formData.role,
+          conferenceName: matchedConference?.name || user.conferenceName,
+          conferenceId: nextConferenceId || undefined,
+          conferenceUuid: nextConferenceId || undefined,
+        } as UserInfoResponse
+      })
+
+      if (typeof response.data === 'string') {
+        return {
+          ...response,
+          data: JSON.stringify({ data: nextUsers }),
+        }
+      }
+
+      if (Array.isArray(response.data)) {
+        return {
+          ...response,
+          data: nextUsers,
+        }
+      }
+
+      return {
+        ...response,
+        data: {
+          ...(response.data && typeof response.data === 'object' ? response.data : {}),
+          data: nextUsers,
+        },
+      }
+    })
+
+    setEditForm(prev => ({
+      ...prev,
+      [userId]: formData
+    }))
+  }
+
+  const refreshAdminData = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: getListAll1QueryKey() }),
+      queryClient.invalidateQueries({ queryKey: getListAll2QueryKey() }),
+      refetchUsers(),
+      refetchConferences(),
+    ])
+  }
+
+  const handleSave = async (userId: string) => {
     const formData = editForm[userId]
+    const currentUser = users.find(user => user.uuid === userId)
     if (!formData || !formData.name.trim()) {
-      setMessage({ type: 'error', text: '用户昵称不能为空' })
+      toast.error('用户昵称不能为空')
       return
     }
 
-    updateUser(
-      {
-        uuid: userId,
-        data: {
-          name: formData.name,
-          displayName: formData.displayName,
-          role: formData.role
-        }
-      },
-      {
-        onSuccess: () => {
-          setEditingId(null)
-          setMessage({ type: 'success', text: '用户信息更新成功' })
-        },
-        onError: () => {
-          setMessage({ type: 'error', text: '更新失败，请重试' })
-        }
-      }
+    if (!currentUser) {
+      toast.error('未找到用户信息，请刷新后重试')
+      return
+    }
+
+    const currentConferenceId = getUserConferenceId(currentUser)
+    const nextConferenceId = formData.conferenceId
+    const hasUserInfoChange = (
+      currentUser.name !== formData.name ||
+      (currentUser.displayName || '') !== formData.displayName ||
+      currentUser.role !== formData.role
     )
+    const hasConferenceChange = currentConferenceId !== nextConferenceId
+
+    if (hasConferenceChange && !nextConferenceId) {
+      toast.error('当前暂不支持取消关联会议，请选择一个会议')
+      return
+    }
+
+    try {
+      if (hasUserInfoChange) {
+        await updateUserAsync({
+          uuid: userId,
+          data: {
+            name: formData.name,
+            displayName: formData.displayName,
+            role: formData.role
+          }
+        })
+      }
+
+      if (hasConferenceChange && nextConferenceId) {
+        await assignUserAsync({
+          data: {
+            conferenceUuid: nextConferenceId,
+            userUuid: userId
+          }
+        })
+      }
+
+      syncUserInCache(userId, formData)
+      setEditingId(null)
+      toast.success(hasConferenceChange ? '用户信息与关联会议更新成功' : '用户信息更新成功')
+      await refreshAdminData()
+    } catch {
+      toast.error('更新失败，请重试')
+    }
+  }
+
+  const handleConferenceSelectChange = (userId: string, value: string) => {
+    handleFieldChange(
+      userId,
+      'conferenceId',
+      value === UNASSIGNED_CONFERENCE_VALUE ? '' : value
+    )
+  }
+
+  const handleCreateConferenceSuccess = async () => {
+    toast.success('会议创建成功')
+    setShowCreateConference(false)
+    setConferenceForm({
+      name: '',
+      description: '',
+      status: 'PREPARING'
+    })
+    await refreshAdminData()
+  }
+
+  const getUserConferenceLabel = (user: UserInfoResponse) => {
+    const userWithConference = user as UserWithConference
+
+    if (userWithConference.conferenceName) {
+      return userWithConference.conferenceName
+    }
+
+    const conferenceId = getUserConferenceId(user)
+    if (!conferenceId) return '未关联'
+
+    const matched = conferences.find(conf => conf.uuid === conferenceId)
+    return matched?.name || '未关联'
+  }
+
+  const getConferenceSelectValue = (userId: string) => {
+    const value = editForm[userId]?.conferenceId
+    return value || UNASSIGNED_CONFERENCE_VALUE
+  }
+
+  const isSaving = isUpdating || isAssigning
+
+  const isConferenceSelectable = conferences.length > 0
+
+  const getSaveButtonLabel = () => {
+    if (isSaving) return '保存中...'
+    return '保存'
+  }
+
+  const handleCreateConference = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!conferenceForm.name.trim()) {
+      toast.error('会议名称不能为空')
+      return
+    }
+
+    if (!conferenceForm.description.trim()) {
+      toast.error('会议描述不能为空')
+      return
+    }
+
+    try {
+      createConference(
+        {
+          data: {
+            name: conferenceForm.name,
+            description: conferenceForm.description,
+            status: conferenceForm.status
+          }
+        },
+        {
+          onSuccess: () => {
+            void handleCreateConferenceSuccess()
+          },
+          onError: () => {
+            toast.error('创建失败，请重试')
+          }
+        }
+      )
+    } catch {
+      toast.error('创建失败，请重试')
+    }
   }
 
   const handleConferenceInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -323,48 +517,6 @@ export default function AdminPage() {
     }))
   }
 
-  const handleCreateConference = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (!conferenceForm.name.trim()) {
-      setMessage({ type: 'error', text: '会议名称不能为空' })
-      return
-    }
-
-    if (!conferenceForm.description.trim()) {
-      setMessage({ type: 'error', text: '会议描述不能为空' })
-      return
-    }
-
-    try {
-      createConference(
-        {
-          data: {
-            name: conferenceForm.name,
-            description: conferenceForm.description,
-            status: conferenceForm.status
-          }
-        },
-        {
-          onSuccess: () => {
-            setMessage({ type: 'success', text: '会议创建成功' })
-            setShowCreateConference(false)
-            setConferenceForm({
-              name: '',
-              description: '',
-              status: 'PREPARING'
-            })
-          },
-          onError: () => {
-            setMessage({ type: 'error', text: '创建失败，请重试' })
-          }
-        }
-      )
-    } catch (error) {
-      setMessage({ type: 'error', text: '创建失败，请重试' })
-    }
-  }
-
   const handleCancelCreateConference = () => {
     setShowCreateConference(false)
     setConferenceForm({
@@ -372,46 +524,6 @@ export default function AdminPage() {
       description: '',
       status: 'PREPARING'
     })
-    setMessage(null)
-  }
-
-  const handleAssignUser = (userId: string) => {
-    setAssigningUserId(userId)
-    setSelectedConferenceId('')
-    setMessage(null)
-  }
-
-  const handleCancelAssign = () => {
-    setAssigningUserId(null)
-    setSelectedConferenceId('')
-  }
-
-  const handleConfirmAssign = () => {
-    if (!selectedConferenceId) {
-      setMessage({ type: 'error', text: '请选择一个会议' })
-      return
-    }
-
-    if (!assigningUserId) return
-
-    assignUser(
-      {
-        data: {
-          conferenceUuid: selectedConferenceId,
-          userUuid: assigningUserId
-        }
-      },
-      {
-        onSuccess: () => {
-          setMessage({ type: 'success', text: '用户关联会议成功' })
-          setAssigningUserId(null)
-          setSelectedConferenceId('')
-        },
-        onError: () => {
-          setMessage({ type: 'error', text: '关联失败，请重试' })
-        }
-      }
-    )
   }
 
   const handleDeleteUser = (user: UserInfoResponse) => {
@@ -424,12 +536,11 @@ export default function AdminPage() {
       { params: { allowed } },
       {
         onSuccess: () => {
-          setRegistrationAllowed(allowed)
           refetchRegistrationSwitch()
-          setMessage({ type: 'success', text: allowed ? '已开启注册' : '已关闭注册' })
+          toast.success(allowed ? '已开启注册' : '已关闭注册')
         },
         onError: () => {
-          setMessage({ type: 'error', text: '操作失败，请重试' })
+          toast.error('操作失败，请重试')
         }
       }
     )
@@ -445,17 +556,17 @@ export default function AdminPage() {
     if (!userToReset) return
 
     if (!resetForm.password || !resetForm.confirmPassword) {
-      setMessage({ type: 'error', text: '请填写新密码并确认' })
+      toast.error('请填写新密码并确认')
       return
     }
 
     if (resetForm.password !== resetForm.confirmPassword) {
-      setMessage({ type: 'error', text: '两次输入的密码不一致' })
+      toast.error('两次输入的密码不一致')
       return
     }
 
     if (resetForm.password.length < 6) {
-      setMessage({ type: 'error', text: '密码长度不少于 6 个字符' })
+      toast.error('密码长度不少于 6 个字符')
       return
     }
 
@@ -463,13 +574,13 @@ export default function AdminPage() {
       { uuid: userToReset.uuid, data: { password: resetForm.password } },
       {
         onSuccess: () => {
-          setMessage({ type: 'success', text: '密码重置成功' })
+          toast.success('密码重置成功')
           setResetDialogOpen(false)
           setUserToReset(null)
           setResetForm({ password: '', confirmPassword: '' })
         },
         onError: () => {
-          setMessage({ type: 'error', text: '重置失败，请重试' })
+          toast.error('重置失败，请重试')
         }
       }
     )
@@ -477,12 +588,12 @@ export default function AdminPage() {
 
   const handleConfirmBatchRegister = () => {
     if (!batchConferenceId) {
-      setMessage({ type: 'error', text: '请选择会议' })
+      toast.error('请选择会议')
       return
     }
 
     if (batchUsers.length === 0) {
-      setMessage({ type: 'error', text: '请添加至少一位代表' })
+      toast.error('请添加至少一位代表')
       return
     }
 
@@ -494,7 +605,7 @@ export default function AdminPage() {
 
     const hasInvalid = sanitizedUsers.some(user => !user.name || !user.password)
     if (hasInvalid) {
-      setMessage({ type: 'error', text: '用户昵称和密码不能为空' })
+      toast.error('用户昵称和密码不能为空')
       return
     }
 
@@ -507,11 +618,12 @@ export default function AdminPage() {
       },
       {
         onSuccess: () => {
-          setMessage({ type: 'success', text: `批量注册成功（${sanitizedUsers.length} 人）` })
+          toast.success(`批量注册成功（${sanitizedUsers.length} 人）`)
           handleCloseBatchDialog()
+          void refreshAdminData()
         },
         onError: () => {
-          setMessage({ type: 'error', text: '批量注册失败，请重试' })
+          toast.error('批量注册失败，请重试')
         },
       }
     )
@@ -524,13 +636,13 @@ export default function AdminPage() {
       { uuid: userToDelete.uuid },
       {
         onSuccess: () => {
-          setMessage({ type: 'success', text: '用户删除成功' })
+          toast.success('用户删除成功')
           setDeleteDialogOpen(false)
           setUserToDelete(null)
-          // 刷新用户列表会自动完成（因为 useListAll 会重新获取）
+          void refreshAdminData()
         },
         onError: () => {
-          setMessage({ type: 'error', text: '删除失败，请重试' })
+          toast.error('删除失败，请重试')
           setDeleteDialogOpen(false)
           setUserToDelete(null)
         }
@@ -557,24 +669,6 @@ export default function AdminPage() {
     paddingRight: columnSpacing / 2
   }
 
-  const getUserConferenceLabel = (user: UserInfoResponse) => {
-    const userWithConference = user as UserInfoResponse & {
-      conferenceId?: string
-      conferenceUuid?: string
-      conferenceName?: string
-    }
-
-    if (userWithConference.conferenceName) {
-      return userWithConference.conferenceName
-    }
-
-    const conferenceId = userWithConference.conferenceId || userWithConference.conferenceUuid
-    if (!conferenceId) return '未关联'
-
-    const matched = conferences.find(conf => conf.uuid === conferenceId)
-    return matched?.name || '未关联'
-  }
-
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="space-y-6">
@@ -582,16 +676,6 @@ export default function AdminPage() {
           <h1 className="text-3xl font-bold mb-2">系统管理</h1>
           <p className="text-muted-foreground mb-6">管理系统中的所有用户和会议</p>
         </div>
-
-        {message && (
-          <div className={`mb-6 p-4 rounded-lg ${
-            message.type === 'success'
-              ? 'bg-green-50 text-green-900 border border-green-200'
-              : 'bg-red-50 text-red-900 border border-red-200'
-          }`}>
-            {message.text}
-          </div>
-        )}
 
         {/* 注册开关 */}
         <Card>
@@ -763,7 +847,23 @@ export default function AdminPage() {
                               />
                             </td>
                             <td style={cellPaddingStyle} className="py-4 text-sm text-muted-foreground">
-                              {user.conferenceName || '未关联'}
+                              <Select
+                                value={getConferenceSelectValue(user.uuid)}
+                                onValueChange={(value) => handleConferenceSelectChange(user.uuid, value)}
+                                disabled={!isConferenceSelectable}
+                              >
+                                <SelectTrigger id={`conference-${user.uuid}`}>
+                                  <SelectValue placeholder={isConferenceSelectable ? '选择会议' : '暂无会议可选'} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value={UNASSIGNED_CONFERENCE_VALUE}>未关联</SelectItem>
+                                  {conferences.map(conf => (
+                                    <SelectItem key={conf.uuid} value={conf.uuid}>
+                                      {conf.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
                             </td>
                             <td style={cellPaddingStyle} className="py-4">
                               <Select
@@ -787,8 +887,8 @@ export default function AdminPage() {
                                 <Button variant="outline" onClick={handleEditCancel}>
                                   取消
                                 </Button>
-                                <Button onClick={() => handleSave(user.uuid)} disabled={isUpdating}>
-                                  {isUpdating ? '保存中...' : '保存'}
+                                <Button onClick={() => void handleSave(user.uuid)} disabled={isSaving}>
+                                  {getSaveButtonLabel()}
                                 </Button>
                               </div>
                             </td>
@@ -802,51 +902,23 @@ export default function AdminPage() {
                               {user.displayName || '—'}
                             </td>
                             <td style={cellPaddingStyle} className="py-4 text-sm text-muted-foreground">
-                              {user.conferenceName || '未关联'}
+                              {getUserConferenceLabel(user)}
                             </td>
                             <td style={cellPaddingStyle} className="py-4">
                               {roleLabels[user.role] || user.role}
                             </td>
                             <td style={cellPaddingStyle} className="py-4">
-                              {assigningUserId === user.uuid ? (
-                                <div className="flex flex-col gap-2 items-end">
-                                  <Select value={selectedConferenceId} onValueChange={setSelectedConferenceId}>
-                                    <SelectTrigger className="w-[200px]">
-                                      <SelectValue placeholder="选择会议" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {conferences.map(conf => (
-                                        <SelectItem key={conf.uuid} value={conf.uuid}>
-                                          {conf.name}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                  <div className="flex gap-2">
-                                    <Button size="sm" onClick={handleConfirmAssign} disabled={isAssigning}>
-                                      {isAssigning ? '关联中...' : '确认'}
-                                    </Button>
-                                    <Button size="sm" variant="outline" onClick={handleCancelAssign}>
-                                      取消
-                                    </Button>
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="flex flex-wrap justify-end gap-2">
-                                  <Button onClick={() => handleEditStart(user.uuid)}>
-                                    编辑
-                                  </Button>
-                                  <Button variant="secondary" onClick={() => handleResetPasswordStart(user)}>
-                                    重置密码
-                                  </Button>
-                                  <Button variant="outline" onClick={() => handleAssignUser(user.uuid)}>
-                                    关联会议
-                                  </Button>
-                                  <Button variant="destructive" onClick={() => handleDeleteUser(user)}>
-                                    删除
-                                  </Button>
-                                </div>
-                              )}
+                              <div className="flex flex-wrap justify-end gap-2">
+                                <Button onClick={() => handleEditStart(user.uuid)}>
+                                  编辑
+                                </Button>
+                                <Button variant="secondary" onClick={() => handleResetPasswordStart(user)}>
+                                  重置密码
+                                </Button>
+                                <Button variant="destructive" onClick={() => handleDeleteUser(user)}>
+                                  删除
+                                </Button>
+                              </div>
                             </td>
                           </>
                         )}
