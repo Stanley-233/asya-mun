@@ -1,4 +1,5 @@
 import Axios, { AxiosRequestConfig } from 'axios';
+import { buildLoginRedirect } from '@/lib/auth/return-to';
 
 export const AXIOS_INSTANCE = Axios.create({
   // 使用 Next.js 代理，避免 CORS 问题
@@ -73,7 +74,7 @@ AXIOS_INSTANCE.interceptors.response.use(
     // 统一处理 HTTP 错误（如 401、500 等）
     if (error.response?.status === 401) {
       if (typeof window !== 'undefined') {
-        window.location.href = '/login';
+        window.location.href = buildLoginRedirect();
       }
     }
     return Promise.reject(error);

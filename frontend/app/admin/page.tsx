@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useAuth } from "@/lib/contexts/auth-context"
+import { buildLoginRedirect } from '@/lib/auth/return-to'
 import { useListAll1, useUpdateUser, useDeleteUser, useGetRegistrationSwitch, useSetRegistrationSwitch, useResetPassword, useBatchRegister } from "@/lib/api/endpoints/用户管理/用户管理"
 import { useCreate, useListAll2, useAssignUser } from "@/lib/api/endpoints/会议管理/会议管理"
 import {
@@ -160,7 +161,12 @@ export default function AdminPage() {
   )
 
   useEffect(() => {
-    if (!authLoading && (!isAuthenticated || !isSysAdmin)) {
+    if (authLoading) return
+    if (!isAuthenticated) {
+      router.push(buildLoginRedirect())
+      return
+    }
+    if (!isSysAdmin) {
       router.push('/')
     }
   }, [authLoading, isAuthenticated, isSysAdmin, router])

@@ -1,13 +1,25 @@
 'use client'
 
+import { usePathname } from "next/navigation"
 import { Navbar } from "@/components/navbar"
 
 const REPOSITORY_URL = 'https://www.github.com/Stanley-233/asya-mun'
 
 export function LayoutContent({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname()
+  const isLoginPage = pathname === '/login'
+
+  if (!isLoginPage) {
+    return (
+      <div className="min-h-screen bg-background md:flex">
+        <Navbar />
+        <main className="min-w-0 flex-1">{children}</main>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen flex flex-col">
-      <Navbar />
       <main className="flex-1">{children}</main>
       <footer className="border-t bg-muted/20 px-4 py-4 text-center text-sm text-muted-foreground">
         <p>ASYA - 非对称联动推演自动化系统</p>

@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { ImagePreviewDialog } from '@/components/message/image-preview-dialog'
 import { useAuth } from '@/lib/contexts/auth-context'
+import { buildLoginRedirect } from '@/lib/auth/return-to'
 import { useGetAnnouncementImageInfo } from '@/lib/api/endpoints/公告图片/公告图片'
 import { AXIOS_INSTANCE } from '@/lib/api/client'
 import { useListConfigs, useListMyRecords } from '@/lib/api/endpoints/代表属性管理/代表属性管理'
@@ -34,7 +35,12 @@ export default function StatusPage() {
   const isDelegate = user?.role === 'DELEGATE'
 
   useEffect(() => {
-    if (!authLoading && (!isAuthenticated || !isDelegate)) {
+    if (authLoading) return
+    if (!isAuthenticated) {
+      router.push(buildLoginRedirect())
+      return
+    }
+    if (!isDelegate) {
       router.push('/')
     }
   }, [authLoading, isAuthenticated, isDelegate, router])

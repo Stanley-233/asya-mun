@@ -36,7 +36,24 @@ function getServerTokenSnapshot() {
   return false
 }
 
+function subscribeToHydration() {
+  return () => {}
+}
+
+function getClientHydrationSnapshot() {
+  return true
+}
+
+function getServerHydrationSnapshot() {
+  return false
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const isHydrated = useSyncExternalStore(
+    subscribeToHydration,
+    getClientHydrationSnapshot,
+    getServerHydrationSnapshot,
+  )
   const hasToken = useSyncExternalStore(
     subscribeToTokenChange,
     getTokenSnapshot,
@@ -67,7 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const value: AuthContextType = {
     user,
-    isLoading: hasToken && queryLoading,
+    isLoading: !isHydrated || (hasToken && (queryLoading || (!currentUserData && !error))),
     isAuthenticated: !!user,
     isSysAdmin: user?.role === 'SYS_ADMIN',
     canManageConference: user?.role === 'DM' || user?.role === 'DH' || user?.role === 'SYS_ADMIN',

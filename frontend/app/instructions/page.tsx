@@ -31,6 +31,7 @@ import {
 import { useGetAllUserGroups } from '@/lib/api/endpoints/用户组管理/用户组管理'
 import { useGetUsers } from '@/lib/api/endpoints/会议管理/会议管理'
 import { toast } from 'react-toastify'
+import { buildLoginRedirect } from '@/lib/auth/return-to'
 import type {
   GetForManagementInstructionType,
   GetForManagementStatus,
@@ -144,7 +145,12 @@ export default function InstructionsPage() {
   const isSubmissionPaused = !!submissionSwitchPaused
 
   useEffect(() => {
-    if (!authLoading && (!isAuthenticated || !canManageConference)) {
+    if (authLoading) return
+    if (!isAuthenticated) {
+      router.push(buildLoginRedirect())
+      return
+    }
+    if (!canManageConference) {
       router.push('/')
     }
   }, [authLoading, isAuthenticated, canManageConference, router])

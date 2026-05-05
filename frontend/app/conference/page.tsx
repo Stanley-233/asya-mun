@@ -20,6 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { useAuth } from "@/lib/contexts/auth-context"
+import { buildLoginRedirect } from '@/lib/auth/return-to'
 import {
   useGetMine,
   useUpdate2,
@@ -120,7 +121,12 @@ export default function ConferencePage() {
   }, [memberKeyword, users])
 
   useEffect(() => {
-    if (!authLoading && (!isAuthenticated || !canManageConference)) {
+    if (authLoading) return
+    if (!isAuthenticated) {
+      router.push(buildLoginRedirect())
+      return
+    }
+    if (!canManageConference) {
       router.push('/')
     }
   }, [authLoading, isAuthenticated, canManageConference, router])

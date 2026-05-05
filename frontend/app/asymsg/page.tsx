@@ -27,6 +27,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-toastify'
 import { parseApiPayload } from '@/lib/api/response-utils'
+import { buildLoginRedirect } from '@/lib/auth/return-to'
 
 const msgTypeLabels = {
   'EVENT': '事件',
@@ -183,7 +184,12 @@ export default function DirectiveAsymsgPage() {
   
   // 权限检查
   useEffect(() => {
-    if (!authLoading && (!isAuthenticated || !canManageMessages)) {
+    if (authLoading) return
+    if (!isAuthenticated) {
+      router.push(buildLoginRedirect())
+      return
+    }
+    if (!canManageMessages) {
       router.push('/')
     }
   }, [authLoading, isAuthenticated, canManageMessages, router])

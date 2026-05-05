@@ -37,6 +37,7 @@ import {
 } from '@/components/ui/select'
 import { AXIOS_INSTANCE } from '@/lib/api/client'
 import { useAuth } from '@/lib/contexts/auth-context'
+import { buildLoginRedirect } from '@/lib/auth/return-to'
 import { parseApiPayload } from '@/lib/api/response-utils'
 import { useGetAnnouncementImageInfo } from '@/lib/api/endpoints/公告图片/公告图片'
 import { useGetUsers } from '@/lib/api/endpoints/会议管理/会议管理'
@@ -139,7 +140,12 @@ export default function StatusManagePage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
-    if (!authLoading && (!isAuthenticated || !canManageConference)) {
+    if (authLoading) return
+    if (!isAuthenticated) {
+      router.push(buildLoginRedirect())
+      return
+    }
+    if (!canManageConference) {
       router.push('/')
     }
   }, [authLoading, isAuthenticated, canManageConference, router])

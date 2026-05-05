@@ -19,6 +19,7 @@ import { useGetMine } from "@/lib/api/endpoints/会议管理/会议管理"
 import { SecretMessageList, MessageDetailDialog } from "@/components/message"
 import { InstructionDetailDialog, InstructionList, InstructionSubmitForm } from '@/components/instruction'
 import { parseApiPayload } from '@/lib/api/response-utils'
+import { buildLoginRedirect } from '@/lib/auth/return-to'
 import { useGetMyInstructions, useGetSubmissionSwitch } from '@/lib/api/endpoints/指令管理/指令管理'
 import {
   INSTRUCTION_STATUS_LABELS,
@@ -114,7 +115,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.push('/login')
+      router.push(buildLoginRedirect())
     }
   }, [isLoading, isAuthenticated, router])
 

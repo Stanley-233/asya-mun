@@ -10,6 +10,7 @@ import { UserRegistrationRequestRole } from "@/lib/api/endpoints/asyaBackendAPI.
 import { parseApiPayload } from '@/lib/api/response-utils'
 import { TermsDialog } from "@/components/terms-dialog"
 import { toast } from 'react-toastify'
+import { getSafeReturnTo, RETURN_TO_STORAGE_KEY } from '@/lib/auth/return-to'
 
 interface ApiError {
   message?: string
@@ -68,7 +69,13 @@ export default function LoginPage() {
   }, [registrationSwitchData, tab])
 
   const finishLogin = () => {
-    window.location.href = '/'
+    const searchParams = new URLSearchParams(window.location.search)
+    const queryReturnTo = getSafeReturnTo(searchParams.get('returnTo'))
+    const storedReturnTo = getSafeReturnTo(sessionStorage.getItem(RETURN_TO_STORAGE_KEY))
+    const nextPath = queryReturnTo || storedReturnTo || '/'
+
+    sessionStorage.removeItem(RETURN_TO_STORAGE_KEY)
+    window.location.href = nextPath
   }
 
   const handleAuthSuccess = (message: string) => {
