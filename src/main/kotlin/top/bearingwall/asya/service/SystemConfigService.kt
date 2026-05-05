@@ -84,6 +84,6 @@ class SystemConfigService(
                 )
             )
         config.value = paused.toString()
-        configRepository.save(config)
+        configRepository.saveAndFlush(config)
     }
 }

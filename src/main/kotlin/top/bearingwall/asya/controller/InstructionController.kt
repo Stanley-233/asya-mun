@@ -15,6 +15,7 @@ import top.bearingwall.asya.dto.BizCode
 import top.bearingwall.asya.dto.InstructionCreateRequest
 import top.bearingwall.asya.dto.InstructionResponse
 import top.bearingwall.asya.dto.InstructionReviewRequest
+import top.bearingwall.asya.dto.InstructionSubmissionSwitchRequest
 import top.bearingwall.asya.dto.Result
 import top.bearingwall.asya.model.InstructionStatus
 import top.bearingwall.asya.model.InstructionType
@@ -140,15 +141,18 @@ class InstructionController(
     @PostMapping("/submission-switch")
     fun setSubmissionSwitch(
         @RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String,
-        @RequestParam paused: Boolean
+        @RequestParam("paused", required = false) paused: Boolean?,
+        @RequestBody(required = false) request: InstructionSubmissionSwitchRequest?
     ): ResponseEntity<Result<Boolean>> {
         return try {
             val user = userService.getUserFromToken(extractBearer(authorization))
             if (user.role !in setOf(UserRole.DH, UserRole.SYS_ADMIN)) {
                 throw SecurityException("仅DH或系统管理员可设置")
             }
-            systemConfigService.setInstructionSubmissionPaused(paused)
-            ResponseEntity.ok(Result.success(paused))
+            val targetPaused = paused ?: request?.paused
+            require(targetPaused != null) { "缺少 paused 参数" }
+            systemConfigService.setInstructionSubmissionPaused(targetPaused)
+            ResponseEntity.ok(Result.success(systemConfigService.isInstructionSubmissionPaused()))
         } catch (e: Exception) {
             handleException(e)
         }

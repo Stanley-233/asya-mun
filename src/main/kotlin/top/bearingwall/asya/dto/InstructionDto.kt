@@ -26,6 +26,12 @@ data class InstructionReviewRequest(
     val reviewComment: String? = null
 )
 
+@Schema(description = "设置全局指令提交暂停开关请求")
+data class InstructionSubmissionSwitchRequest(
+    @Schema(description = "true 表示暂停提交，false 表示恢复提交")
+    val paused: Boolean? = null
+)
+
 @Schema(description = "指令响应")
 data class InstructionResponse(
     @Schema(description = "指令UUID")
@@ -73,4 +79,3 @@ data class InstructionResponse(
     @Schema(description = "最后批改游戏时间")
     val reviewedGameTime: LocalDateTime? = null
 )
-
