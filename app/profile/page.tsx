@@ -101,11 +101,11 @@ export default function ProfilePage() {
     () => parseApiPayload<ConferenceResponse>(conferenceData),
     [conferenceData],
   )
-  const submissionSwitch = useMemo(
-    () => parseApiPayload<{ paused?: boolean }>(submissionSwitchData),
+  const instructionSubmissionPaused = useMemo(
+    () => parseApiPayload<boolean>(submissionSwitchData),
     [submissionSwitchData],
   )
-  const isInstructionSubmissionPaused = !!submissionSwitch?.paused
+  const isInstructionSubmissionPaused = !!instructionSubmissionPaused
   const instructionSubmitDisabledReason = !conference
     ? '尚未关联会议，暂时无法提交指令，请联系管理员。'
     : isInstructionSubmissionPaused

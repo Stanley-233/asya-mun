@@ -137,11 +137,11 @@ export default function InstructionsPage() {
     }, {})
   }, [delegateUsers])
   const instructionPage = parseInstructionPage(parseApiPayload<unknown>(instructionsData))
-  const submissionSwitch = useMemo(
-    () => parseApiPayload<{ paused?: boolean }>(submissionSwitchData),
+  const submissionSwitchPaused = useMemo(
+    () => parseApiPayload<boolean>(submissionSwitchData),
     [submissionSwitchData],
   )
-  const isSubmissionPaused = !!submissionSwitch?.paused
+  const isSubmissionPaused = !!submissionSwitchPaused
 
   useEffect(() => {
     if (!authLoading && (!isAuthenticated || !canManageConference)) {

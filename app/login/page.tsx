@@ -1,23 +1,41 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { login, register, useGetRegistrationSwitch } from "@/lib/api/endpoints/用户管理/用户管理"
 import { UserRegistrationRequestRole } from "@/lib/api/endpoints/asyaBackendAPI.schemas"
+import { parseApiPayload } from '@/lib/api/response-utils'
 import { TermsDialog } from "@/components/terms-dialog"
 import { toast } from 'react-toastify'
 
+interface ApiError {
+  message?: string
+  response?: {
+    data?: {
+      message?: string
+    }
+  }
+}
+
+function getApiErrorMessage(error: unknown, fallback: string) {
+  const apiError = error as ApiError
+  return apiError.message || apiError.response?.data?.message || fallback
+}
+
 export default function LoginPage() {
-  const router = useRouter()
   const [tab, setTab] = useState<'login' | 'register'>('login')
   const [loading, setLoading] = useState(false)
   const [allowRegister, setAllowRegister] = useState(true)
 
-  const { data: registrationSwitchData } = useGetRegistrationSwitch()
+  const { data: registrationSwitchData } = useGetRegistrationSwitch({
+    query: {
+      retry: false,
+      refetchOnWindowFocus: false,
+    },
+  })
 
   // 登录表单状态
   const [loginForm, setLoginForm] = useState({
@@ -36,19 +54,12 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!registrationSwitchData) return
-    try {
-      const responseData = (registrationSwitchData as any).data
-      if (!responseData) return
-      const parsedData = typeof responseData === 'string' ? JSON.parse(responseData) : responseData
-      const allowed = typeof parsedData?.data === 'boolean' ? parsedData.data : parsedData
-      if (typeof allowed === 'boolean') {
-        setAllowRegister(allowed)
-        if (!allowed && tab === 'register') {
-          setTab('login')
-        }
+    const allowed = parseApiPayload<boolean>(registrationSwitchData)
+    if (typeof allowed === 'boolean') {
+      setAllowRegister(allowed)
+      if (!allowed && tab === 'register') {
+        setTab('login')
       }
-    } catch (err) {
-      console.warn('Failed to parse registration switch:', err)
     }
   }, [registrationSwitchData, tab])
 
@@ -71,10 +82,10 @@ export default function LoginPage() {
       // 调试：打印响应数据
       console.log('登录响应:', response)
       
-      const responseData = response.data as any
+      const responseData = parseApiPayload<{ token?: string }>(response)
       console.log('响应数据:', responseData)
       
-      const token = responseData?.token || responseData?.data?.token
+      const token = responseData?.token
       if (token) {
         localStorage.setItem('token', token)
         localStorage.setItem('user', JSON.stringify(responseData))
@@ -90,14 +101,12 @@ export default function LoginPage() {
         console.warn('未找到 token，响应数据:', responseData)
         toast.error('登录成功但未获取到 Token')
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       // 调试：打印错误信息
       console.warn('登录错误:', err)
-      console.warn('错误响应:', err.response)
       
       // 优先使用错误对象的 message，然后是响应中的 message
-      const message = err.message || err.response?.data?.message || '登录失败，请检查用户昵称和密码'
-      toast.error(message)
+      toast.error(getApiErrorMessage(err, '登录失败，请检查用户昵称和密码'))
     } finally {
       setLoading(false)
     }
@@ -138,8 +147,8 @@ export default function LoginPage() {
         role: registerForm.role,
       })
       
-      const loginData = loginResponse.data as any
-      const token = loginData?.token || loginData?.data?.token
+      const loginData = parseApiPayload<{ token?: string }>(loginResponse)
+      const token = loginData?.token
       
       if (token) {
         localStorage.setItem('token', token)
@@ -157,10 +166,9 @@ export default function LoginPage() {
         toast.warning('注册成功，但自动登录失败，请手动登录')
         setTab('login')
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       // 优先使用错误对象的 message，然后是响应中的 message
-      const message = err.message || err.response?.data?.message || '注册失败，请重试'
-      toast.error(message)
+      toast.error(getApiErrorMessage(err, '注册失败，请重试'))
     } finally {
       setLoading(false)
     }

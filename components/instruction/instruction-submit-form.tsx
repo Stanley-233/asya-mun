@@ -379,6 +379,31 @@ function getInstructionInputLength(value: string) {
   return Array.from(value).length
 }
 
+function getInstructionSubmitErrorMessage(error: unknown) {
+  const fallbackMessage = '指令提交失败，请稍后重试'
+  const responseMessage =
+    error &&
+    typeof error === 'object' &&
+    'response' in error &&
+    (error as { response?: { data?: { message?: unknown } } }).response?.data?.message
+  const directMessage =
+    error &&
+    typeof error === 'object' &&
+    'message' in error &&
+    (error as { message?: unknown }).message
+  const message = typeof responseMessage === 'string'
+    ? responseMessage
+    : typeof directMessage === 'string'
+      ? directMessage
+      : ''
+
+  if (message.includes('Instruction submission is paused')) {
+    return '系统已全局暂停指令提交，请等待管理员恢复。'
+  }
+
+  return message.trim() || fallbackMessage
+}
+
 interface InstructionSubmitFormProps {
   disabled?: boolean
   disabledReason?: string
@@ -647,7 +672,7 @@ export function InstructionSubmitForm({
         },
         onError: error => {
           console.error('Failed to create instruction:', error)
-          toast.error('指令提交失败，请稍后重试')
+          toast.error(getInstructionSubmitErrorMessage(error))
         },
       },
     )
