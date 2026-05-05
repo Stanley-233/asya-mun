@@ -1,18 +1,17 @@
 name: Save Docker Bundle
 
 on:
-  workflow_run:
-    workflows:
-      - Publish Docker Image
-    types:
-      - completed
+  workflow_dispatch:
+    inputs:
+      publish_run_id:
+        description: Publish Docker Image workflow run ID
+        required: true
 
 env:
   POSTGRES_IMAGE: postgres:16-alpine
 
 jobs:
   bundle:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -25,7 +24,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p release-metadata
-          gh run download "${{ github.event.workflow_run.id }}" \
+          gh run download "${{ inputs.publish_run_id }}" \
             --repo "${GITHUB_REPOSITORY}" \
             --name release-metadata \
             --dir release-metadata
@@ -64,7 +63,6 @@ jobs:
             "${{ steps.meta.outputs.version_tag }}" \
             "${POSTGRES_IMAGE}" \
             -o "docker-artifacts/asya-mun-docker-images-${{ steps.meta.outputs.release_tag }}.tar"
-          cp docker-compose.release.yml docker-artifacts/docker-compose.release.yml
 
       - name: Upload Docker bundle
         uses: actions/upload-artifact@v4

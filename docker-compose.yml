@@ -1,9 +1,6 @@
 services:
   app:
-    image: ${ASYA_IMAGE:-asya-mun:local}
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ${ASYA_IMAGE:-stanleyzh/asya-mun:latest}
     depends_on:
       db:
         condition: service_healthy
@@ -20,7 +17,7 @@ services:
       - "3000:3000"
 
   db:
-    image: postgres:16
+    image: postgres:16-alpine
     environment:
       POSTGRES_DB: asya
       POSTGRES_USER: asya

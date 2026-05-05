@@ -19,10 +19,10 @@ ASYA 系统（非对称联动自动化系统，Asymmetric SYnergy Automation Sys
 
 使用前请先准备好 Docker 和 Docker Compose，然后在项目根目录执行：
 ```bash
-sudo docker compose -f docker-compose.release.yml up -d
+sudo docker compose up -d
 ```
 
-默认情况下，`docker-compose.release.yml` 会拉取仓库已发布的最新稳定镜像。
+默认项目会启动在 ``3000`` 端口，请确保该端口未被占用，或修改 ``docker-compose.yml`` 配置
 
 如果你想指定某个版本，或者改用你自己的镜像地址，可以在执行前覆盖 `ASYA_IMAGE`，例如：
 
