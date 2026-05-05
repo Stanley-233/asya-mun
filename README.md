@@ -2,27 +2,29 @@
 
 ASYA 系统（非对称联动自动化系统，Asymmetric SYnergy Automation System）是一款模拟联合国联动体系一站式解决方案。
 
-项目期望以信息化的手段，逐渐改善传统模拟联合国特委（如联动会场）中，由于代表与学团之间信息交互渠道不足而导致的参会体验问题。
+项目期望以信息化的手段，逐渐改善传统模拟联合国联动会场中，由于代表与学团之间信息交互渠道不足而导致的参会体验问题。
+
+<p align="center">
+  <img src="./docs/conference.png" alt="ASYA 代表会议界面" width="49%" />
+  <img src="./docs/my.png" alt="ASYA 个人中心界面" width="49%" />
+</p>
+<p align="center">
+  <img src="./docs/instruction.png" alt="ASYA 指令提交界面" width="49%" />
+  <img src="./docs/system.png" alt="ASYA 系统管理界面" width="49%" />
+</p>
 
 ## 部署指南
 
-当前版本号统一由根目录的 [VERSION](./VERSION) 文件管理。更新版本时，先修改 `VERSION`，再创建并推送对应的 Git 标签 `vX.Y.Z`。GitHub Actions 会校验 tag 必须等于 `v$(cat VERSION)`。
+如果你只是想部署并运行 ASYA，直接使用已经发布到 DockerHub 的镜像即可。
 
-正式发布通过推送语义化标签 `vX.Y.Z` 触发。发布成功后：
-
-- DockerHub 会推送 `DOCKERHUB_USERNAME/asya-mun:vX.Y.Z`
-- DockerHub 会同步更新 `DOCKERHUB_USERNAME/asya-mun:latest`
-- GitHub Release 会自动生成提交历史摘要
-- GitHub Release 不上传自定义二进制或 Docker 镜像附件，仅保留 GitHub 自带源码包
-
-使用 DockerHub 镜像启动：
-
+使用前请先准备好 Docker 和 Docker Compose，然后在项目根目录执行：
 ```bash
-sudo docker compose -f docker-compose.release.yml pull
 sudo docker compose -f docker-compose.release.yml up -d
 ```
 
-如果需要覆盖默认镜像地址，可以在执行前设置 `ASYA_IMAGE`，例如：
+默认情况下，`docker-compose.release.yml` 会拉取仓库已发布的最新稳定镜像。
+
+如果你想指定某个版本，或者改用你自己的镜像地址，可以在执行前覆盖 `ASYA_IMAGE`，例如：
 
 ```bash
 ASYA_IMAGE=your-dockerhub-user/asya-mun:v1.2.3 \
@@ -66,7 +68,7 @@ ASYA 采用双许可证授权模式。
 
 以下条款仅适用于由开发者本人部署、维护或直接提供的 ASYA 官方在线服务、测试实例、演示环境及相关技术支持服务，不限制任何用户在 AGPLv3 或商业授权条款下依法使用、复制、修改和分发本项目源代码的权利。
 
-访问或使用由开发者提供的 [ASYA 官方在线服务](https://mun.bearingwall.top)前，你应当知悉并遵守以下条款。
+访问或使用由开发者提供的 [ASYA 官方在线服务](https://mun.bearingwall.top) 前，你应当知悉并遵守以下条款。
 
 ### 1. 严禁恶意攻击与滥用
 
