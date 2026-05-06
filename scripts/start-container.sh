@@ -11,21 +11,28 @@ HOSTNAME=0.0.0.0 PORT="${PORT:-3000}" node server.js &
 frontend_pid=$!
 
 terminate() {
+  echo "Stopping application..."
   kill "$backend_pid" "$frontend_pid" 2>/dev/null || true
+  wait "$backend_pid" 2>/dev/null || true
+  wait "$frontend_pid" 2>/dev/null || true
 }
 
-trap terminate INT TERM
+trap 'terminate; exit 143' INT TERM
 
 while :; do
   if ! kill -0 "$backend_pid" 2>/dev/null; then
-    terminate
+    echo "Backend process exited. Stopping frontend..."
+    kill "$frontend_pid" 2>/dev/null || true
     wait "$frontend_pid" 2>/dev/null || true
+    wait "$backend_pid" 2>/dev/null || true
     exit 1
   fi
 
   if ! kill -0 "$frontend_pid" 2>/dev/null; then
-    terminate
+    echo "Frontend process exited. Stopping backend..."
+    kill "$backend_pid" 2>/dev/null || true
     wait "$backend_pid" 2>/dev/null || true
+    wait "$frontend_pid" 2>/dev/null || true
     exit 1
   fi
 

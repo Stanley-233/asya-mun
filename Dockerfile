@@ -1,33 +1,48 @@
+# syntax=docker/dockerfile:1.7
+
 FROM eclipse-temurin:21-jdk-jammy AS backend-builder
 WORKDIR /workspace/backend
 
 COPY VERSION /workspace/VERSION
 COPY backend/gradlew backend/settings.gradle.kts backend/build.gradle.kts ./
 COPY backend/gradle ./gradle
+
 RUN chmod +x ./gradlew
 
-COPY backend/src ./src
-RUN ./gradlew --no-daemon bootJar
+RUN --mount=type=cache,target=/root/.gradle,sharing=locked \
+    ./gradlew --no-daemon dependencies
 
-FROM node:25-bookworm-slim AS frontend-builder
+COPY backend/src ./src
+
+RUN --mount=type=cache,target=/root/.gradle,sharing=locked \
+    ./gradlew --no-daemon bootJar
+
+FROM node:24-bookworm-slim AS frontend-builder
 WORKDIR /workspace/frontend
 
-RUN npm install -g pnpm@10
+RUN corepack enable && corepack prepare pnpm@10.23.0 --activate
+RUN pnpm config set store-dir /pnpm/store
 
 COPY VERSION /workspace/VERSION
 COPY scripts/sync-version.mjs /workspace/scripts/sync-version.mjs
 COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
+
 RUN node /workspace/scripts/sync-version.mjs --package ./package.json --version-file /workspace/VERSION
-RUN pnpm install --frozen-lockfile
+
+RUN --mount=type=cache,target=/pnpm/store,sharing=locked \
+    pnpm install --frozen-lockfile
 
 COPY frontend ./
+
 ENV SKIP_TYPE_CHECK=true
 ENV NEXT_PUBLIC_API_BASE_URL=
 ENV NEXT_PROXY_API_TO_BACKEND=true
+
 RUN node /workspace/scripts/sync-version.mjs --package ./package.json --version-file /workspace/VERSION
 RUN pnpm build
 
-FROM node:25-bookworm-slim AS runtime
+
+FROM node:24-bookworm-slim AS runtime
 WORKDIR /app
 
 ENV JAVA_HOME=/opt/java/openjdk
@@ -40,6 +55,7 @@ ENV SERVER_PORT=8080
 
 COPY --from=backend-builder /opt/java/openjdk /opt/java/openjdk
 COPY --from=backend-builder /workspace/backend/build/libs/*.jar /app/backend/
+
 RUN set -eux; \
     find /app/backend -name "*-plain.jar" -delete; \
     jar_path="$(find /app/backend -maxdepth 1 -name "*.jar" | head -n 1)"; \
@@ -50,6 +66,8 @@ COPY --from=frontend-builder /workspace/frontend/.next/standalone /app/frontend
 COPY --from=frontend-builder /workspace/frontend/.next/static /app/frontend/.next/static
 COPY --from=frontend-builder /workspace/frontend/public /app/frontend/public
 COPY scripts/start-container.sh /app/start-container.sh
+
+RUN chmod +x /app/start-container.sh
 
 EXPOSE 3000
 

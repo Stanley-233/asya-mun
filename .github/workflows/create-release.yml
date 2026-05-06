@@ -7,6 +7,10 @@ on:
     types:
       - completed
 
+concurrency:
+  group: create-release-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: false
+
 jobs:
   release:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
@@ -27,36 +31,70 @@ jobs:
             --name release-metadata \
             --dir release-metadata
 
+          test -s release-metadata/release-metadata.env
+
       - name: Load release metadata
         id: meta
         run: |
           set -euo pipefail
           . release-metadata/release-metadata.env
+
+          : "${APP_VERSION:?missing APP_VERSION}"
+          : "${RELEASE_TAG:?missing RELEASE_TAG}"
+          : "${IMAGE_NAME:?missing IMAGE_NAME}"
+          : "${VERSION_TAG:?missing VERSION_TAG}"
+          : "${LATEST_TAG:?missing LATEST_TAG}"
+          : "${SOURCE_SHA:?missing SOURCE_SHA}"
+          : "${PLATFORMS:?missing PLATFORMS}"
+
           {
+            echo "app_version=${APP_VERSION}"
             echo "release_tag=${RELEASE_TAG}"
+            echo "image_name=${IMAGE_NAME}"
+            echo "version_tag=${VERSION_TAG}"
+            echo "latest_tag=${LATEST_TAG}"
             echo "source_sha=${SOURCE_SHA}"
+            echo "platforms=${PLATFORMS}"
           } >> "$GITHUB_OUTPUT"
 
       - name: Create or update release
         uses: actions/github-script@v7
         env:
+          APP_VERSION: ${{ steps.meta.outputs.app_version }}
           RELEASE_TAG: ${{ steps.meta.outputs.release_tag }}
+          IMAGE_NAME: ${{ steps.meta.outputs.image_name }}
+          VERSION_TAG: ${{ steps.meta.outputs.version_tag }}
+          LATEST_TAG: ${{ steps.meta.outputs.latest_tag }}
           SOURCE_SHA: ${{ steps.meta.outputs.source_sha }}
+          PLATFORMS: ${{ steps.meta.outputs.platforms }}
         with:
           script: |
             const tag = process.env.RELEASE_TAG;
             const target = process.env.SOURCE_SHA;
             const owner = context.repo.owner;
             const repo = context.repo.repo;
+
             const guidance = [
+              '## 镜像信息',
+              '',
+              `- 版本：\`${process.env.APP_VERSION}\``,
+              `- 镜像：\`${process.env.IMAGE_NAME}\``,
+              `- 版本标签：\`${process.env.VERSION_TAG}\``,
+              `- latest 标签：\`${process.env.LATEST_TAG}\``,
+              `- 平台：\`${process.env.PLATFORMS}\``,
+              '',
               '## 部署说明',
               '',
               '- 源码压缩包可直接使用 GitHub 自带的 `Source code (zip)` 和 `Source code (tar.gz)` 下载。',
               '- 部署前先拉取最新已发布镜像：',
-              '  `sudo docker compose -f docker-compose.release.yml pull`',
+              '  ```bash',
+              '  sudo docker compose -f docker-compose.release.yml pull',
+              '  ```',
               '- 然后使用 DockerHub 上的镜像启动服务：',
-              '  `sudo docker compose -f docker-compose.release.yml up -d`',
-            ].join('\\n');
+              '  ```bash',
+              '  sudo docker compose -f docker-compose.release.yml up -d',
+              '  ```',
+            ].join('\n');
 
             const notes = await github.rest.repos.generateReleaseNotes({
               owner,
@@ -65,7 +103,7 @@ jobs:
               target_commitish: target,
             });
 
-            const body = `${guidance}\\n\\n${notes.data.body}`;
+            const body = `${guidance}\n\n${notes.data.body ?? ''}`;
 
             let releaseId = null;
             try {
@@ -81,31 +119,25 @@ jobs:
               }
             }
 
+            const payload = {
+              owner,
+              repo,
+              tag_name: tag,
+              target_commitish: target,
+              name: notes.data.name ?? tag,
+              body,
+              draft: false,
+              prerelease: false,
+              make_latest: 'true',
+            };
+
             if (releaseId) {
               await github.rest.repos.updateRelease({
-                owner,
-                repo,
+                ...payload,
                 release_id: releaseId,
-                tag_name: tag,
-                target_commitish: target,
-                name: notes.data.name,
-                body,
-                draft: false,
-                prerelease: false,
-                make_latest: 'true',
               });
               core.info(`Updated release ${tag}`);
             } else {
-              await github.rest.repos.createRelease({
-                owner,
-                repo,
-                tag_name: tag,
-                target_commitish: target,
-                name: notes.data.name,
-                body,
-                draft: false,
-                prerelease: false,
-                make_latest: 'true',
-              });
+              await github.rest.repos.createRelease(payload);
               core.info(`Created release ${tag}`);
             }

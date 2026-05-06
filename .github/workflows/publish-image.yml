@@ -5,24 +5,42 @@ on:
     tags:
       - "v*.*.*"
 
+concurrency:
+  group: publish-image-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
   IMAGE_NAME: asya-mun
+  PLATFORMS: linux/amd64,linux/arm64
 
 jobs:
-  publish:
+  prepare:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    outputs:
+      app_version: ${{ steps.meta.outputs.app_version }}
+      image: ${{ steps.meta.outputs.image }}
+      release_tag: ${{ steps.meta.outputs.release_tag }}
+      version_tag: ${{ steps.meta.outputs.version_tag }}
+      latest_tag: ${{ steps.meta.outputs.latest_tag }}
+      source_sha: ${{ steps.meta.outputs.source_sha }}
+      platforms: ${{ steps.meta.outputs.platforms }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Validate release tag
+      - name: Validate release tag and image metadata
+        id: meta
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
         run: |
           set -euo pipefail
+
           tag="${GITHUB_REF_NAME}"
-          expected_tag="v$(tr -d '\n' < VERSION)"
+          version="$(tr -d '\n' < VERSION)"
+          expected_tag="v${version}"
 
           if ! printf '%s' "$tag" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
             echo "Invalid release tag: $tag"
@@ -34,30 +52,45 @@ jobs:
             exit 1
           fi
 
-      - name: Set image metadata
-        id: meta
-        env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-        run: |
-          set -euo pipefail
-
           if [ -z "${DOCKERHUB_USERNAME:-}" ]; then
             echo "DOCKERHUB_USERNAME secret is required."
             exit 1
           fi
 
           image="${DOCKERHUB_USERNAME}/${IMAGE_NAME}"
-          version_tag="${image}:${GITHUB_REF_NAME}"
+          version_tag="${image}:${tag}"
           latest_tag="${image}:latest"
 
           {
+            echo "app_version=${version}"
             echo "image=${image}"
+            echo "release_tag=${tag}"
             echo "version_tag=${version_tag}"
             echo "latest_tag=${latest_tag}"
+            echo "source_sha=${GITHUB_SHA}"
+            echo "platforms=${PLATFORMS}"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+  build:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+            platform_key: linux-amd64
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+            platform_key: linux-arm64
+
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -68,28 +101,85 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push application image
+      - name: Build and push by digest
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ matrix.platform }}
           push: true
-          tags: |
-            ${{ steps.meta.outputs.version_tag }}
-            ${{ steps.meta.outputs.latest_tag }}
+          outputs: type=image,name=${{ needs.prepare.outputs.image }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=publish-${{ matrix.platform_key }}
+          cache-to: type=gha,mode=max,scope=publish-${{ matrix.platform_key }}
+
+      - name: Export image digest
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - name: Upload image digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ matrix.platform_key }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    needs:
+      - prepare
+      - build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Download image digests
+        uses: actions/download-artifact@v4
+        with:
+          pattern: digests-*
+          path: /tmp/digests
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Create and push multi-arch manifest
+        working-directory: /tmp/digests
+        run: |
+          set -euo pipefail
+          refs=""
+          for digest_file in *; do
+            refs="${refs} ${{ needs.prepare.outputs.image }}@sha256:${digest_file}"
+          done
+
+          docker buildx imagetools create \
+            --tag "${{ needs.prepare.outputs.version_tag }}" \
+            --tag "${{ needs.prepare.outputs.latest_tag }}" \
+            ${refs}
+
+          docker buildx imagetools inspect "${{ needs.prepare.outputs.version_tag }}"
 
       - name: Persist release metadata
         run: |
           set -euo pipefail
           mkdir -p release-metadata
           printf '%s\n' \
-            "APP_VERSION=$(tr -d '\n' < VERSION)" \
-            "RELEASE_TAG=${GITHUB_REF_NAME}" \
-            "IMAGE_NAME=${{ steps.meta.outputs.image }}" \
-            "VERSION_TAG=${{ steps.meta.outputs.version_tag }}" \
-            "LATEST_TAG=${{ steps.meta.outputs.latest_tag }}" \
-            "SOURCE_SHA=${GITHUB_SHA}" \
-            "PLATFORMS=linux/amd64,linux/arm64" \
+            "APP_VERSION=${{ needs.prepare.outputs.app_version }}" \
+            "RELEASE_TAG=${{ needs.prepare.outputs.release_tag }}" \
+            "IMAGE_NAME=${{ needs.prepare.outputs.image }}" \
+            "VERSION_TAG=${{ needs.prepare.outputs.version_tag }}" \
+            "LATEST_TAG=${{ needs.prepare.outputs.latest_tag }}" \
+            "SOURCE_SHA=${{ needs.prepare.outputs.source_sha }}" \
+            "PLATFORMS=${{ needs.prepare.outputs.platforms }}" \
             > release-metadata/release-metadata.env
 
       - name: Upload release metadata
