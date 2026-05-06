@@ -1,264 +1,529 @@
 'use client'
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { ApiExample } from "@/lib/api/example-usage"
-import { useEffect, useState } from "react"
-import { ChevronDown, Orbit, Radar, Workflow } from "lucide-react"
-import { TermsDialog } from "@/components/terms-dialog"
-import { motion, useReducedMotion } from "framer-motion"
+import { useEffect, useState } from 'react'
+import { AlertCircle, ArrowRight, BookOpenCheck, LoaderCircle, Network, ShieldCheck } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { TermsDialog } from '@/components/terms-dialog'
+// import { ApiExample } from '@/lib/api/example-usage'
+import { useAuth } from '@/lib/contexts/auth-context'
+import { getSafeReturnTo, RETURN_TO_STORAGE_KEY } from '@/lib/auth/return-to'
+import { login, register, useGetRegistrationSwitch } from '@/lib/api/endpoints/用户管理/用户管理'
+import { UserRegistrationRequestRole } from '@/lib/api/endpoints/asyaBackendAPI.schemas'
+import { parseApiPayload } from '@/lib/api/response-utils'
+import { toast } from 'react-toastify'
 
-const capabilityCards = [
+interface ApiError {
+  message?: string
+  response?: {
+    data?: {
+      message?: string
+    }
+  }
+}
+
+function getApiErrorMessage(error: unknown, fallback: string) {
+  const apiError = error as ApiError
+  return apiError.message || apiError.response?.data?.message || fallback
+}
+
+const LICENSE_ACKNOWLEDGED_KEY = 'asya-license-acknowledged'
+const DEFAULT_AUTH_REDIRECT = '/progress'
+
+const systemNotes = [
   {
-    icon: Orbit,
-    eyebrow: "Scenario Engine",
-    title: "联动推演",
-    description: "以更清晰的节奏组织议程、角色和事件流，让推演链路从设定到执行都保持连贯。",
+    title: '联动推演',
+    description: '以更清晰的节奏组织议程、角色和事件流，让推演链路保持连贯。',
+    icon: BookOpenCheck,
   },
   {
-    icon: Workflow,
-    eyebrow: "Coordination Layer",
-    title: "流程协同",
-    description: "把多端操作、指令分发和状态反馈整理成统一节拍，减少人工切换带来的割裂感。",
+    title: '流程协同',
+    description: '把指令分发、状态反馈和非对称消息整理成统一节拍。',
+    icon: Network,
   },
   {
-    icon: Radar,
-    eyebrow: "Intel Surface",
-    title: "信息整合",
-    description: "集中呈现关键状态与互动信号，让主持团队更快捕捉变化并做出响应。",
+    title: '信息整合',
+    description: '集中呈现关键状态与互动信号，帮助主持团队快速响应。',
+    icon: ShieldCheck,
   },
 ]
 
-export function WelcomeComponent() {
-  const [showScrollHint, setShowScrollHint] = useState(true)
-  const shouldReduceMotion = useReducedMotion()
+export default function Page() {
+  const { isAuthenticated, isLoading: authLoading } = useAuth()
+  const [tab, setTab] = useState<'login' | 'register'>('login')
+  const [loading, setLoading] = useState(false)
+  const [allowRegister, setAllowRegister] = useState(true)
+  const [termsOpen, setTermsOpen] = useState(false)
+  const [pendingRedirect, setPendingRedirect] = useState(false)
+
+  const {
+    data: registrationSwitchData,
+    isLoading: registrationSwitchLoading,
+    error: registrationSwitchError,
+  } = useGetRegistrationSwitch({
+    query: {
+      retry: false,
+      refetchOnWindowFocus: false,
+    },
+  })
+
+  const [loginForm, setLoginForm] = useState({
+    name: '',
+    password: '',
+  })
+
+  const [registerForm, setRegisterForm] = useState({
+    name: '',
+    displayName: '',
+    password: '',
+    confirmPassword: '',
+    role: 'DM' as UserRegistrationRequestRole,
+  })
 
   useEffect(() => {
-    // 确保页面刷新后滚动到顶部
-    window.scrollTo(0, 0)
-
-    const handleScroll = () => {
-      if (window.scrollY > 100) {
-        setShowScrollHint(false)
-      } else {
-        setShowScrollHint(true)
+    if (!registrationSwitchData) return
+    const allowed = parseApiPayload<boolean>(registrationSwitchData)
+    if (typeof allowed === 'boolean') {
+      setAllowRegister(allowed)
+      if (!allowed && tab === 'register') {
+        setTab('login')
       }
     }
+  }, [registrationSwitchData, tab])
 
-    window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      window.location.replace(DEFAULT_AUTH_REDIRECT)
+    }
+  }, [authLoading, isAuthenticated])
 
-  const scrollToLogin = () => {
-    document.getElementById('login-section')?.scrollIntoView({ behavior: 'smooth' })
+  const backendBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8080'
+  const backendStatus = registrationSwitchLoading
+    ? {
+        label: '连接检测中',
+        detail: '正在确认后端服务响应状态',
+        tone: 'text-amber-700',
+        badge: 'bg-amber-500',
+        Icon: LoaderCircle,
+        iconClassName: 'animate-spin',
+      }
+    : registrationSwitchError
+      ? {
+          label: '后端未连接',
+          detail: '当前无法访问认证服务，请检查后端是否启动',
+          tone: 'text-red-700',
+          badge: 'bg-red-500',
+          Icon: AlertCircle,
+          iconClassName: '',
+        }
+      : {
+          label: '后端已连接',
+          detail: allowRegister ? '认证服务响应正常，当前允许注册' : '认证服务响应正常，当前暂停注册',
+          tone: 'text-emerald-700',
+          badge: 'bg-emerald-500',
+          Icon: ShieldCheck,
+          iconClassName: '',
+        };
+
+  const BackendStatusIcon = backendStatus.Icon
+
+  const finishLogin = () => {
+    const searchParams = new URLSearchParams(window.location.search)
+    const queryReturnTo = getSafeReturnTo(searchParams.get('returnTo'))
+    const storedReturnTo = getSafeReturnTo(sessionStorage.getItem(RETURN_TO_STORAGE_KEY))
+    const nextPath = queryReturnTo || storedReturnTo || DEFAULT_AUTH_REDIRECT
+
+    sessionStorage.removeItem(RETURN_TO_STORAGE_KEY)
+    window.location.href = nextPath
   }
 
-  const containerTransition = shouldReduceMotion
-    ? { duration: 0.01 }
-    : { staggerChildren: 0.14, delayChildren: 0.12 }
+  const handleAuthSuccess = (message: string) => {
+    const hasAcknowledged = localStorage.getItem(LICENSE_ACKNOWLEDGED_KEY) === 'true'
 
-  const itemVariant = {
-    hidden: {
-      opacity: 0,
-      y: shouldReduceMotion ? 0 : 20,
-      filter: shouldReduceMotion ? "none" : "blur(8px)",
-    },
-    visible: {
-      opacity: 1,
-      y: 0,
-      filter: "blur(0px)",
-      transition: {
-        duration: shouldReduceMotion ? 0.01 : 0.7,
-        ease: [0.22, 1, 0.36, 1] as const,
-      },
-    },
+    if (hasAcknowledged) {
+      toast.success(message, {
+        closeOnClick: false,
+        draggable: false,
+        onClose: finishLogin,
+      })
+      return
+    }
+
+    toast.success('登录成功，请先确认 AGPL 授权与使用说明后进入系统', {
+      closeOnClick: false,
+      draggable: false,
+    })
+    setPendingRedirect(true)
+    setTermsOpen(true)
   }
 
-  const cardVariant = {
-    hidden: {
-      opacity: 0,
-      y: shouldReduceMotion ? 0 : 28,
-    },
-    visible: (delay = 0) => ({
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: shouldReduceMotion ? 0.01 : 0.65,
-        delay: shouldReduceMotion ? 0 : delay,
-        ease: [0.22, 1, 0.36, 1] as const,
-      },
-    }),
+  const handleTermsOpenChange = (nextOpen: boolean) => {
+    if (!pendingRedirect && !nextOpen) {
+      setTermsOpen(false)
+      return
+    }
+
+    if (!nextOpen && pendingRedirect) {
+      localStorage.setItem(LICENSE_ACKNOWLEDGED_KEY, 'true')
+      setPendingRedirect(false)
+      setTermsOpen(false)
+      finishLogin()
+      return
+    }
+
+    setTermsOpen(nextOpen)
+  }
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!loginForm.name || !loginForm.password) {
+      toast.warning('请填写所有字段')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const response = await login({
+        name: loginForm.name,
+        password: loginForm.password,
+        role: 'DM' as UserRegistrationRequestRole,
+      })
+      const responseData = parseApiPayload<{ token?: string }>(response)
+      const token = responseData?.token
+
+      if (token) {
+        localStorage.setItem('token', token)
+        localStorage.setItem('user', JSON.stringify(responseData))
+        handleAuthSuccess('登录成功，正在进入工作台...')
+      } else {
+        toast.error('登录成功但未获取到 Token')
+      }
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, '登录失败，请检查用户昵称和密码'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!registerForm.name || !registerForm.password || !registerForm.confirmPassword) {
+      toast.warning('请填写所有字段')
+      return
+    }
+
+    if (registerForm.password !== registerForm.confirmPassword) {
+      toast.warning('两次输入的密码不一致')
+      return
+    }
+
+    if (registerForm.password.length < 6) {
+      toast.warning('密码长度不少于 6 个字符')
+      return
+    }
+
+    setLoading(true)
+    try {
+      await register({
+        name: registerForm.name,
+        displayName: registerForm.displayName?.trim() || undefined,
+        password: registerForm.password,
+        role: registerForm.role,
+      })
+
+      const loginResponse = await login({
+        name: registerForm.name,
+        password: registerForm.password,
+        role: registerForm.role,
+      })
+      const loginData = parseApiPayload<{ token?: string }>(loginResponse)
+      const token = loginData?.token
+
+      if (token) {
+        localStorage.setItem('token', token)
+        localStorage.setItem('user', JSON.stringify(loginData))
+        setRegisterForm({ name: '', displayName: '', password: '', confirmPassword: '', role: 'DM' })
+        handleAuthSuccess('注册成功，正在进入工作台...')
+      } else {
+        toast.warning('注册成功，但自动登录失败，请手动登录')
+        setTab('login')
+      }
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, '注册失败，请重试'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (authLoading || isAuthenticated) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">
+        <p className="text-sm font-semibold tracking-[0.18em] text-primary/70 uppercase">ASYA</p>
+      </main>
+    )
   }
 
   return (
-    <div className="relative min-h-screen overflow-x-clip bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.98),_rgba(250,247,241,0.92)_32%,_rgba(244,239,230,0.82)_60%,_rgba(255,255,255,0.96)_100%)]">
-      <div className="asya-grid pointer-events-none absolute inset-0 opacity-55" />
-      <div className="asya-noise pointer-events-none absolute inset-0 opacity-40" />
-      <div className="asya-glow pointer-events-none absolute left-1/2 top-0 h-[34rem] w-[34rem] -translate-x-1/2 -translate-y-1/3 opacity-85" />
-      <div className="asya-glow pointer-events-none left-[8%] top-[24%] hidden h-64 w-64 opacity-60 md:absolute md:block" style={{ animationDelay: "-4s" }} />
-      <div className="asya-glow pointer-events-none right-[6%] top-[60%] hidden h-72 w-72 opacity-50 md:absolute md:block" style={{ animationDelay: "-8s" }} />
-
-      {/* Hero Section */}
-      <section className="relative flex min-h-screen items-center justify-center px-4 pb-24 pt-24">
-        <div className="pointer-events-none absolute inset-x-0 top-20 flex justify-center">
-          <div className="asya-orb h-32 w-32 rounded-full opacity-70" />
-        </div>
-
-        <motion.div
-          className="relative mx-auto flex w-full max-w-6xl flex-col items-center text-center"
-          initial="hidden"
-          animate="visible"
-          variants={{
-            hidden: {},
-            visible: {
-              transition: containerTransition,
-            },
-          }}
-        >
-          {/* <motion.div
-            variants={itemVariant}
-            className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-background/70 px-4 py-2 text-xs font-medium tracking-[0.24em] text-primary/80 uppercase shadow-[0_10px_30px_rgba(184,132,52,0.08)] backdrop-blur-md"
-          >
-            <span className="h-2 w-2 rounded-full bg-primary shadow-[0_0_16px_rgba(184,132,52,0.7)]" />
-            Asymmetric Command Surface
-          </motion.div> */}
-
-          <motion.div variants={itemVariant} className="space-y-6">
-            <h1 className="bg-gradient-to-b from-primary via-[color:rgba(184,132,52,0.88)] to-[color:rgba(111,78,27,0.68)] bg-clip-text text-[4.5rem] font-black tracking-[-0.12em] text-transparent drop-shadow-[0_18px_48px_rgba(155,109,35,0.18)] sm:text-[6.5rem] md:text-[8.75rem] lg:text-[10rem]">
+    <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.98),_rgba(250,247,241,0.92)_32%,_rgba(244,239,230,0.82)_60%,_rgba(255,255,255,0.96)_100%)] px-5 py-8 text-foreground sm:px-8 lg:px-12">
+      <div className="asya-grid pointer-events-none absolute inset-0 opacity-50" />
+      <div className="asya-noise pointer-events-none absolute inset-0 opacity-35" />
+      <div className="asya-glow pointer-events-none absolute left-1/2 top-0 h-[34rem] w-[34rem] -translate-x-1/2 -translate-y-1/3 opacity-75" />
+      <div className="asya-glow pointer-events-none left-[8%] top-[24%] hidden h-64 w-64 opacity-50 md:absolute md:block" />
+      <div className="asya-glow pointer-events-none right-[6%] top-[60%] hidden h-72 w-72 opacity-45 md:absolute md:block" />
+      <div className="relative mx-auto grid min-h-[calc(100vh-4rem)] max-w-6xl items-center gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.78fr)]">
+        <section className="asya-panel relative rounded-xl border border-primary/20 bg-card/68 p-6 shadow-[0_18px_56px_rgba(142,99,30,0.11)] backdrop-blur-xl sm:p-7 lg:p-8">
+          <div className="lg:pr-[19rem]">
+            <p className="text-xs font-bold tracking-[0.28em] text-primary/75 uppercase">ASYA SYSTEM</p>
+            <h1 className="mt-4 bg-gradient-to-b from-primary via-[color:rgba(184,132,52,0.9)] to-[color:rgba(111,78,27,0.78)] bg-clip-text text-4xl font-black tracking-tight text-transparent drop-shadow-[0_18px_48px_rgba(155,109,35,0.14)] sm:text-5xl">
               ASYA
             </h1>
-            <div className="space-y-3">
-              <p className="mx-auto max-w-4xl text-lg font-light tracking-[0.14em] text-foreground/88 uppercase sm:text-xl md:text-2xl">
+            <h1 className="mt-4 bg-gradient-to-b from-primary via-[color:rgba(184,132,52,0.9)] to-[color:rgba(111,78,27,0.78)] bg-clip-text text-4xl font-black tracking-tight text-transparent drop-shadow-[0_18px_48px_rgba(155,109,35,0.14)] sm:text-4xl">
+              非对称联动推演自动化系统
+            </h1>
+            <div className="mt-4 space-y-2">
+              <p className="text-sm font-medium tracking-[0.12em] text-foreground/88 uppercase sm:text-base">
                 <span className="font-bold text-foreground">A</span>symmetric{' '}
                 <span className="font-bold text-foreground">SY</span>nergy{' '}
                 <span className="font-bold text-foreground">A</span>utomation System
               </p>
-              <p className="text-base font-light tracking-[0.22em] text-muted-foreground/90 sm:text-lg md:text-xl">
-                非对称联动推演自动化系统
+              <p className="max-w-2xl text-sm leading-7 text-muted-foreground">
+                模拟联合国联动体系的一站式解决方案，连接会议节奏、学团代表交互、信息流转。
               </p>
             </div>
-          </motion.div>
+          </div>
 
-          <motion.div variants={itemVariant} className="mt-8 flex justify-center">
-            <div className="h-px w-40 bg-gradient-to-r from-transparent via-primary/80 to-transparent shadow-[0_0_24px_rgba(184,132,52,0.35)]" />
-          </motion.div>
-
-          <motion.p
-            variants={itemVariant}
-            className="mt-8 max-w-3xl text-pretty text-base leading-8 text-muted-foreground sm:text-lg md:text-xl"
-          >
-            用于模拟联合国联动体系的一站式解决方案
-          </motion.p>
-
-          <motion.div
-            variants={itemVariant}
-            className="mt-10 flex flex-wrap items-center justify-center gap-4"
-          >
-            <TermsDialog variant="ghost" />
-            <div className="rounded-full border border-border/70 bg-background/65 px-4 py-2 text-sm text-muted-foreground shadow-[0_12px_40px_rgba(15,23,42,0.06)] backdrop-blur-md">
-              Unified orchestration for Model UN coordination
+          <div className="mt-5 rounded-lg border border-primary/15 bg-background/60 p-3 shadow-[0_12px_28px_rgba(142,99,30,0.07)] backdrop-blur-md sm:max-w-[19rem] lg:absolute lg:right-8 lg:top-8 lg:mt-0 lg:w-[17rem]">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[10px] font-semibold tracking-[0.22em] text-primary/70 uppercase">
+                Backend
+              </p>
+              <div className="flex items-center gap-2 rounded-full border border-primary/15 bg-background/80 px-2 py-1">
+                <span className={`size-1.5 rounded-full ${backendStatus.badge}`} />
+                <BackendStatusIcon className={`size-3.5 ${backendStatus.tone} ${backendStatus.iconClassName}`} />
+              </div>
             </div>
-          </motion.div>
-        </motion.div>
+            <p className={`mt-2 text-sm font-semibold ${backendStatus.tone}`}>
+              {backendStatus.label}
+            </p>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              {backendStatus.detail}
+            </p>
+            <p className="mt-3 truncate text-[11px] text-foreground/75" title={backendBaseUrl}>
+              {backendBaseUrl}
+            </p>
+          </div>
 
-        {/* Scroll Hint */}
-        {showScrollHint && (
-          <motion.button
-            initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: shouldReduceMotion ? 0 : 0.85, duration: shouldReduceMotion ? 0.01 : 0.6 }}
-            onClick={scrollToLogin}
-            className="absolute bottom-10 left-1/2 flex -translate-x-1/2 flex-col items-center gap-2 rounded-full border border-border/60 bg-background/55 px-5 py-3 text-muted-foreground shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-md transition-all duration-300 hover:border-primary/40 hover:text-primary"
-          >
-            <span className="text-xs tracking-[0.22em] uppercase">Scroll to explore</span>
-            <motion.span
-              animate={shouldReduceMotion ? undefined : { y: [0, 5, 0], opacity: [0.9, 1, 0.9] }}
-              transition={shouldReduceMotion ? undefined : { duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
-            >
-              <ChevronDown className="h-5 w-5" />
-            </motion.span>
-          </motion.button>
-        )}
-      </section>
+          {/* <div className="mt-6 rounded-xl border border-primary/15 bg-background/58 p-2 shadow-[0_14px_42px_rgba(142,99,30,0.08)]">
+            <ApiExample />
+          </div> */}
 
-      {/* Login Section */}
-      <section id="login-section" className="relative px-4 pb-24 pt-10 sm:pb-28">
-        <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, amount: 0.3 }}
-            variants={cardVariant}
-            custom={0.08}
-          >
-            <Card className="asya-panel min-h-full border-primary/20 bg-card/58 py-0 shadow-[0_22px_70px_rgba(142,99,30,0.12)] backdrop-blur-xl">
-              <CardHeader className="border-b border-border/60 px-6 py-6">
-                <div className="mb-4 flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary shadow-[0_0_30px_rgba(184,132,52,0.16)]">
-                    <Radar className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium tracking-[0.24em] text-primary/75 uppercase">System Monitor</p>
-                    <CardTitle className="mt-1 text-2xl font-semibold">系统状态</CardTitle>
-                  </div>
+          <div className="mt-6 divide-y divide-border/70">
+            {systemNotes.map(({ title, description, icon: Icon }) => (
+              <div key={title} className="flex gap-3 py-4 first:pt-0 last:pb-0">
+                <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary shadow-[0_0_24px_rgba(184,132,52,0.12)]">
+                  <Icon className="size-4" />
                 </div>
-                <CardDescription className="max-w-lg text-sm leading-7">
-                  检查后端 API 连通情况与响应状态，作为进入系统前的实时观察面板。
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="px-6 py-6">
-                <ApiExample />
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          <motion.div
-            className="space-y-5"
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, amount: 0.2 }}
-            variants={{
-              hidden: {},
-              visible: {
-                transition: shouldReduceMotion ? { duration: 0.01 } : { staggerChildren: 0.12 },
-              },
-            }}
-          >
-            <motion.div variants={cardVariant} custom={0.14} className="px-1 pb-2 pt-2">
-              <p className="text-xs font-medium tracking-[0.24em] text-primary/75 uppercase">Capability Highlights</p>
-              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-foreground">为复杂联动准备的一体化工作台</h2>
-              {/* <p className="mt-4 max-w-xl text-sm leading-7 text-muted-foreground">
-                首页不仅展示品牌，也快速说明这套系统在联动推演中的价值重心，让用户在进入前就能感受到节奏、控制与信息密度。
-              </p> */}
-            </motion.div>
-
-            {capabilityCards.map(({ icon: Icon, eyebrow, title, description }, index) => (
-              <motion.div key={title} variants={cardVariant} custom={0.2 + index * 0.1}>
-                <Card className="asya-panel border-border/70 bg-background/62 py-0 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl transition-transform duration-300 hover:-translate-y-1">
-                  <CardHeader className="px-6 py-5">
-                    <div className="flex items-start gap-4">
-                      <div className="mt-1 flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-primary/18 bg-primary/10 text-primary">
-                        <Icon className="h-5 w-5" />
-                      </div>
-                      <div className="space-y-2">
-                        <p className="text-xs font-medium tracking-[0.22em] text-primary/70 uppercase">{eyebrow}</p>
-                        <CardTitle className="text-xl font-semibold">{title}</CardTitle>
-                        <CardDescription className="text-sm leading-7 text-muted-foreground">
-                          {description}
-                        </CardDescription>
-                      </div>
-                    </div>
-                  </CardHeader>
-                </Card>
-              </motion.div>
+                <div>
+                  <h2 className="text-base font-semibold text-foreground">{title}</h2>
+                  <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+                    {description}
+                  </p>
+                </div>
+              </div>
             ))}
-          </motion.div>
-        </div>
-      </section>
-    </div>
+          </div>
+        </section>
+
+        <section className="asya-panel rounded-xl border border-primary/20 bg-card/82 p-6 shadow-[0_18px_56px_rgba(142,99,30,0.13)] backdrop-blur-xl sm:p-7">
+          <p className="text-xs font-semibold tracking-[0.18em] text-primary/75">欢迎回来</p>
+          <h2 className="mt-3 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+            权限认证
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            登录后进入你的会议与指令界面。
+          </p>
+
+          <div className={`mt-6 grid rounded-lg border border-primary/20 bg-primary/5 p-1 ${allowRegister ? 'grid-cols-2' : 'grid-cols-1'}`}>
+            <button
+              type="button"
+              onClick={() => setTab('login')}
+              className={`h-8 rounded-md text-sm font-medium transition-all ${
+                tab === 'login'
+                  ? 'bg-background text-foreground shadow-[0_6px_18px_rgba(142,99,30,0.10)]'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              登录
+            </button>
+            {allowRegister && (
+              <button
+                type="button"
+                onClick={() => setTab('register')}
+                className={`h-8 rounded-md text-sm font-medium transition-all ${
+                  tab === 'register'
+                    ? 'bg-background text-foreground shadow-[0_6px_18px_rgba(142,99,30,0.10)]'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                注册
+              </button>
+            )}
+          </div>
+
+          {tab === 'login' && (
+            <form onSubmit={handleLogin} className="mt-6 space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="login-name">
+                  用户昵称
+                </Label>
+                <Input
+                  id="login-name"
+                  placeholder="请输入用户昵称"
+                  value={loginForm.name}
+                  onChange={(e) => setLoginForm({ ...loginForm, name: e.target.value })}
+                  disabled={loading}
+                  autoComplete="username"
+                  className="border-primary/20 bg-background/65 focus-visible:ring-primary/35"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="login-password">
+                  密码
+                </Label>
+                <Input
+                  id="login-password"
+                  type="password"
+                  placeholder="请输入密码"
+                  value={loginForm.password}
+                  onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                  disabled={loading}
+                  autoComplete="current-password"
+                  className="border-primary/20 bg-background/65 focus-visible:ring-primary/35"
+                />
+              </div>
+
+              <Button
+                type="submit"
+                className="mt-2 w-full shadow-[0_12px_26px_rgba(142,99,30,0.16)] hover:bg-primary/90"
+                disabled={loading}
+              >
+                {loading ? '登录中...' : '登录并进入系统'}
+                {!loading && <ArrowRight className="size-4" />}
+              </Button>
+            </form>
+          )}
+
+          {tab === 'register' && allowRegister && (
+            <form onSubmit={handleRegister} className="mt-6 space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="register-name">
+                  用户昵称
+                </Label>
+                <Input
+                  id="register-name"
+                  placeholder="请输入用户昵称"
+                  value={registerForm.name}
+                  onChange={(e) => setRegisterForm({ ...registerForm, name: e.target.value })}
+                  disabled={loading}
+                  autoComplete="username"
+                  className="border-primary/20 bg-background/65 focus-visible:ring-primary/35"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="register-display-name">
+                  显示名称（可选）
+                </Label>
+                <Input
+                  id="register-display-name"
+                  placeholder="请输入显示名称"
+                  value={registerForm.displayName}
+                  onChange={(e) => setRegisterForm({ ...registerForm, displayName: e.target.value })}
+                  disabled={loading}
+                  autoComplete="nickname"
+                  className="border-primary/20 bg-background/65 focus-visible:ring-primary/35"
+                />
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="register-password">
+                    密码
+                  </Label>
+                  <Input
+                    id="register-password"
+                    type="password"
+                    placeholder="至少 6 个字符"
+                    value={registerForm.password}
+                    onChange={(e) => setRegisterForm({ ...registerForm, password: e.target.value })}
+                    disabled={loading}
+                    autoComplete="new-password"
+                    className="border-primary/20 bg-background/65 focus-visible:ring-primary/35"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-password">
+                    确认密码
+                  </Label>
+                  <Input
+                    id="confirm-password"
+                    type="password"
+                    placeholder="再次输入密码"
+                    value={registerForm.confirmPassword}
+                    onChange={(e) => setRegisterForm({ ...registerForm, confirmPassword: e.target.value })}
+                    disabled={loading}
+                    autoComplete="new-password"
+                    className="border-primary/20 bg-background/65 focus-visible:ring-primary/35"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="role">
+                  用户角色
+                </Label>
+                <select
+                  id="role"
+                  value={registerForm.role}
+                  onChange={(e) => setRegisterForm({ ...registerForm, role: e.target.value as UserRegistrationRequestRole })}
+                  disabled={loading}
+                  className="h-8 w-full rounded-lg border border-primary/20 bg-background/65 px-2.5 py-1 text-sm text-foreground outline-none transition focus:ring-[3px] focus:ring-primary/35 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <option value="DM">DM</option>
+                  <option value="DH">DH</option>
+                  <option value="DELEGATE">DELEGATE</option>
+                  <option value="SYS_ADMIN">SYS_ADMIN</option>
+                </select>
+              </div>
+
+              <Button
+                type="submit"
+                className="mt-2 w-full shadow-[0_12px_26px_rgba(142,99,30,0.16)] hover:bg-primary/90"
+                disabled={loading}
+              >
+                {loading ? '注册中...' : '注册并进入系统'}
+                {!loading && <ArrowRight className="size-4" />}
+              </Button>
+            </form>
+          )}
+
+          <div className="mt-6 flex justify-center">
+            <TermsDialog variant="link" />
+          </div>
+
+          <TermsDialog
+            open={termsOpen}
+            onOpenChange={handleTermsOpenChange}
+            showTrigger={false}
+            confirmLabel="确认并进入系统"
+          />
+        </section>
+      </div>
+    </main>
   )
-}
-
-
-export default function Page() {
-  return <WelcomeComponent />
 }

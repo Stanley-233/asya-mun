@@ -11,7 +11,6 @@ import {
   CircleUserRound,
   Command,
   FileText,
-  Home,
   LayoutDashboard,
   LogIn,
   LogOut,
@@ -80,12 +79,12 @@ function UserPanel({
   return (
     <div
       className={cn(
-        "flex items-center gap-2 rounded-2xl border border-sidebar-border/70 bg-white/70 p-2 text-sidebar-foreground shadow-sm",
+        "flex items-center gap-2 rounded-2xl border border-sidebar-border/70 bg-white/70 p-2 text-sidebar-foreground shadow-sm transition-all duration-300 ease-out",
         collapsed && "justify-center rounded-xl px-2"
       )}
       title={collapsed ? `${displayName} · ${role}` : undefined}
     >
-      <div className={cn("flex min-w-0 flex-1 items-center gap-2.5", collapsed && "flex-none justify-center")}>
+      <div className={cn("flex min-w-0 flex-1 items-center gap-2.5 transition-all duration-300 ease-out", collapsed && "flex-none justify-center")}>
         <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
           <CircleUserRound className="size-4.5" />
         </div>
@@ -101,10 +100,7 @@ function UserPanel({
           type="button"
           onClick={onLogout}
           title="退出"
-          className={cn(
-            "flex size-8 shrink-0 items-center justify-center rounded-xl bg-destructive/10 text-destructive transition-all hover:bg-destructive/15",
-            collapsed && "size-8"
-          )}
+          className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-destructive/10 text-destructive transition-all duration-300 ease-out hover:bg-destructive/15"
           aria-label="退出"
         >
           <LogOut className="size-4" />
@@ -128,7 +124,6 @@ function buildNavGroups({
   isDelegate: boolean
 }): NavGroup[] {
   const delegateItems: NavItem[] = [
-    { href: "/", label: "首页", icon: Home },
     ...(isAuthenticated ? [{ href: "/progress", label: "会议", icon: Timer }] : []),
     ...(isDelegate ? [{ href: "/status", label: "状态", icon: Activity }] : []),
     ...(isLoading
@@ -180,17 +175,17 @@ function NavigationGroups({
   onNavigate?: () => void
 }) {
   return (
-    <div className={cn("flex flex-1 flex-col gap-2.5", collapsed && "items-center gap-2")}>
+    <div className={cn("flex flex-1 flex-col gap-2.5 transition-all duration-300 ease-out", collapsed && "items-center gap-2")}>
       {groups.map((group) => {
         const groupClosed = closedGroups.includes(group.label)
 
         return (
-          <section key={group.label} className={cn("w-full", collapsed && "flex flex-col items-center")}>
+          <section key={group.label} className={cn("w-full transition-all duration-300 ease-out", collapsed && "flex flex-col items-center")}>
             <button
               type="button"
               onClick={() => onToggleGroup(group.label)}
               className={cn(
-                "mb-0.5 flex h-5 w-full items-center gap-2 rounded-lg px-3 text-left text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                "mb-0.5 flex h-5 w-full items-center gap-2 rounded-lg px-3 text-left text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground transition-all duration-300 ease-out hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                 collapsed && "mb-0.5 size-7 justify-center px-0"
               )}
               title={collapsed ? group.label : undefined}
@@ -199,7 +194,7 @@ function NavigationGroups({
               <group.icon className="size-3.5 shrink-0" />
               {!collapsed && (
                 <>
-                  <span className="min-w-0 flex-1 truncate">{group.label}</span>
+                  <span className="min-w-0 flex-1 truncate transition-opacity duration-200">{group.label}</span>
                   <ChevronDown
                     className={cn(
                       "size-3.5 shrink-0 transition-transform duration-200",
@@ -221,7 +216,7 @@ function NavigationGroups({
                       onClick={onNavigate}
                       title={collapsed ? item.label : undefined}
                       className={cn(
-                        "group flex h-9 items-center gap-2.5 rounded-xl px-3 text-[0.92rem] font-semibold text-muted-foreground transition-all duration-200 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                        "group flex h-9 items-center gap-2.5 rounded-xl px-3 text-[0.92rem] font-semibold text-muted-foreground transition-all duration-300 ease-out hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                         active && "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm",
                         collapsed && "size-10 justify-center px-0"
                       )}
@@ -232,7 +227,7 @@ function NavigationGroups({
                           active ? "text-sidebar-accent-foreground" : "text-muted-foreground group-hover:text-sidebar-accent-foreground"
                         )}
                       />
-                      {!collapsed && <span className="truncate">{item.label}</span>}
+                      {!collapsed && <span className="truncate transition-opacity duration-200">{item.label}</span>}
                       {collapsed && <span className="sr-only">{item.label}</span>}
                     </Link>
                   )
@@ -298,7 +293,7 @@ export function Navbar() {
             </div>
           </SheetContent>
         </Sheet>
-        <Link href="/" className="flex flex-col items-center">
+        <Link href="/progress" className="flex flex-col items-center">
           <span className="text-[0.65rem] font-bold uppercase tracking-[0.26em] text-muted-foreground">ASYA</span>
           <span className="text-base font-black leading-5 text-sidebar-foreground">ASYA 系统</span>
         </Link>
@@ -307,20 +302,20 @@ export function Navbar() {
 
       <aside
         className={cn(
-          "sticky top-0 hidden h-screen shrink-0 flex-col border-r border-sidebar-border bg-sidebar/95 text-sidebar-foreground shadow-[8px_0_30px_rgb(15_23_42/0.04)] backdrop-blur md:flex",
+          "sticky top-0 hidden h-screen shrink-0 flex-col border-r border-sidebar-border bg-sidebar/95 text-sidebar-foreground shadow-[8px_0_30px_rgb(15_23_42/0.04)] backdrop-blur transition-[width] duration-300 ease-out md:flex",
           collapsed ? "w-[76px]" : "w-[280px]"
         )}
       >
-        <div className={cn("flex h-22 items-start justify-between border-b border-sidebar-border px-5 py-5", collapsed && "items-center justify-center px-3")}>
-          <Link href="/" className={cn("min-w-0", collapsed && "sr-only")}>
+        <div className={cn("flex h-22 items-start justify-between border-b border-sidebar-border px-5 py-5 transition-all duration-300 ease-out", collapsed && "items-center justify-center px-3")}>
+          <Link href="/progress" className={cn("min-w-0", collapsed && "sr-only")}>
             <p className="text-xs font-bold uppercase tracking-[0.32em] text-muted-foreground">ASYA SYSTEM</p>
             <p className="mt-1 text-2xl font-black tracking-tight text-sidebar-foreground">ASYA 系统</p>
           </Link>
           {collapsed && (
             <Link
-              href="/"
-              className="flex size-11 items-center justify-center rounded-2xl bg-primary/10 text-lg font-black text-primary"
-              title="ASYA 首页"
+              href="/progress"
+              className="flex size-11 items-center justify-center rounded-2xl bg-primary/10 text-lg font-black text-primary transition-all duration-300 ease-out"
+              title="ASYA 工作台"
             >
               A
             </Link>
@@ -330,14 +325,17 @@ export function Navbar() {
             variant="ghost"
             size="icon"
             onClick={() => setCollapsed((value) => !value)}
-            className={cn("rounded-xl text-muted-foreground hover:text-sidebar-foreground", collapsed && "absolute left-11 top-5 size-7 rounded-full border bg-sidebar shadow-sm")}
+            className={cn(
+              "rounded-xl text-muted-foreground transition-all duration-300 ease-out hover:text-sidebar-foreground",
+              collapsed && "absolute left-11 top-5 size-7 rounded-full border bg-sidebar shadow-sm"
+            )}
             aria-label={collapsed ? "展开侧栏" : "折叠侧栏"}
           >
             {collapsed ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
           </Button>
         </div>
 
-        <nav className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-3 py-4">
+        <nav className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-3 py-4 transition-all duration-300 ease-out">
           <NavigationGroups
             groups={groups}
             pathname={pathname}
@@ -347,7 +345,7 @@ export function Navbar() {
           />
         </nav>
 
-        <div className={cn("border-t border-sidebar-border p-3", collapsed && "px-2")}>
+        <div className={cn("border-t border-sidebar-border p-3 transition-all duration-300 ease-out", collapsed && "px-2")}>
           <UserPanel collapsed={collapsed} showLogout={isAuthenticated && !isLoading} onLogout={logout} />
         </div>
       </aside>

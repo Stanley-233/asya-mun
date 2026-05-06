@@ -7,9 +7,9 @@ const REPOSITORY_URL = 'https://www.github.com/Stanley-233/asya-mun'
 
 export function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const isLoginPage = pathname === '/login'
+  const isAuthEntryPage = pathname === '/' || pathname === '/login'
 
-  if (!isLoginPage) {
+  if (!isAuthEntryPage) {
     return (
       <div className="min-h-screen bg-background md:flex">
         <Navbar />

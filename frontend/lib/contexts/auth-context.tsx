@@ -78,7 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('token')
       window.dispatchEvent(new Event(TOKEN_STORAGE_EVENT))
-      window.location.href = '/login'
+      window.location.href = '/'
     }
   }
 
