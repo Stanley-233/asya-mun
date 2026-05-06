@@ -8,8 +8,8 @@ require(Regex("""\d+\.\d+\.\d+""").matches(appVersion)) {
 plugins {
     kotlin("jvm") version "2.2.21"
     kotlin("plugin.spring") version "2.2.21"
-    kotlin("plugin.jpa") version "1.9.25"
-    id("org.springframework.boot") version "4.0.1"
+    kotlin("plugin.jpa") version "2.2.21"
+    id("org.springframework.boot") version "4.0.6"
     id("io.spring.dependency-management") version "1.1.7"
 }
 
@@ -50,7 +50,7 @@ dependencies {
     // 数据库全家桶
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     // runtimeOnly("org.xerial:sqlite-jdbc")
-    runtimeOnly("org.postgresql:postgresql")
+    runtimeOnly("org.postgresql:postgresql:42.7.11")
     // 2. Hibernate 社区方言包 (Spring Boot 3 + Hibernate 6 必需
     implementation("org.hibernate.orm:hibernate-community-dialects")
     // 开发体验工具
