@@ -2,12 +2,22 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { useAuth } from '@/lib/contexts/auth-context'
 import { useGetSecretMessages } from '@/lib/api/hooks/message'
 import { useGetUsers } from '@/lib/api/hooks/conference'
 import type { MessageResponse } from '@/lib/api/generated'
 import { MessageCard } from './message-card'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+
+const PAGE_SIZE_OPTIONS = ['5', '10', '15', '20']
 
 interface SecretMessageListProps {
   onMessageClick?: (message: MessageResponse) => void
@@ -18,7 +28,7 @@ export function SecretMessageList({
 }: SecretMessageListProps) {
   const { isAuthenticated } = useAuth()
   const [currentPage, setCurrentPage] = useState(0)
-  const [pageSize] = useState(10)
+  const [pageSize, setPageSize] = useState(10)
 
   const { data: usersData } = useGetUsers({
     query: {
@@ -99,34 +109,56 @@ export function SecretMessageList({
             ))}
           </div>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between border-t pt-4">
+          <div className="flex flex-col gap-3 border-t pt-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <div className="text-sm text-muted-foreground">
-                第 {currentPageNumber + 1} 页，共 {totalPages} 页 · 共 {totalElements} 条消息
+                第 {currentPageNumber + 1} 页，共 {Math.max(totalPages, 1)} 页，共 {totalElements} 条消息
               </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage((p) => p - 1)}
-                  disabled={isFirstPage || currentPage === 0}
+              <div className="flex items-center gap-2">
+                <Label htmlFor="secret-message-page-size" className="text-sm text-muted-foreground">
+                  每页
+                </Label>
+                <Select
+                  value={String(pageSize)}
+                  onValueChange={(value) => {
+                    setPageSize(Number(value))
+                    setCurrentPage(0)
+                  }}
                 >
-                  <ChevronLeft />
-                  上一页
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage((p) => p + 1)}
-                  disabled={isLastPage}
-                >
-                  下一页
-                  <ChevronRight />
-                </Button>
+                  <SelectTrigger id="secret-message-page-size" className="w-[110px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PAGE_SIZE_OPTIONS.map((option) => (
+                      <SelectItem key={option} value={option}>
+                        {option} 条
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-          )}
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((p) => Math.max(0, p - 1))}
+                disabled={isFirstPage || currentPage === 0}
+              >
+                <ChevronLeft />
+                上一页
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((p) => p + 1)}
+                disabled={isLastPage}
+              >
+                下一页
+                <ChevronRight />
+              </Button>
+            </div>
+          </div>
         </>
       )}
     </div>

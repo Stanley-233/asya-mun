@@ -38,6 +38,7 @@ import type {
 } from '@/lib/api/generated'
 
 const ALL_FILTER = '__ALL__'
+const PAGE_SIZE_OPTIONS = ['5', '10', '15', '20']
 
 const statusOptions: Array<GetForManagementStatus> = [
   'SUBMITTED',
@@ -65,6 +66,7 @@ export default function InstructionsPage() {
   const [submitterUuidsFilter, setSubmitterUuidsFilter] = useState<string[]>([])
   const [delegateKeyword, setDelegateKeyword] = useState('')
   const [currentPage, setCurrentPage] = useState(0)
+  const [pageSize, setPageSize] = useState(10)
   const [selectedInstructionUuid, setSelectedInstructionUuid] = useState<string | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
 
@@ -76,7 +78,7 @@ export default function InstructionsPage() {
       submitterUuids: submitterUuidsFilter.length > 0 ? submitterUuidsFilter : undefined,
       pageable: {
         page: currentPage,
-        size: 10,
+        size: pageSize,
         sort: ['submitRealTime,desc'],
       },
     },
@@ -361,14 +363,21 @@ export default function InstructionsPage() {
               emptyTitle="暂无指令"
               emptyDescription="当前筛选条件下没有符合条件的指令"
               currentPage={currentPage}
+              pageSize={pageSize}
               totalPages={instructionPage.totalPages}
+              totalElements={instructionPage.totalElements}
               isFirstPage={instructionPage.isFirstPage}
               isLastPage={instructionPage.isLastPage}
               onPreviousPage={() => setCurrentPage(page => Math.max(0, page - 1))}
               onNextPage={() => setCurrentPage(page => page + 1)}
+              onPageSizeChange={(value) => {
+                setPageSize(value)
+                setCurrentPage(0)
+              }}
               onInstructionClick={handleInstructionClick}
               showSubmitter
               submitterLabelMap={submitterLabelMap}
+              pageSizeOptions={PAGE_SIZE_OPTIONS}
             />
           </CardContent>
         </Card>

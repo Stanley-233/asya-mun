@@ -44,6 +44,7 @@ const statusLabels = {
 }
 
 const ALL_INSTRUCTION_STATUS = '__ALL__'
+const PAGE_SIZE_OPTIONS = ['5', '10', '15', '20']
 
 const myInstructionStatusOptions: GetMyInstructionsStatus[] = [
   'SUBMITTED',
@@ -69,6 +70,7 @@ export default function ProfilePage() {
   const [selectedInstructionUuid, setSelectedInstructionUuid] = useState<string | null>(null)
   const [instructionDetailOpen, setInstructionDetailOpen] = useState(false)
   const [instructionCurrentPage, setInstructionCurrentPage] = useState(0)
+  const [instructionPageSize, setInstructionPageSize] = useState(10)
   const [instructionStatusFilter, setInstructionStatusFilter] = useState<GetMyInstructionsStatus | undefined>(undefined)
 
   const { data: myInstructionsData, isLoading: myInstructionsLoading, error: myInstructionsError, refetch: refetchMyInstructions } = useGetMyInstructions(
@@ -76,7 +78,7 @@ export default function ProfilePage() {
       status: instructionStatusFilter,
       pageable: {
         page: instructionCurrentPage,
-        size: 10,
+        size: instructionPageSize,
         sort: ['submitRealTime,desc'],
       },
     },
@@ -228,12 +230,19 @@ export default function ProfilePage() {
                 emptyTitle="暂无指令"
                 emptyDescription="当前筛选条件下没有符合条件的指令"
                 currentPage={instructionCurrentPage}
+                pageSize={instructionPageSize}
                 totalPages={instructionPage.totalPages}
+                totalElements={instructionPage.totalElements}
                 isFirstPage={instructionPage.isFirstPage}
                 isLastPage={instructionPage.isLastPage}
                 onPreviousPage={() => setInstructionCurrentPage(page => Math.max(0, page - 1))}
                 onNextPage={() => setInstructionCurrentPage(page => page + 1)}
+                onPageSizeChange={(value) => {
+                  setInstructionPageSize(value)
+                  setInstructionCurrentPage(0)
+                }}
                 onInstructionClick={handleInstructionClick}
+                pageSizeOptions={PAGE_SIZE_OPTIONS}
               />
             </CardContent>
           </Card>

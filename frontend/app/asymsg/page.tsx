@@ -6,6 +6,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { useAuth } from "@/lib/contexts/auth-context"
 import { useGetAllSecretInConference, useDelete } from "@/lib/api/hooks/message"
 import { useGetUsers } from "@/lib/api/hooks/conference"
@@ -28,6 +35,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-toastify'
 import { buildLoginRedirect } from '@/lib/auth/return-to'
 
+const PAGE_SIZE_OPTIONS = ['5', '10', '15', '20']
+
 export default function DirectiveAsymsgPage() {
   const queryClient = useQueryClient()
   const router = useRouter()
@@ -48,7 +57,7 @@ export default function DirectiveAsymsgPage() {
   
   // 分页状态
   const [currentPage, setCurrentPage] = useState(0)
-  const [pageSize] = useState(10)
+  const [pageSize, setPageSize] = useState(10)
   const [pageIndexBase, setPageIndexBase] = useState<0 | 1>(0)
   
   // 对话框状态
@@ -322,38 +331,6 @@ export default function DirectiveAsymsgPage() {
               </div>
             </div>
 
-            {/* 分页 */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between border-t pt-4">
-                <div className="text-sm text-muted-foreground">
-                  第 {displayPage} 页，共 {totalPages} 页
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage((p) => Math.max(0, p - 1))}
-                    disabled={isFirstPage}
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                    上一页
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      syncPageIndexBase()
-                      setCurrentPage((p) => Math.min(Math.max(totalPages - 1, 0), p + 1))
-                    }}
-                    disabled={isLastPage}
-                  >
-                    下一页
-                    <ChevronRight className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
-            
             {/* 消息列表 */}
             {messagesLoading ? (
               <div className="flex items-center justify-center p-8 text-muted-foreground">
@@ -379,6 +356,60 @@ export default function DirectiveAsymsgPage() {
                 </div>
               </>
             )}
+
+            <div className="flex flex-col gap-3 border-t pt-4 md:flex-row md:items-center md:justify-between">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <div className="text-sm text-muted-foreground">
+                  第 {displayPage} 页，共 {Math.max(totalPages, 1)} 页，共 {totalElements} 条
+                </div>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="asymsg-page-size" className="text-sm text-muted-foreground">
+                    每页
+                  </Label>
+                  <Select
+                    value={String(pageSize)}
+                    onValueChange={(value) => {
+                      setPageSize(Number(value))
+                      setCurrentPage(0)
+                    }}
+                  >
+                    <SelectTrigger id="asymsg-page-size" className="w-[110px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PAGE_SIZE_OPTIONS.map((option) => (
+                        <SelectItem key={option} value={option}>
+                          {option} 条
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.max(0, p - 1))}
+                  disabled={isFirstPage}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  上一页
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    syncPageIndexBase()
+                    setCurrentPage((p) => Math.min(Math.max(totalPages - 1, 0), p + 1))
+                  }}
+                  disabled={isLastPage}
+                >
+                  下一页
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
