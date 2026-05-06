@@ -1,9 +1,9 @@
 'use client'
 
 import React, { createContext, useContext, useMemo, useSyncExternalStore } from 'react'
-import { useGetCurrentUser } from '@/lib/api/endpoints/用户管理/用户管理'
+import { useGetCurrentUser } from '@/lib/api/hooks/user'
 import { parseApiPayload } from '@/lib/api/response-utils'
-import type { UserInfoResponse } from '@/lib/api/endpoints/asyaBackendAPI.schemas'
+import type { UserInfoResponse } from '@/lib/api/generated'
 
 export interface AuthContextType {
   user: UserInfoResponse | null

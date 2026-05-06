@@ -14,8 +14,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { parseApiPayload } from '@/lib/api/response-utils'
-import { useGetInstruction } from '@/lib/api/endpoints/指令管理/指令管理'
-import type { InstructionResponse, UserGroupResponse } from '@/lib/api/endpoints/asyaBackendAPI.schemas'
+import { useGetInstruction } from '@/lib/api/hooks/instruction'
+import type { InstructionResponse, UserGroupResponse } from '@/lib/api/generated'
 import {
   formatInstructionGameTime,
   formatInstructionRealTime,

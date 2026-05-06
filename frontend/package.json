@@ -10,7 +10,7 @@
     "prestart": "node ../scripts/sync-version.mjs --package ./package.json --version-file ../VERSION",
     "start": "next start",
     "lint": "eslint",
-    "generate:api": "orval --config ./orval.config.ts",
+    "generate:api": "node ./scripts/generate-api.mjs",
     "version:sync": "node ../scripts/sync-version.mjs --package ./package.json --version-file ../VERSION"
   },
   "dependencies": {

@@ -10,8 +10,8 @@ import {
   useDetail,
   getListQueryKey,
   useCurrent,
-} from '@/lib/api/endpoints/回合管理/回合管理'
-import type { RoundResponse } from '@/lib/api/endpoints/asyaBackendAPI.schemas'
+} from '@/lib/api/hooks/round'
+import type { RoundResponse } from '@/lib/api/generated'
 
 function formatDuration(totalSeconds: number) {
   const safe = Math.max(0, Math.floor(totalSeconds))

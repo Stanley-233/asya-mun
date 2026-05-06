@@ -7,7 +7,7 @@ import type {
   DelegateAttrTypedValueResponse,
   DelegateAttrValueInput,
   Pagenull,
-} from "@/lib/api/endpoints/asyaBackendAPI.schemas";
+} from "@/lib/api/generated";
 
 export interface DelegateAttrColumnViewModel {
   key: string;

@@ -1,208 +1,93 @@
-# API 自动化集成指南
+# API 集成说明
 
-## 已完成的配置
+## 当前模式
 
-✅ 已安装并配置好以下工具：
-- **orval**: OpenAPI 代码生成器
-- **@tanstack/react-query**: 强大的数据获取和状态管理
-- **axios**: HTTP 客户端
+- `orval` 只负责根据 OpenAPI 生成类型定义，输出到 `lib/api/generated/`
+- 请求函数、query 参数拼装、React Query hooks 全部手写，位于：
+  - `lib/api/core/`
+  - `lib/api/apis/`
+  - `lib/api/hooks/`
+- 业务代码不要再依赖 `lib/api/endpoints/`
 
-## 使用方法
+## 目录结构
 
-### 1. 生成 API 代码
+```text
+lib/api/
+├── apis/                 # 手写 API 方法
+├── client.ts             # Axios 实例 + requester 单例
+├── core/                 # transport / requester / query / result / errors
+├── generated/            # OpenAPI 生成的类型定义
+├── hooks/                # 手写 React Query hooks / query keys
+├── query-provider.tsx    # React Query Provider
+└── types.ts              # generated 类型导出
+```
 
-每当后端 API 更新时，运行：
+## 生成类型
+
+后端 OpenAPI 更新后执行：
 
 ```bash
 pnpm generate:api
 ```
 
-这会从 `http://127.0.0.1:8080/v3/api-docs.yaml` 获取最新的 OpenAPI 文档并自动生成：
-- TypeScript 类型定义
-- React Query hooks
-- API 客户端代码
+当前配置会：
 
-### 2. 在组件中使用
+- 只生成 `lib/api/generated/` 下的 schema/types
+- 不会再生成 `lib/api/endpoints/`
+- 不会生成请求函数或 React Query hooks
+- 生成过程中会临时写入 `.orval/`，脚本结束后自动删除
 
-```tsx
-'use client';
+## 使用方式
 
-import { useHelloWorld } from '@/lib/api/endpoints/hello-world-controller/hello-world-controller';
-
-export function MyComponent() {
-  // GET 请求示例
-  const { data, isLoading, error } = useHelloWorld();
-
-  if (isLoading) return <div>加载中...</div>;
-  if (error) return <div>错误: {error.message}</div>;
-  
-  return <div>{data}</div>;
-}
-```
-
-### 3. Mutation 示例（POST/PUT/DELETE）
+### 1. 直接调用手写 API
 
 ```tsx
-'use client';
+import { login } from '@/lib/api/hooks/user'
 
-import { useCreateUser } from '@/lib/api/endpoints/用户管理/用户管理';
-
-export function CreateUserForm() {
-  const { mutate, isPending } = useCreateUser();
-
-  const handleSubmit = (formData: FormData) => {
-    mutate(
-      {
-        data: {
-          name: formData.get('name') as string,
-          email: formData.get('email') as string,
-        },
-      },
-      {
-        onSuccess: (data) => {
-          console.log('创建成功', data);
-        },
-        onError: (error) => {
-          console.error('创建失败', error);
-        },
-      }
-    );
-  };
-
-  return <form onSubmit={handleSubmit}>...</form>;
-}
+const result = await login({
+  name: 'demo',
+  password: 'secret',
+  role: 'DM',
+})
 ```
 
-## 目录结构
-
-```
-lib/
-├── api/
-│   ├── client.ts              # Axios 客户端配置
-│   ├── query-provider.tsx     # React Query Provider
-│   ├── example-usage.tsx      # 使用示例
-│   └── endpoints/             # 自动生成的 API 代码（不要手动修改）
-│       ├── asyaBackendAPI.schemas.ts
-│       ├── hello-world-controller/
-│       └── 用户管理/
-```
-
-## 配置文件
-
-### orval.config.ts
-- 配置 API 文档地址
-- 配置生成代码的目标目录
-- 配置客户端类型（react-query）
-
-### lib/api/client.ts
-- 配置 Axios 实例
-- 添加请求/响应拦截器
-- 处理认证 token
-- 统一错误处理
-
-## 环境变量
-
-创建 `.env.local` 文件：
-
-```bash
-NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8080
-```
-
-生产环境时修改为实际的后端地址。
-
-## 常见场景
-
-### 1. 带查询参数的请求
+### 2. 使用手写 Query Hook
 
 ```tsx
-const { data } = useGetUsers({
-  params: {
-    page: 1,
-    limit: 10,
-    search: 'keyword',
+import { useGetRegistrationSwitch } from '@/lib/api/hooks/user'
+
+const { data, isLoading } = useGetRegistrationSwitch({
+  query: {
+    retry: false,
   },
-});
+})
 ```
 
-### 2. 带路径参数的请求
+### 3. 使用显式 Query Key
 
 ```tsx
-const { data } = useGetUser({
-  userId: '123',
-});
+import { userKeys } from '@/lib/api/hooks/user'
+
+queryClient.invalidateQueries({
+  queryKey: userKeys.registrationSwitch(),
+})
 ```
 
-### 3. 手动触发请求
+### 4. 分页接口
 
-```tsx
-const { refetch } = useGetUser(
-  { userId: '123' },
-  { enabled: false } // 不自动执行
-);
+- 分页查询必须手写 query 拼装
+- `pageable.page` / `pageable.size` / `pageable.sort` 由 `lib/api/core/query.ts` 展平为 URL 参数
+- 不要再依赖生成器默认序列化分页对象
 
-// 手动触发
-<button onClick={() => refetch()}>刷新</button>
-```
+## 约定
 
-### 4. 依赖查询
-
-```tsx
-const { data: user } = useGetCurrentUser();
-const { data: posts } = useGetUserPosts(
-  { userId: user?.id },
-  { enabled: !!user?.id } // 只有当 user.id 存在时才执行
-);
-```
-
-## 开发流程
-
-1. **后端更新 API** → 确保后端服务运行在 `http://127.0.0.1:8080`
-2. **生成代码** → `pnpm generate:api`
-3. **使用新的 hooks** → 在组件中导入并使用
-4. **TypeScript 类型自动提示** → 享受完整的类型安全
+- 类型从 `@/lib/api/generated` 或 `@/lib/api/types` 导入
+- hooks 从 `@/lib/api/hooks/*` 导入
+- 原始 API 方法从 `@/lib/api/apis/*` 导入
+- `multipart/form-data`、blob 下载等特殊请求统一收口到对应 API 模块，不在页面内直接拼 URL
 
 ## 注意事项
 
-- ⚠️ 不要手动修改 `lib/api/endpoints/` 下的文件，每次生成会覆盖
-- ⚠️ 自定义逻辑写在 `lib/api/client.ts` 中
-- ⚠️ 确保后端服务在生成时可访问
-- ✅ 已在 [.gitignore](.gitignore) 中添加生成文件的忽略规则（可根据团队需要调整）
-
-## 高级功能
-
-### 全局错误处理
-
-在 [lib/api/client.ts](lib/api/client.ts#L21-L32) 中配置响应拦截器：
-
-```ts
-AXIOS_INSTANCE.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      // 跳转登录
-      window.location.href = '/login';
-    }
-    return Promise.reject(error);
-  }
-);
-```
-
-### 添加认证 Token
-
-在 [lib/api/client.ts](lib/api/client.ts#L8-L19) 中配置请求拦截器：
-
-```ts
-AXIOS_INSTANCE.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-```
-
-## 相关资源
-
-- [Orval 文档](https://orval.dev/)
-- [React Query 文档](https://tanstack.com/query/latest)
-- [Axios 文档](https://axios-http.com/)
+- 不要手改 `lib/api/generated/`
+- 手写请求逻辑只放在 `lib/api/apis/`、`lib/api/hooks/`、`lib/api/core/`
+- 401 跳转、token 注入、响应解包统一在 `lib/api/client.ts` 和 `lib/api/core/result.ts`

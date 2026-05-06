@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,19 +14,19 @@ import {
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
-import { useCreate1, useUpdate1, useGetOne, useGetReceivers } from '@/lib/api/endpoints/消息管理/消息管理'
-import { useGetUsers } from '@/lib/api/endpoints/会议管理/会议管理'
-import { useGetAllUserGroups } from '@/lib/api/endpoints/用户组管理/用户组管理'
-import { AXIOS_INSTANCE } from '@/lib/api/client'
+import { useCreate1, useUpdate1, useGetOne, useGetReceivers } from '@/lib/api/hooks/message'
+import { useGetUsers } from '@/lib/api/hooks/conference'
+import { useGetAllUserGroups } from '@/lib/api/hooks/user-group'
+import { delete1, listAll, upload } from '@/lib/api/apis/attachment.api'
 import type {
+  AttachmentUploadResponse,
   MessageResponse,
   MessageCreateRequest,
   MessageUpdateRequest,
   MessageReceiverVisibilityResponse,
   UserInfoResponse,
   UserGroupResponse,
-  ResultAttachmentUploadResponse,
-} from '@/lib/api/endpoints/asyaBackendAPI.schemas'
+} from '@/lib/api/generated'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/lib/contexts/auth-context'
 import { toast } from 'react-toastify'
@@ -57,12 +57,26 @@ interface GroupReceiverConfig {
   readableAt: string
 }
 
-function normalizeAttachmentItems(rawMessage: any): AttachmentItem[] {
+interface LegacyAttachmentInfo {
+  uuid?: string
+  fileName?: string
+  fileType?: string
+}
+
+type MessageAttachmentSource = MessageResponse & {
+  attachmentInfos?: LegacyAttachmentInfo[]
+  attachments?: LegacyAttachmentInfo[]
+  isSecret?: boolean | string | number
+  is_secret?: boolean | string | number
+  secret?: boolean | string | number
+}
+
+function normalizeAttachmentItems(rawMessage?: MessageAttachmentSource | null): AttachmentItem[] {
   const attachmentUuids: string[] = rawMessage?.attachmentUuids || []
   const inlineInfos = rawMessage?.attachmentInfos || rawMessage?.attachments || []
 
   const infoMap = (Array.isArray(inlineInfos) ? inlineInfos : []).reduce(
-    (acc: Record<string, { fileName?: string; fileType?: string }>, item: any) => {
+    (acc: Record<string, { fileName?: string; fileType?: string }>, item: LegacyAttachmentInfo) => {
       if (item?.uuid) {
         acc[item.uuid] = {
           fileName: item.fileName,
@@ -84,12 +98,16 @@ function normalizeAttachmentItems(rawMessage: any): AttachmentItem[] {
   })
 }
 
-function getMessageIsSecret(rawMessage: any): boolean {
+function getMessageIsSecret(rawMessage?: MessageAttachmentSource | null): boolean {
   const rawValue = rawMessage?.isSecret ?? rawMessage?.is_secret ?? rawMessage?.secret ?? false
 
   if (typeof rawValue === 'string') {
     const normalized = rawValue.trim().toLowerCase()
     return normalized === 'true' || normalized === '1' || normalized === 'yes'
+  }
+
+  if (typeof rawValue === 'number') {
+    return rawValue !== 0
   }
 
   return Boolean(rawValue)
@@ -352,6 +370,7 @@ export function MessageEditDialog({
   const [receiverSearchKeyword, setReceiverSearchKeyword] = useState('')
   const [selectedGroupConfigs, setSelectedGroupConfigs] = useState<GroupReceiverConfig[]>([])
   const [attachments, setAttachments] = useState<AttachmentItem[]>([])
+  const currentGameTimeRef = useRef(currentGameTime)
   const [isUploadingAttachments, setIsUploadingAttachments] = useState(false)
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false)
   const [attachmentToRemove, setAttachmentToRemove] = useState<AttachmentItem | null>(null)
@@ -369,9 +388,13 @@ export function MessageEditDialog({
     },
   })
 
-  const conferenceUsers = parseApiPayload<UserInfoResponse[]>(usersData) || []
-  const conferenceGroups = parseApiPayload<UserGroupResponse[]>(groupsData) || []
+  const conferenceUsers = useMemo(() => parseApiPayload<UserInfoResponse[]>(usersData) || [], [usersData])
+  const conferenceGroups = useMemo(() => parseApiPayload<UserGroupResponse[]>(groupsData) || [], [groupsData])
   const receiverVisibilityList = parseMessageReceivers(receiversData)
+
+  useEffect(() => {
+    currentGameTimeRef.current = currentGameTime
+  }, [currentGameTime])
 
   const selectableUsers = useMemo(() => {
     const baseUsers = [...conferenceUsers]
@@ -500,18 +523,11 @@ export function MessageEditDialog({
         .map((attachment) => attachment.uuid)
 
       if (missingNameUuids.length > 0) {
-        AXIOS_INSTANCE.get('/api/attachments')
-          .then((response) => {
+        listAll()
+          .then((list) => {
             if (cancelled) return
 
-            const payload = response.data
-            const list = Array.isArray(payload?.data)
-              ? payload.data
-              : Array.isArray(payload)
-                ? payload
-                : []
-
-            const fetchedMap = (list as any[])
+            const fetchedMap = list
               .filter((item) => item?.uuid && missingNameUuids.includes(item.uuid))
               .reduce((acc, item) => {
                 acc[item.uuid] = {
@@ -537,7 +553,6 @@ export function MessageEditDialog({
             console.warn('Failed to fetch attachment info for edit dialog:', err)
           })
       }
-
     } else if (!message && open) {
       // 只在创建时使用当前游戏时间作为默认值
       setFormData({
@@ -546,7 +561,7 @@ export function MessageEditDialog({
         brief: '',
         msgType: 'NEWS',
         publishRealTime: '',
-        publishGameTime: currentGameTime || '',
+        publishGameTime: currentGameTimeRef.current || '',
         isSecret: false,
       })
       setSecretReceivers([])
@@ -558,7 +573,6 @@ export function MessageEditDialog({
     return () => {
       cancelled = true
     }
-    // 不包含currentGameTime，避免每次时间更新时重置表单
   }, [message, open, messageDetailData])
 
   useEffect(() => {
@@ -618,21 +632,8 @@ export function MessageEditDialog({
   }
 
   const uploadAttachment = async (file: File): Promise<AttachmentItem | null> => {
-    const formData = new FormData()
-    formData.append('file', file)
-
     try {
-      const response = await AXIOS_INSTANCE.post<ResultAttachmentUploadResponse>(
-        '/api/attachments',
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        }
-      )
-
-      const uploaded = response.data?.data
+      const uploaded: AttachmentUploadResponse = await upload(file)
       if (!uploaded?.uuid) {
         throw new Error('上传成功但未返回附件UUID')
       }
@@ -721,7 +722,7 @@ export function MessageEditDialog({
 
     setIsDeletingAttachmentOnServer(true)
     try {
-      await AXIOS_INSTANCE.delete(`/api/attachments/${attachmentToRemove.uuid}`)
+      await delete1(attachmentToRemove.uuid)
       removeAttachment(attachmentToRemove.uuid)
       toast.success('已移除附件并从服务器删除')
       setRemoveDialogOpen(false)

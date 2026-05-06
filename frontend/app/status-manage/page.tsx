@@ -3,6 +3,7 @@
 import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
+import { AxiosError } from 'axios'
 import { toast } from 'react-toastify'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -35,12 +36,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { AXIOS_INSTANCE } from '@/lib/api/client'
 import { useAuth } from '@/lib/contexts/auth-context'
 import { buildLoginRedirect } from '@/lib/auth/return-to'
 import { parseApiPayload } from '@/lib/api/response-utils'
-import { useGetAnnouncementImageInfo } from '@/lib/api/endpoints/公告图片/公告图片'
-import { useGetUsers } from '@/lib/api/endpoints/会议管理/会议管理'
+import { useGetAnnouncementImageInfo } from '@/lib/api/hooks/announcement'
+import {
+  downloadAnnouncementImage,
+  updateAnnouncementImage,
+} from '@/lib/api/apis/announcement.api'
+import { useGetUsers } from '@/lib/api/hooks/conference'
 import {
   getListConfigsQueryKey,
   getListMyRecordsQueryKey,
@@ -51,11 +55,11 @@ import {
   useQueryForManagement,
   useUpdateConfig,
   useUpdateRecord,
-} from '@/lib/api/endpoints/代表属性管理/代表属性管理'
+} from '@/lib/api/hooks/delegate-attr'
 import type {
   DelegateAttrConfigCreateRequestAttrType,
   UserInfoResponse,
-} from '@/lib/api/endpoints/asyaBackendAPI.schemas'
+} from '@/lib/api/generated'
 import {
   formatFileSize,
   getAnnouncementFileDisplayName,
@@ -327,11 +331,9 @@ export default function StatusManagePage() {
       setAnnouncementImageError(null)
 
       try {
-        const response = await AXIOS_INSTANCE.get('/api/announcement/image/download', {
-          responseType: 'blob',
-        })
+        const response = await downloadAnnouncementImage()
         if (!active) return
-        currentObjectUrl = URL.createObjectURL(response.data as Blob)
+        currentObjectUrl = URL.createObjectURL(response.blob)
         setAnnouncementImageUrl(prev => {
           if (prev) URL.revokeObjectURL(prev)
           return currentObjectUrl
@@ -617,14 +619,7 @@ export default function StatusManagePage() {
     setAnnouncementUploadPending(true)
 
     try {
-      const formData = new FormData()
-      formData.append('file', announcementSelectedFile)
-
-      await AXIOS_INSTANCE.put('/api/announcement/image', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      })
+      await updateAnnouncementImage(announcementSelectedFile)
 
       toast.success('公告图片更新成功')
       setAnnouncementSelectedFile(null)
@@ -632,8 +627,13 @@ export default function StatusManagePage() {
         fileInputRef.current.value = ''
       }
       await refreshAnnouncementData()
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || '更新公告图片失败，请稍后重试')
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof AxiosError && typeof error.response?.data === 'object' && error.response?.data
+          ? (error.response.data as { message?: string }).message
+          : undefined
+
+      toast.error(errorMessage || '更新公告图片失败，请稍后重试')
       console.error('Update announcement image failed:', error)
     } finally {
       setAnnouncementUploadPending(false)

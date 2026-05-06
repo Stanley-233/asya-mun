@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { TimeAnchorResponse } from "@/lib/api/endpoints/asyaBackendAPI.schemas"
+import type { TimeAnchorResponse } from "@/lib/api/generated"
 
 // 解析包含负数年份的ISO格式时间字符串
 function parseGameDateTime(isoString: string): Date {

@@ -14,13 +14,13 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useAuth } from "@/lib/contexts/auth-context"
-import { useUpdateUser } from "@/lib/api/endpoints/用户管理/用户管理"
-import { useGetMine } from "@/lib/api/endpoints/会议管理/会议管理"
+import { useUpdateUser } from "@/lib/api/hooks/user"
+import { useGetMine } from "@/lib/api/hooks/conference"
 import { SecretMessageList, MessageDetailDialog } from "@/components/message"
 import { InstructionDetailDialog, InstructionList, InstructionSubmitForm } from '@/components/instruction'
 import { parseApiPayload } from '@/lib/api/response-utils'
 import { buildLoginRedirect } from '@/lib/auth/return-to'
-import { useGetMyInstructions, useGetSubmissionSwitch } from '@/lib/api/endpoints/指令管理/指令管理'
+import { useGetMyInstructions, useGetSubmissionSwitch } from '@/lib/api/hooks/instruction'
 import {
   INSTRUCTION_STATUS_LABELS,
   parseInstructionPage,
@@ -30,7 +30,7 @@ import type {
   GetMyInstructionsStatus,
   InstructionResponse,
   MessageResponse,
-} from "@/lib/api/endpoints/asyaBackendAPI.schemas"
+} from "@/lib/api/generated"
 
 const roleLabels = {
   'SYS_ADMIN': '系统管理员',

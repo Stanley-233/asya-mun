@@ -1,0 +1,85 @@
+import { apiRequester } from '../client'
+import { withQuery } from '../core/query'
+import type {
+  BatchRegisterRequest,
+  SetRegistrationSwitchParams,
+  ResetPasswordBody,
+  UserInfoResponse,
+  UserRegistrationRequest,
+  UserUpdateRequest,
+} from '../generated'
+
+export async function updateUser(uuid: string, data: UserUpdateRequest) {
+  return apiRequester.requestProtected<void>({
+    path: `/api/users/user/${uuid}`,
+    method: 'PUT',
+    body: data,
+  })
+}
+
+export async function resetPassword(uuid: string, data: ResetPasswordBody) {
+  return apiRequester.requestProtected<void>({
+    path: `/api/users/${uuid}/password-reset`,
+    method: 'POST',
+    body: data,
+  })
+}
+
+export async function getRegistrationSwitch() {
+  return apiRequester.requestPublic<boolean>({
+    path: '/api/users/registration-switch',
+    method: 'GET',
+  })
+}
+
+export async function setRegistrationSwitch(params: SetRegistrationSwitchParams) {
+  return apiRequester.requestProtected<void>({
+    path: withQuery('/api/users/registration-switch', params as Record<string, unknown>),
+    method: 'POST',
+  })
+}
+
+export async function register(data: UserRegistrationRequest) {
+  return apiRequester.requestPublic<{ token?: string; [key: string]: unknown }>({
+    path: '/api/users/register',
+    method: 'POST',
+    body: data,
+  })
+}
+
+export async function login(data: UserRegistrationRequest) {
+  return apiRequester.requestPublic<{ token?: string; [key: string]: unknown }>({
+    path: '/api/users/login',
+    method: 'POST',
+    body: data,
+  })
+}
+
+export async function batchRegister(data: BatchRegisterRequest) {
+  return apiRequester.requestProtected<void>({
+    path: '/api/users/batch',
+    method: 'POST',
+    body: data,
+  })
+}
+
+export async function listAll1() {
+  return apiRequester.requestProtected<UserInfoResponse[]>({
+    path: '/api/users',
+    method: 'GET',
+  })
+}
+
+export async function getCurrentUser() {
+  return apiRequester.requestProtected<UserInfoResponse>({
+    path: '/api/users/user',
+    method: 'GET',
+  })
+}
+
+export async function deleteUser(uuid: string) {
+  return apiRequester.requestProtected<void>({
+    path: `/api/users/${uuid}`,
+    method: 'DELETE',
+  })
+}

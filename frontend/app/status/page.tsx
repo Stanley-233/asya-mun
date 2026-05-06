@@ -7,9 +7,9 @@ import { Button } from '@/components/ui/button'
 import { ImagePreviewDialog } from '@/components/message/image-preview-dialog'
 import { useAuth } from '@/lib/contexts/auth-context'
 import { buildLoginRedirect } from '@/lib/auth/return-to'
-import { useGetAnnouncementImageInfo } from '@/lib/api/endpoints/公告图片/公告图片'
-import { AXIOS_INSTANCE } from '@/lib/api/client'
-import { useListConfigs, useListMyRecords } from '@/lib/api/endpoints/代表属性管理/代表属性管理'
+import { useGetAnnouncementImageInfo } from '@/lib/api/hooks/announcement'
+import { downloadAnnouncementImage } from '@/lib/api/apis/announcement.api'
+import { useListConfigs, useListMyRecords } from '@/lib/api/hooks/delegate-attr'
 import {
   getAnnouncementFileDisplayName,
   parseAnnouncementImageMeta,
@@ -122,11 +122,9 @@ export default function StatusPage() {
       setAnnouncementImageError(null)
 
       try {
-        const response = await AXIOS_INSTANCE.get('/api/announcement/image/download', {
-          responseType: 'blob',
-        })
+        const response = await downloadAnnouncementImage()
         if (!active) return
-        currentObjectUrl = URL.createObjectURL(response.data as Blob)
+        currentObjectUrl = URL.createObjectURL(response.blob)
         setAnnouncementImageUrl(prev => {
           if (prev) URL.revokeObjectURL(prev)
           return currentObjectUrl

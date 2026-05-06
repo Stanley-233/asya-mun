@@ -7,9 +7,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useAuth } from "@/lib/contexts/auth-context"
-import { useGetAllSecretInConference, useDelete } from "@/lib/api/endpoints/消息管理/消息管理"
-import { useGetUsers } from "@/lib/api/endpoints/会议管理/会议管理"
-import type { MessageResponse, UserInfoResponse } from "@/lib/api/endpoints/asyaBackendAPI.schemas"
+import { useGetAllSecretInConference, useDelete } from "@/lib/api/hooks/message"
+import { useGetUsers } from "@/lib/api/hooks/conference"
+import type { MessageResponse, UserInfoResponse } from "@/lib/api/generated"
 import { MessageCard } from '@/components/message/message-card'
 import { MessageEditDialog } from '@/components/message/message-edit-dialog'
 import { MessageDetailDialog } from '@/components/message/message-detail-dialog'

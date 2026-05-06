@@ -2,7 +2,7 @@
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import type { InstructionResponse } from '@/lib/api/endpoints/asyaBackendAPI.schemas'
+import type { InstructionResponse } from '@/lib/api/generated'
 import { ChevronLeft, ChevronRight, FileText } from 'lucide-react'
 import {
   INSTRUCTION_STATUS_CLASSNAMES,

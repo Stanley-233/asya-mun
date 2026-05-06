@@ -1,22 +1,22 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { CurrentGameTimeCard } from "@/components/current-game-time-card"
 import { useCurrentGameTime } from "@/lib/hooks/use-current-game-time"
-import { useTimelineStream } from "@/lib/hooks/use-timeline-stream"
 import { useAuth } from "@/lib/contexts/auth-context"
-import { useGetMine } from "@/lib/api/endpoints/会议管理/会议管理"
-import { useGetLatest } from "@/lib/api/endpoints/时间轴管理/时间轴管理"
-import { useDelete } from "@/lib/api/endpoints/消息管理/消息管理"
-import type { ConferenceResponse, TimeAnchorResponse, MessageResponse } from "@/lib/api/endpoints/asyaBackendAPI.schemas"
+import { useGetMine } from "@/lib/api/hooks/conference"
+import { useGetLatest } from "@/lib/api/hooks/timeline"
+import { useDelete } from "@/lib/api/hooks/message"
+import type { ConferenceResponse, TimeAnchorResponse, MessageResponse } from "@/lib/api/generated"
 import { MessageList, MessageDetailDialog, MessageEditDialog } from "@/components/message"
 import { AlertDialogCancel } from "@/components/ui/alert-dialog"
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-toastify'
 import { RoundStatusCard } from '@/components/round/round-status-card'
+import { parseApiPayload } from '@/lib/api/response-utils'
 
 const statusLabels = {
   'PREPARING': '筹备中',
@@ -52,15 +52,12 @@ export default function ProgressPage() {
   const queryClient = useQueryClient()
   const { isLoading: authLoading, isAuthenticated } = useAuth()
   const { data: conferenceData, isLoading: conferenceLoading } = useGetMine()
-  const { data: latestAnchorData, isLoading: latestLoading } = useGetLatest()
+  const { data: latestAnchorData } = useGetLatest()
   const { mutate: deleteMessage, isPending: isDeleting } = useDelete()
-
-  const [conference, setConference] = useState<ConferenceResponse | null>(null)
-  const [latestAnchor, setLatestAnchor] = useState<TimeAnchorResponse | null>(null)
   
   // 弹窗状态
   const [showAlert, setShowAlert] = useState(false)
-  const [alertMessage, setAlertMessage] = useState({ title: '', description: '' })
+  const [alertMessage] = useState({ title: '', description: '' })
   
   // 消息相关状态
   const [selectedMessageUuid, setSelectedMessageUuid] = useState<string | null>(null)
@@ -69,48 +66,18 @@ export default function ProgressPage() {
   const [editingMessage, setEditingMessage] = useState<MessageResponse | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [messageToDelete, setMessageToDelete] = useState<MessageResponse | null>(null)
+
+  const conference = useMemo(
+    () => parseApiPayload<ConferenceResponse>(conferenceData),
+    [conferenceData],
+  )
+  const latestAnchor = useMemo(
+    () => parseApiPayload<TimeAnchorResponse>(latestAnchorData),
+    [latestAnchorData],
+  )
   
   // 使用共享的 hook 计算当前会议次元时间
   const currentGameTime = useCurrentGameTime(latestAnchor)
-
-  useEffect(() => {
-    if (conferenceData && !conferenceLoading) {
-      try {
-        const responseData = (conferenceData as any).data
-        if (responseData) {
-          const parsedData = typeof responseData === 'string' 
-            ? JSON.parse(responseData) 
-            : responseData
-          
-          const conferenceInfo = parsedData.data || parsedData
-          setConference(conferenceInfo)
-        }
-      } catch (err) {
-        console.error('Failed to parse conference data:', err)
-        setConference(null)
-      }
-    }
-  }, [conferenceData, conferenceLoading])
-
-  // 解析最新锚点数据
-  useEffect(() => {
-    if (latestAnchorData && !latestLoading) {
-      try {
-        const responseData = (latestAnchorData as any).data
-        if (responseData) {
-          const parsedData = typeof responseData === 'string'
-            ? JSON.parse(responseData)
-            : responseData
-
-          const anchor = parsedData.data || null
-          setLatestAnchor(anchor)
-        }
-      } catch (err) {
-        console.error('Failed to parse latest anchor data:', err)
-        setLatestAnchor(null)
-      }
-    }
-  }, [latestAnchorData, latestLoading])
 
   if (authLoading || conferenceLoading) {
     return (

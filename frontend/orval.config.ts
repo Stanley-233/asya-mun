@@ -7,10 +7,11 @@ export default defineConfig({
       target: 'http://127.0.0.1:8080/v3/api-docs.yaml',
     },
     output: {
-      mode: 'tags-split',
-      target: 'lib/api/endpoints',
-      client: 'react-query',
-      baseUrl: '/',
+      target: '.orval/api.ts',
+      mode: 'single',
+      client: 'axios-functions',
+      schemas: 'lib/api/generated',
+      indexFiles: true,
       override: {
         mutator: {
           path: 'lib/api/client.ts',

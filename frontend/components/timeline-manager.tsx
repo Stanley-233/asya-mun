@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -18,9 +18,10 @@ import {
 } from "@/components/ui/alert-dialog"
 import { CurrentGameTimeCard } from "@/components/current-game-time-card"
 import { useCurrentGameTime } from "@/lib/hooks/use-current-game-time"
-import { useGetAll1, useGetLatest, useJump, useUpdate3 } from "@/lib/api/endpoints/时间轴管理/时间轴管理"
-import type { TimeAnchorResponse } from "@/lib/api/endpoints/asyaBackendAPI.schemas"
+import { useGetAll1, useGetLatest, useJump, useUpdate3 } from "@/lib/api/hooks/timeline"
+import type { TimeAnchorResponse } from "@/lib/api/generated"
 import { toast } from 'react-toastify'
+import { parseApiPayload } from '@/lib/api/response-utils'
 
 interface TimelineManagerProps {
   currentSession?: { uuid?: string } | null
@@ -34,9 +35,14 @@ export function TimelineManager({ currentSession: _currentSession }: TimelineMan
   const { data: latestAnchorData, isLoading: latestLoading, refetch: refetchLatest } = useGetLatest()
   const jumpMutation = useJump()
   const updateMutation = useUpdate3()
-
-  const [allAnchors, setAllAnchors] = useState<TimeAnchorResponse[]>([])
-  const [latestAnchor, setLatestAnchor] = useState<TimeAnchorResponse | null>(null)
+  const allAnchors = useMemo(
+    () => parseApiPayload<TimeAnchorResponse[]>(allAnchorsData) ?? [],
+    [allAnchorsData],
+  )
+  const latestAnchor = useMemo(
+    () => parseApiPayload<TimeAnchorResponse>(latestAnchorData),
+    [latestAnchorData],
+  )
   
   // 使用共享的 hook 计算当前游戏时间
   const currentGameTime = useCurrentGameTime(latestAnchor)
@@ -50,56 +56,6 @@ export function TimelineManager({ currentSession: _currentSession }: TimelineMan
   const [targetSecond, setTargetSecond] = useState<number>(0)
   const [timeRatio, setTimeRatio] = useState<number>(1)
   const [jumpDialogOpen, setJumpDialogOpen] = useState(false)
-
-  // 解析所有锚点数据
-  useEffect(() => {
-    if (allAnchorsData && !anchorsLoading) {
-      try {
-        const responseData = (allAnchorsData as any).data
-        if (responseData) {
-          const parsedData = typeof responseData === 'string' 
-            ? JSON.parse(responseData) 
-            : responseData
-          
-          const anchors = parsedData.data || []
-          setAllAnchors(Array.isArray(anchors) ? anchors : [])
-        }
-      } catch (err) {
-        console.error('Failed to parse anchors data:', err)
-        setAllAnchors([])
-      }
-    }
-  }, [allAnchorsData, anchorsLoading])
-
-  // 解析最新锚点数据
-  useEffect(() => {
-    if (latestAnchorData && !latestLoading) {
-      try {
-        console.log('📦 [最新锚点] 原始响应数据:', latestAnchorData)
-        
-        const responseData = (latestAnchorData as any).data
-        if (responseData) {
-          const parsedData = typeof responseData === 'string' 
-            ? JSON.parse(responseData) 
-            : responseData
-          
-          console.log('📦 [最新锚点] 解析后数据:', parsedData)
-          
-          const anchor = parsedData.data || null
-          console.log('⚓ [最新锚点] 锚点对象:', anchor)
-          
-          if (anchor?.anchorGameTime) {
-            console.log('🎮 [最新锚点] anchorGameTime:', anchor.anchorGameTime, '类型:', typeof anchor.anchorGameTime)
-          }
-          
-          setLatestAnchor(anchor)
-        }
-      } catch (err) {
-        console.error('❌ Failed to parse latest anchor data:', err)
-        setLatestAnchor(null)
-      }
-    }
-  }, [latestAnchorData, latestLoading])
 
   // 处理时间跳跃
   const handleTimeJump = async () => {

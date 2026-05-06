@@ -31,11 +31,11 @@ import {
   useUpdate,
   useUpdateCurrent,
   useUpdateRemaining,
-} from '@/lib/api/endpoints/回合管理/回合管理'
+} from '@/lib/api/hooks/round'
 import type {
   RoundPublishRequestInitialStatus,
   RoundResponse,
-} from '@/lib/api/endpoints/asyaBackendAPI.schemas'
+} from '@/lib/api/generated'
 import { toast } from 'react-toastify'
 
 type NextDraftMap = Record<string, string>

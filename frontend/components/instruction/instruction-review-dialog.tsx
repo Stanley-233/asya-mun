@@ -19,11 +19,11 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { useReview } from '@/lib/api/endpoints/指令管理/指令管理'
+import { useReview } from '@/lib/api/hooks/instruction'
 import type {
   InstructionResponse,
   InstructionReviewRequestStatus,
-} from '@/lib/api/endpoints/asyaBackendAPI.schemas'
+} from '@/lib/api/generated'
 import { toast } from 'react-toastify'
 import { INSTRUCTION_STATUS_LABELS } from './instruction-utils'
 

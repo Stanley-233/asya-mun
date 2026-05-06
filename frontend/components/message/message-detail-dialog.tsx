@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { type ComponentProps, useEffect, useMemo, useState } from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,15 +12,14 @@ import {
   AlertDialogCancel,
 } from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
-import { useGetOne, useGetReceivers } from '@/lib/api/endpoints/消息管理/消息管理'
-import { getOne1 } from '@/lib/api/endpoints/附件管理/附件管理'
-import { AXIOS_INSTANCE } from '@/lib/api/client'
-import { useGetUsers } from '@/lib/api/endpoints/会议管理/会议管理'
+import { useGetOne, useGetReceivers } from '@/lib/api/hooks/message'
+import { download, getOne1 } from '@/lib/api/hooks/attachment'
+import { useGetUsers } from '@/lib/api/hooks/conference'
 import type {
   MessageReceiverVisibilityResponse,
   MessageResponse,
   UserInfoResponse,
-} from '@/lib/api/endpoints/asyaBackendAPI.schemas'
+} from '@/lib/api/generated'
 import { Separator } from '@/components/ui/separator'
 import { useAuth } from '@/lib/contexts/auth-context'
 import { Button } from '@/components/ui/button'
@@ -50,13 +49,15 @@ const MSG_TYPE_LABELS = {
   SECRET_LETTER: '密函',
 } as const
 
+type MessageTypeVariant = NonNullable<ComponentProps<typeof Badge>['variant']>
+
 const MSG_TYPE_VARIANTS = {
   EVENT: 'default',
   NEWS: 'secondary',
   CRISIS: 'destructive',
   WAR_REPORT: 'default',
   SECRET_LETTER: 'secondary',
-} as const
+} as const satisfies Record<NonNullable<MessageResponse['msgType']>, MessageTypeVariant>
 
 // 格式化游戏时间为人类可读格式
 function formatGameTime(isoString: string): string {
@@ -81,7 +82,7 @@ function formatGameTime(isoString: string): string {
     }
 
     return `${era}${displayYear}年${month}月${day}日 ${hour}:${minute}`
-  } catch (err) {
+  } catch {
     return isoString
   }
 }
@@ -227,7 +228,7 @@ export function MessageDetailDialog({
     return acc
   }, {})
 
-  const attachmentUuids = message?.attachmentUuids || []
+  const attachmentUuids = useMemo(() => message?.attachmentUuids || [], [message?.attachmentUuids])
 
   const receiverStatusList = receiverVisibilityList.map((receiver) => {
     const readableAtTs = new Date(receiver.readableAt).getTime()
@@ -291,10 +292,7 @@ export function MessageDetailDialog({
       try {
         const results = await Promise.allSettled(
           missingUuids.map(async (uuid) => {
-            const response = await getOne1(uuid)
-            const payload = (response as any)?.data
-            const parsed = typeof payload === 'string' ? JSON.parse(payload) : payload
-            const item = parsed?.data || parsed
+            const item = await getOne1(uuid)
 
             if (!item?.uuid) return null
 
@@ -338,10 +336,8 @@ export function MessageDetailDialog({
     setDownloadingUuid(attachmentUuid)
     try {
       const attachmentInfo = attachmentInfoMap[attachmentUuid]
-      const response = await AXIOS_INSTANCE.get(`/api/attachments/${attachmentUuid}/download`, {
-        responseType: 'blob',
-      })
-      const blob = response.data as Blob
+      const response = await download(attachmentUuid)
+      const blob = response.blob
       const objectUrl = URL.createObjectURL(blob)
       const link = document.createElement('a')
       const fallbackName = ensureExtension(
@@ -405,10 +401,8 @@ export function MessageDetailDialog({
 
     setPreviewingUuid(attachmentUuid)
     try {
-      const response = await AXIOS_INSTANCE.get(`/api/attachments/${attachmentUuid}/download`, {
-        responseType: 'blob',
-      })
-      const blob = response.data as Blob
+      const response = await download(attachmentUuid)
+      const blob = response.blob
       const parsedName = getFilenameFromHeaders(response.headers, fallbackName)
       const finalName = ensureExtension(parsedName, attachmentInfo?.fileType)
       const objectUrl = URL.createObjectURL(blob)
@@ -453,7 +447,7 @@ export function MessageDetailDialog({
               <div className="flex flex-wrap gap-2">
                 {message.msgType && (
                   <Badge
-                    variant={MSG_TYPE_VARIANTS[message.msgType] as any}
+                    variant={MSG_TYPE_VARIANTS[message.msgType]}
                     className={message.msgType === 'WAR_REPORT' ? 'bg-green-900/90 text-white hover:bg-green-900' : ''}
                   >
                     {MSG_TYPE_LABELS[message.msgType]}

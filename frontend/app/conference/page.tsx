@@ -25,22 +25,23 @@ import {
   useGetMine,
   useUpdate2,
   useGetUsers
-} from "@/lib/api/endpoints/会议管理/会议管理"
+} from "@/lib/api/hooks/conference"
 import {
   useGetAllUserGroups,
   useCreateUserGroup,
   useUpdateUserGroup,
   useDeleteUserGroup,
   useSetGroupMembers
-} from "@/lib/api/endpoints/用户组管理/用户组管理"
+} from "@/lib/api/hooks/user-group"
 import type {
   ConferenceResponse,
   ConferenceRequestStatus,
   UserInfoResponse,
   UserGroupResponse
-} from "@/lib/api/endpoints/asyaBackendAPI.schemas"
+} from "@/lib/api/generated"
 import { TimelineManager } from '@/components/timeline-manager'
 import { RoundManager } from '@/components/round/round-manager'
+import { parseApiPayload } from '@/lib/api/response-utils'
 
 const statusLabels = {
   'PREPARING': '筹备中',
@@ -89,8 +90,6 @@ export default function ConferencePage() {
   const { mutate: deleteGroup, isPending: isDeletingGroup } = useDeleteUserGroup()
   const { mutate: setMembers, isPending: isSettingMembers } = useSetGroupMembers()
 
-  const [conference, setConference] = useState<ConferenceResponse | null>(null)
-  const [users, setUsers] = useState<UserInfoResponse[]>([])
   const [isEditing, setIsEditing] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
@@ -100,7 +99,6 @@ export default function ConferencePage() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   // 用户组相关状态
-  const [groups, setGroups] = useState<UserGroupResponse[]>([])
   const [groupNameInput, setGroupNameInput] = useState('')
   const [editingGroup, setEditingGroup] = useState<UserGroupResponse | null>(null)
   const [showGroupForm, setShowGroupForm] = useState(false)
@@ -108,6 +106,19 @@ export default function ConferencePage() {
   const [selectedUuids, setSelectedUuids] = useState<string[]>([])
   const [memberKeyword, setMemberKeyword] = useState('')
   const [deletingGroupId, setDeletingGroupId] = useState<number | null>(null)
+
+  const conference = useMemo(
+    () => parseApiPayload<ConferenceResponse>(conferenceData),
+    [conferenceData],
+  )
+  const users = useMemo(
+    () => parseApiPayload<UserInfoResponse[]>(usersData) ?? [],
+    [usersData],
+  )
+  const groups = useMemo(
+    () => parseApiPayload<UserGroupResponse[]>(groupsData) ?? [],
+    [groupsData],
+  )
 
   const filteredUsers = useMemo(() => {
     const keyword = memberKeyword.trim().toLowerCase()
@@ -130,90 +141,6 @@ export default function ConferencePage() {
       router.push('/')
     }
   }, [authLoading, isAuthenticated, canManageConference, router])
-
-  useEffect(() => {
-    if (conferenceData && !conferenceLoading) {
-      try {
-        const responseData = (conferenceData as any).data
-        if (responseData) {
-          const parsedData = typeof responseData === 'string' 
-            ? JSON.parse(responseData) 
-            : responseData
-          
-          const conferenceInfo = parsedData.data || parsedData
-          setConference(conferenceInfo)
-          setFormData({
-            name: conferenceInfo.name || '',
-            description: conferenceInfo.description || '',
-            status: conferenceInfo.status || 'PREPARING'
-          })
-        }
-      } catch (err) {
-        console.error('Failed to parse conference data:', err)
-        setConference(null)
-      }
-    }
-  }, [conferenceData, conferenceLoading])
-
-  useEffect(() => {
-    console.log('useGetUsers state:', { 
-      usersData, 
-      usersLoading, 
-      usersError,
-      isAuthenticated,
-      canManageConference 
-    })
-    if (usersData && !usersLoading) {
-      try {
-        console.log('Raw usersData:', usersData)
-        const responseData = (usersData as any).data
-        if (responseData) {
-          const parsedData = typeof responseData === 'string'
-            ? JSON.parse(responseData)
-            : responseData
-
-          console.log('Parsed usersData:', parsedData)
-          const usersList = parsedData.data || parsedData
-          const userArray = Array.isArray(usersList) ? usersList : []
-          console.log('Final users array:', userArray)
-          setUsers(userArray)
-        } else {
-          console.log('No responseData, setting empty users')
-          setUsers([])
-        }
-      } catch (err) {
-        console.error('Failed to parse users data:', err)
-        setUsers([])
-      }
-    } else if (!usersLoading && !usersData) {
-      console.log('No usersData and not loading, setting empty users')
-      setUsers([])
-    }
-  }, [usersData, usersLoading, usersError, isAuthenticated, canManageConference])
-
-  useEffect(() => {
-    console.log('useGetAllUserGroups state:', { groupsData, groupsLoading, groupsError, isAuthenticated, canManageConference })
-    if (groupsData) {
-      try {
-        console.log('Raw groupsData:', groupsData)
-        const responseData = (groupsData as any).data
-        console.log('Groups responseData:', responseData)
-        if (responseData) {
-          const parsed = typeof responseData === 'string' ? JSON.parse(responseData) : responseData
-          const list = parsed.data ?? parsed
-          console.log('Groups list:', list)
-          setGroups(Array.isArray(list) ? list : [])
-        } else {
-          setGroups([])
-        }
-      } catch (err) {
-        console.error('Failed to parse groups data:', err)
-        setGroups([])
-      }
-    } else if (!groupsLoading && !groupsData) {
-      setGroups([])
-    }
-  }, [groupsData, groupsLoading, groupsError, isAuthenticated, canManageConference])
 
   const openCreateGroupForm = () => {
     setEditingGroup(null)
@@ -294,6 +221,13 @@ export default function ConferencePage() {
   }
 
   const handleEdit = () => {
+    if (conference) {
+      setFormData({
+        name: conference.name,
+        description: conference.description,
+        status: conference.status,
+      })
+    }
     setIsEditing(true)
     setMessage(null)
   }
@@ -337,12 +271,12 @@ export default function ConferencePage() {
             setMessage({ type: 'success', text: '会议信息更新成功' })
             setIsEditing(false)
           },
-          onError: (error: unknown) => {
+          onError: () => {
             setMessage({ type: 'error', text: '更新失败，请重试' })
           }
         }
       )
-    } catch (error) {
+    } catch {
       setMessage({ type: 'error', text: '更新失败，请重试' })
     }
   }

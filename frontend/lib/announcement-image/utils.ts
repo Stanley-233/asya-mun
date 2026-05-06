@@ -1,5 +1,5 @@
 import { parseApiPayload } from '@/lib/api/response-utils'
-import type { AnnouncementImageResponse } from '@/lib/api/endpoints/asyaBackendAPI.schemas'
+import type { AnnouncementImageResponse } from '@/lib/api/generated'
 
 const IMAGE_EXTENSIONS = new Set([
   'png',

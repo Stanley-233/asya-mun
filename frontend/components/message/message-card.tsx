@@ -11,7 +11,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { useAuth } from '@/lib/contexts/auth-context'
-import type { MessageResponse } from '@/lib/api/endpoints/asyaBackendAPI.schemas'
+import type { MessageResponse } from '@/lib/api/generated'
 import { Edit2, Trash2 } from 'lucide-react'
 
 interface MessageCardProps {

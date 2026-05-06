@@ -18,8 +18,8 @@ import {
 } from "@/components/ui/select"
 import { useAuth } from "@/lib/contexts/auth-context"
 import { buildLoginRedirect } from '@/lib/auth/return-to'
-import { useListAll1, useUpdateUser, useDeleteUser, useGetRegistrationSwitch, useSetRegistrationSwitch, useResetPassword, useBatchRegister } from "@/lib/api/endpoints/用户管理/用户管理"
-import { useCreate, useListAll2, useAssignUser } from "@/lib/api/endpoints/会议管理/会议管理"
+import { useListAll1, useUpdateUser, useDeleteUser, useGetRegistrationSwitch, useSetRegistrationSwitch, useResetPassword, useBatchRegister } from "@/lib/api/hooks/user"
+import { useCreate, useListAll2, useAssignUser } from "@/lib/api/hooks/conference"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,9 +30,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import type { UserInfoResponse, UserUpdateRequestRole, ConferenceRequestStatus, ConferenceResponse, BatchRegisterUserItem } from "@/lib/api/endpoints/asyaBackendAPI.schemas"
-import { getListAll1QueryKey } from "@/lib/api/endpoints/用户管理/用户管理"
-import { getListAll2QueryKey } from "@/lib/api/endpoints/会议管理/会议管理"
+import type { UserInfoResponse, UserUpdateRequestRole, ConferenceRequestStatus, ConferenceResponse, BatchRegisterUserItem } from "@/lib/api/generated"
+import { getListAll1QueryKey } from "@/lib/api/hooks/user"
+import { getListAll2QueryKey } from "@/lib/api/hooks/conference"
 
 const roleLabels: Record<string, string> = {
   'SYS_ADMIN': '系统管理员',
@@ -73,9 +73,11 @@ type ApiEnvelope<T> = {
   data?: T
 }
 
-type ApiResponseLike<T> = {
-  data?: Blob | string | T | ApiEnvelope<T>
-}
+type ApiResponseLike<T> =
+  | {
+      data?: Blob | string | T | ApiEnvelope<T>
+    }
+  | T
 
 const getUserConferenceId = (user: UserInfoResponse) => {
   const userWithConference = user as UserWithConference
@@ -83,16 +85,26 @@ const getUserConferenceId = (user: UserInfoResponse) => {
 }
 
 const parseApiPayload = <T,>(response: ApiResponseLike<T> | undefined, fallback: T): T => {
-  if (!response?.data) return fallback
+  if (response === undefined || response === null) return fallback
 
   try {
-    if (response.data instanceof Blob) {
+    if (
+      typeof response === 'object' &&
+      response !== null &&
+      'data' in response &&
+      response.data instanceof Blob
+    ) {
       return fallback
     }
 
-    const parsedData = typeof response.data === 'string'
-      ? JSON.parse(response.data) as T | ApiEnvelope<T>
-      : response.data as T | ApiEnvelope<T>
+    const rawData =
+      typeof response === 'object' && response !== null && 'data' in response
+        ? response.data
+        : response
+
+    const parsedData = typeof rawData === 'string'
+      ? JSON.parse(rawData) as T | ApiEnvelope<T>
+      : rawData as T | ApiEnvelope<T>
 
     if (parsedData && typeof parsedData === 'object' && 'data' in parsedData) {
       return (parsedData.data ?? fallback) as T

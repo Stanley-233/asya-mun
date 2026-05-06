@@ -13,8 +13,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { useCreate2 } from '@/lib/api/endpoints/指令管理/指令管理'
-import type { InstructionCreateRequestInstructionType } from '@/lib/api/endpoints/asyaBackendAPI.schemas'
+import { useCreate2 } from '@/lib/api/hooks/instruction'
+import type { InstructionCreateRequestInstructionType } from '@/lib/api/generated'
 import { toast } from 'react-toastify'
 import { INSTRUCTION_TYPE_LABELS } from './instruction-utils'
 

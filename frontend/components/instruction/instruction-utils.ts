@@ -9,7 +9,7 @@ import type {
   InstructionResponseStatus,
   InstructionReviewRequestStatus,
   UserGroupResponse,
-} from '@/lib/api/endpoints/asyaBackendAPI.schemas'
+} from '@/lib/api/generated'
 
 export const INSTRUCTION_TYPE_LABELS: Record<
   | InstructionCreateRequestInstructionType

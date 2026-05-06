@@ -27,9 +27,9 @@ import {
   useGetForManagement,
   useGetSubmissionSwitch,
   useSetSubmissionSwitch,
-} from '@/lib/api/endpoints/指令管理/指令管理'
-import { useGetAllUserGroups } from '@/lib/api/endpoints/用户组管理/用户组管理'
-import { useGetUsers } from '@/lib/api/endpoints/会议管理/会议管理'
+} from '@/lib/api/hooks/instruction'
+import { useGetAllUserGroups } from '@/lib/api/hooks/user-group'
+import { useGetUsers } from '@/lib/api/hooks/conference'
 import { toast } from 'react-toastify'
 import { buildLoginRedirect } from '@/lib/auth/return-to'
 import type {
@@ -38,7 +38,7 @@ import type {
   InstructionResponse,
   UserInfoResponse,
   UserGroupResponse,
-} from '@/lib/api/endpoints/asyaBackendAPI.schemas'
+} from '@/lib/api/generated'
 
 const ALL_FILTER = '__ALL__'
 
