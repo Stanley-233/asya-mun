@@ -56,12 +56,6 @@ const statusOptions = [
 
 const UNASSIGNED_CONFERENCE_VALUE = '__UNASSIGNED__'
 
-type UserWithConference = UserInfoResponse & {
-  conferenceId?: string
-  conferenceUuid?: string
-  conferenceName?: string
-}
-
 type UserEditFormValue = {
   name: string
   displayName: string
@@ -70,8 +64,7 @@ type UserEditFormValue = {
 }
 
 const getUserConferenceId = (user: UserInfoResponse) => {
-  const userWithConference = user as UserWithConference
-  return userWithConference.conferenceId || userWithConference.conferenceUuid || ''
+  return user.conferenceUuid || ''
 }
 
 function updateUsersCache(
@@ -321,8 +314,7 @@ export default function AdminPage() {
         userArray.map((user) => {
           if (user.uuid !== userId) return user
 
-          const original = user as UserWithConference
-          const nextConferenceId = formData.conferenceId || original.conferenceId || original.conferenceUuid || ''
+          const nextConferenceId = formData.conferenceId || user.conferenceUuid || ''
 
           return {
             ...user,
@@ -330,7 +322,6 @@ export default function AdminPage() {
             displayName: formData.displayName,
             role: formData.role,
             conferenceName: matchedConference?.name || user.conferenceName,
-            conferenceId: nextConferenceId || undefined,
             conferenceUuid: nextConferenceId || undefined,
           } as UserInfoResponse
         })

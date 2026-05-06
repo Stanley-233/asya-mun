@@ -65,7 +65,9 @@ class ConferenceService(
                 uuid = u.uuid?.toString() ?: "",
                 name = u.name,
                 displayName = u.displayName,
-                role = u.role
+                role = u.role,
+                conferenceUuid = u.conference?.uuid?.toString(),
+                conferenceName = u.conference?.name
             )
         }
     }
@@ -92,7 +94,9 @@ class ConferenceService(
             uuid = saved.uuid?.toString() ?: "",
             name = saved.name,
             displayName = saved.displayName,
-            role = saved.role
+            role = saved.role,
+            conferenceUuid = saved.conference?.uuid?.toString(),
+            conferenceName = saved.conference?.name
         )
     }
 

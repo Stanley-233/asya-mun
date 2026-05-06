@@ -32,7 +32,8 @@ class UserServiceTest {
     @Test
     fun `getAllUsers returns conference name`() {
         // Arrange
-        val conf = Conference(uuid = UUID.randomUUID(), name = "My Conference", description = "Desc")
+        val conferenceUuid = UUID.randomUUID()
+        val conf = Conference(uuid = conferenceUuid, name = "My Conference", description = "Desc")
         val user = User(
             uuid = UUID.randomUUID(),
             name = "user1",
@@ -48,6 +49,7 @@ class UserServiceTest {
 
         // Assert
         assertEquals(1, result.size)
+        assertEquals(conferenceUuid.toString(), result[0].conferenceUuid)
         assertEquals("My Conference", result[0].conferenceName)
     }
 }

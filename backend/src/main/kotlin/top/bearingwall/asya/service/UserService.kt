@@ -123,6 +123,7 @@ class UserService(
                     name = u.name,
                     displayName = u.displayName,
                     role = u.role,
+                    conferenceUuid = u.conference?.uuid?.toString(),
                     conferenceName = u.conference?.name
                 )
             }
@@ -152,6 +153,7 @@ class UserService(
             name = user.name,
             displayName = user.displayName,
             role = user.role,
+            conferenceUuid = user.conference?.uuid?.toString(),
             conferenceName = user.conference?.name
         )
     }
@@ -200,6 +202,7 @@ class UserService(
             name = saved.name,
             displayName = saved.displayName,
             role = saved.role,
+            conferenceUuid = saved.conference?.uuid?.toString(),
             conferenceName = saved.conference?.name
         )
     }
@@ -262,6 +265,7 @@ class UserService(
                 name = saved.name,
                 displayName = saved.displayName,
                 role = saved.role,
+                conferenceUuid = saved.conference?.uuid?.toString(),
                 conferenceName = saved.conference?.name
             ))
         }

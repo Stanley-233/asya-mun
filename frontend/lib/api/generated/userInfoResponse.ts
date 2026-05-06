@@ -19,6 +19,8 @@ export interface UserInfoResponse {
   displayName?: string;
   /** 用户角色 */
   role: UserInfoResponseRole;
+  /** 关联会议ID */
+  conferenceUuid?: string;
   /** 关联会议名称 */
   conferenceName?: string;
 }
