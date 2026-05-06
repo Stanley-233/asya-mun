@@ -420,10 +420,8 @@ export default function AdminPage() {
   }
 
   const getUserConferenceLabel = (user: UserInfoResponse) => {
-    const userWithConference = user as UserWithConference
-
-    if (userWithConference.conferenceName) {
-      return userWithConference.conferenceName
+    if (user.conferenceName) {
+      return user.conferenceName
     }
 
     const conferenceId = getUserConferenceId(user)

@@ -1,5 +1,6 @@
 'use client'
 
+import type { ComponentProps } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -36,7 +37,10 @@ const MSG_TYPE_VARIANTS = {
   CRISIS: 'destructive',
   WAR_REPORT: 'default',
   SECRET_LETTER: 'secondary',
-} as const
+} as const satisfies Record<
+  keyof typeof MSG_TYPE_LABELS,
+  NonNullable<ComponentProps<typeof Badge>['variant']>
+>
 
 // 格式化游戏时间为人类可读格式
 function formatGameTime(isoString: string): string {
@@ -61,7 +65,7 @@ function formatGameTime(isoString: string): string {
     }
     
     return `${era}${displayYear}年${month}月${day}日 ${hour}:${minute}`
-  } catch (err) {
+  } catch {
     return isoString
   }
 }
@@ -88,7 +92,7 @@ export function MessageCard({ message, senderDisplayName, onEdit, onDelete, onCl
         <CardDescription className="flex items-center gap-2">
           {message.msgType && (
             <Badge 
-              variant={MSG_TYPE_VARIANTS[message.msgType] as any}
+              variant={MSG_TYPE_VARIANTS[message.msgType]}
               className={message.msgType === 'WAR_REPORT' ? 'bg-green-900/90 text-white hover:bg-green-900' : ''}
             >
               {MSG_TYPE_LABELS[message.msgType]}

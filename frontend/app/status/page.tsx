@@ -267,6 +267,8 @@ export default function StatusPage() {
             ) : (
               <>
                 <div className="overflow-hidden rounded-lg border bg-muted/20 p-3">
+                  {/* Blob URL preview cannot be optimized by next/image. */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={announcementImageUrl} alt={announcementFileName} className="mx-auto max-h-[380px] w-auto object-contain" />
                 </div>
                 <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground">

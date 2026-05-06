@@ -988,6 +988,8 @@ export default function StatusManagePage() {
                 ) : (
                   <>
                     <div className="overflow-hidden rounded-md border bg-muted/20 p-3">
+                      {/* Blob URL preview cannot be optimized by next/image. */}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={announcementImageUrl}
                         alt={announcementFileName}

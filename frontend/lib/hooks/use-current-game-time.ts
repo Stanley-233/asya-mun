@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { TimeAnchorResponse } from "@/lib/api/generated"
 
 // 解析包含负数年份的ISO格式时间字符串
@@ -39,44 +39,14 @@ function parseGameDateTime(isoString: string): Date {
  * @returns The current game time as a Date object, or null if not available
  */
 export function useCurrentGameTime(latestAnchor: TimeAnchorResponse | null | undefined): Date | null {
-  const [currentGameTime, setCurrentGameTime] = useState<Date | null>(null)
+  const [currentRealTimeMs, setCurrentRealTimeMs] = useState(() => Date.now())
 
   useEffect(() => {
     if (!latestAnchor?.anchorGameTime || !latestAnchor?.anchorRealTime) {
-      setCurrentGameTime(null)
       return
     }
 
     const ratio = latestAnchor.timeRatio ?? 1
-
-    const updateCurrentTime = () => {
-      try {
-        // 使用专门的解析函数处理可能包含负数年份的游戏时间
-        const anchorGameTime = parseGameDateTime(latestAnchor.anchorGameTime!)
-        
-        // 如果流速为0，时间暂停在锚点时间
-        if (ratio === 0) {
-          setCurrentGameTime(anchorGameTime)
-          return
-        }
-
-        const anchorRealTime = new Date(latestAnchor.anchorRealTime!)
-        const now = new Date()
-
-        // 当前游戏时间 = 锚点游戏时间 + (当前现实时间 - 锚点现实时间) × 流速
-        const timeDiffMs = now.getTime() - anchorRealTime.getTime()
-        const gameTimeDiffMs = timeDiffMs * ratio
-        const calculatedGameTime = new Date(anchorGameTime.getTime() + gameTimeDiffMs)
-
-        setCurrentGameTime(calculatedGameTime)
-      } catch (err) {
-        console.error('❌ Failed to calculate current game time:', err)
-        setCurrentGameTime(null)
-      }
-    }
-
-    // 初始计算
-    updateCurrentTime()
 
     // 如果流速为0，不需要定时更新
     if (ratio === 0) {
@@ -84,10 +54,33 @@ export function useCurrentGameTime(latestAnchor: TimeAnchorResponse | null | und
     }
 
     // 每秒更新一次
-    const interval = setInterval(updateCurrentTime, 1000)
+    const interval = setInterval(() => {
+      setCurrentRealTimeMs(Date.now())
+    }, 1000)
 
     return () => clearInterval(interval)
   }, [latestAnchor])
 
-  return currentGameTime
+  return useMemo(() => {
+    if (!latestAnchor?.anchorGameTime || !latestAnchor?.anchorRealTime) {
+      return null
+    }
+
+    try {
+      const anchorGameTime = parseGameDateTime(latestAnchor.anchorGameTime)
+      const ratio = latestAnchor.timeRatio ?? 1
+
+      if (ratio === 0) {
+        return anchorGameTime
+      }
+
+      const anchorRealTime = new Date(latestAnchor.anchorRealTime)
+      const timeDiffMs = currentRealTimeMs - anchorRealTime.getTime()
+      const gameTimeDiffMs = timeDiffMs * ratio
+      return new Date(anchorGameTime.getTime() + gameTimeDiffMs)
+    } catch (err) {
+      console.error('❌ Failed to calculate current game time:', err)
+      return null
+    }
+  }, [currentRealTimeMs, latestAnchor])
 }

@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -27,18 +26,12 @@ interface TimelineManagerProps {
   currentSession?: { uuid?: string } | null
 }
 
-// 游戏开始时间：公元前450年1月1日
-const GAME_START_DATE = new Date(-450, 0, 1)
-
-export function TimelineManager({ currentSession: _currentSession }: TimelineManagerProps) {
-  const { data: allAnchorsData, isLoading: anchorsLoading, refetch: refetchAnchors } = useGetAll1()
-  const { data: latestAnchorData, isLoading: latestLoading, refetch: refetchLatest } = useGetLatest()
+export function TimelineManager(_props: TimelineManagerProps) {
+  void _props
+  const { refetch: refetchAnchors } = useGetAll1()
+  const { data: latestAnchorData, refetch: refetchLatest } = useGetLatest()
   const jumpMutation = useJump()
   const updateMutation = useUpdate3()
-  const allAnchors = useMemo(
-    () => parseApiPayload<TimeAnchorResponse[]>(allAnchorsData) ?? [],
-    [allAnchorsData],
-  )
   const latestAnchor = useMemo(
     () => parseApiPayload<TimeAnchorResponse>(latestAnchorData),
     [latestAnchorData],
@@ -125,44 +118,6 @@ export function TimelineManager({ currentSession: _currentSession }: TimelineMan
     } catch (err) {
       console.error('Time update failed:', err)
       toast.error('时间轴更新失败')
-    }
-  }
-
-  // 格式化游戏时间显示（用于锚点列表）
-  // JavaScript Date遵循ISO 8601: 0年=BC1, -1年=BC2, -420年=BC421
-  const formatGameTime = (date: Date | null) => {
-    if (!date) return '未知'
-    
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    const hours = String(date.getHours()).padStart(2, '0')
-    const minutes = String(date.getMinutes()).padStart(2, '0')
-    const seconds = String(date.getSeconds()).padStart(2, '0')
-
-    // ISO 8601到历史年份的转换
-    let era: string
-    let displayYear: number
-    
-    if (year <= 0) {
-      era = 'BC'
-      displayYear = 1 - year  // 0→1, -1→2, -420→421
-    } else {
-      era = 'AD'
-      displayYear = year
-    }
-
-    return `${era} ${displayYear}年${month}月${day}日 ${hours}:${minutes}:${seconds}`
-  }
-
-  // 格式化时间戳（用于锚点列表）
-  const formatTimestamp = (timestamp: string | undefined) => {
-    if (!timestamp) return '未知'
-    try {
-      const date = new Date(timestamp)
-      return date.toLocaleString('zh-CN')
-    } catch {
-      return '未知'
     }
   }
 

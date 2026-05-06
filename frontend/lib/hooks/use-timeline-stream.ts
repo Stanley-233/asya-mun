@@ -1,9 +1,6 @@
-import { useEffect, useRef } from 'react'
-
 export interface TimelineEvent {
   type: 'TIME_JUMP' | 'TIME_UPDATE'
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  data?: any
+  data?: unknown
 }
 
 interface UseTimelineStreamOptions {
@@ -17,7 +14,8 @@ interface UseTimelineStreamOptions {
  * Hook to subscribe to timeline SSE stream using fetch API
  * @param options - Configuration options for the stream
  */
-export function useTimelineStream(options: UseTimelineStreamOptions = {}) {
+export function useTimelineStream(_options: UseTimelineStreamOptions = {}) {
+  void _options
   // ===== SSE 时间轴订阅功能已禁用 =====
   // const {
   //   onTimeJump,

@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Project-specific generated files:
+    "lib/api/endpoints/**",
+    "lib/api/client.ts",
   ]),
 ]);
 

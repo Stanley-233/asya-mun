@@ -162,9 +162,9 @@ function pickUnitsForRemoval(units: CombatUnit[], removeCount: number, side: 'at
 
 function ceilDivision(total: number, divisor: number) {
   if (total <= 0) return 0
-  let result = total / divisor
+  const result = total / divisor
   let floor = Math.floor(result)
-  let remain = result - floor
+  const remain = result - floor
   if (remain > 0.5) floor += 1
   return floor
 }
