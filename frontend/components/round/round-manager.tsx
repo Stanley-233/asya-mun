@@ -18,7 +18,6 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { useAuth } from '@/lib/contexts/auth-context'
-import { parseApiPayload } from '@/lib/api/response-utils'
 import {
   getCurrentQueryKey,
   getListQueryKey,
@@ -105,8 +104,8 @@ export function RoundManager() {
   const updateMutation = useUpdate()
   const updateCurrentMutation = useUpdateCurrent()
 
-  const currentRound = useMemo(() => parseApiPayload<RoundResponse>(currentData), [currentData])
-  const rounds = useMemo(() => parseApiPayload<RoundResponse[]>(listData) ?? [], [listData])
+  const currentRound = useMemo(() => currentData ?? null, [currentData])
+  const rounds = useMemo(() => listData ?? [], [listData])
   const displayRemainingSeconds = useMemo(() => {
     if (!currentRound) return 0
     if (currentRound.status === 'PAUSED') {

@@ -30,7 +30,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import type { UserInfoResponse, UserUpdateRequestRole, ConferenceRequestStatus, ConferenceResponse, BatchRegisterUserItem } from "@/lib/api/generated"
+import type { UserInfoResponse, UserUpdateRequestRole, ConferenceRequestStatus, BatchRegisterUserItem } from "@/lib/api/generated"
 import { getListAll1QueryKey } from "@/lib/api/hooks/user"
 import { getListAll2QueryKey } from "@/lib/api/hooks/conference"
 
@@ -69,52 +69,58 @@ type UserEditFormValue = {
   conferenceId: string
 }
 
-type ApiEnvelope<T> = {
-  data?: T
-}
-
-type ApiResponseLike<T> =
-  | {
-      data?: Blob | string | T | ApiEnvelope<T>
-    }
-  | T
-
 const getUserConferenceId = (user: UserInfoResponse) => {
   const userWithConference = user as UserWithConference
   return userWithConference.conferenceId || userWithConference.conferenceUuid || ''
 }
 
-const parseApiPayload = <T,>(response: ApiResponseLike<T> | undefined, fallback: T): T => {
-  if (response === undefined || response === null) return fallback
-
-  try {
-    if (
-      typeof response === 'object' &&
-      response !== null &&
-      'data' in response &&
-      response.data instanceof Blob
-    ) {
-      return fallback
-    }
-
-    const rawData =
-      typeof response === 'object' && response !== null && 'data' in response
-        ? response.data
-        : response
-
-    const parsedData = typeof rawData === 'string'
-      ? JSON.parse(rawData) as T | ApiEnvelope<T>
-      : rawData as T | ApiEnvelope<T>
-
-    if (parsedData && typeof parsedData === 'object' && 'data' in parsedData) {
-      return (parsedData.data ?? fallback) as T
-    }
-
-    return parsedData as T
-  } catch (err) {
-    console.error('Failed to parse API response:', err)
-    return fallback
+function updateUsersCache(
+  current: unknown,
+  updater: (users: UserInfoResponse[]) => UserInfoResponse[],
+) {
+  if (Array.isArray(current)) {
+    return updater(current as UserInfoResponse[])
   }
+
+  if (!current || typeof current !== 'object' || !('data' in (current as object))) {
+    return current
+  }
+
+  const response = current as {
+    data?: string | { data?: UserInfoResponse[] } | UserInfoResponse[]
+  }
+
+  if (typeof response.data === 'string') {
+    try {
+      const parsed = JSON.parse(response.data) as { data?: UserInfoResponse[] } | UserInfoResponse[]
+      const users = Array.isArray(parsed) ? parsed : (parsed.data ?? [])
+      return {
+        ...response,
+        data: JSON.stringify({ data: updater(users) }),
+      }
+    } catch {
+      return current
+    }
+  }
+
+  if (Array.isArray(response.data)) {
+    return {
+      ...response,
+      data: updater(response.data),
+    }
+  }
+
+  if (response.data && typeof response.data === 'object' && 'data' in response.data) {
+    return {
+      ...response,
+      data: {
+        ...response.data,
+        data: updater(response.data.data ?? []),
+      },
+    }
+  }
+
+  return current
 }
 
 export default function AdminPage() {
@@ -152,23 +158,17 @@ export default function AdminPage() {
   const [batchCsvError, setBatchCsvError] = useState<string | null>(null)
 
   const users = useMemo(
-    () => {
-      const parsed = parseApiPayload<UserInfoResponse[] | UserInfoResponse>(usersData, [])
-      return Array.isArray(parsed) ? parsed : []
-    },
+    () => usersData ?? [],
     [usersData]
   )
 
   const conferences = useMemo(
-    () => {
-      const parsed = parseApiPayload<ConferenceResponse[] | ConferenceResponse>(conferencesData, [])
-      return Array.isArray(parsed) ? parsed : []
-    },
+    () => conferencesData ?? [],
     [conferencesData]
   )
 
   const registrationAllowed = useMemo(
-    () => parseApiPayload<boolean | null>(registrationSwitchData, null),
+    () => registrationSwitchData ?? null,
     [registrationSwitchData]
   )
 
@@ -317,52 +317,24 @@ export default function AdminPage() {
     const matchedConference = conferences.find(conf => conf.uuid === formData.conferenceId)
 
     queryClient.setQueryData(getListAll1QueryKey(), (current: unknown) => {
-      if (!current || typeof current !== 'object' || !('data' in (current as object))) {
-        return current
-      }
+      return updateUsersCache(current, (userArray) =>
+        userArray.map((user) => {
+          if (user.uuid !== userId) return user
 
-      const response = current as { data?: string | ApiEnvelope<UserInfoResponse[]> | UserInfoResponse[] }
-      const parsed = parseApiPayload<UserInfoResponse[] | UserInfoResponse>(response, [])
-      const userArray = Array.isArray(parsed) ? parsed : []
+          const original = user as UserWithConference
+          const nextConferenceId = formData.conferenceId || original.conferenceId || original.conferenceUuid || ''
 
-      const nextUsers = userArray.map((user) => {
-        if (user.uuid !== userId) return user
-
-        const original = user as UserWithConference
-        const nextConferenceId = formData.conferenceId || original.conferenceId || original.conferenceUuid || ''
-
-        return {
-          ...user,
-          name: formData.name,
-          displayName: formData.displayName,
-          role: formData.role,
-          conferenceName: matchedConference?.name || user.conferenceName,
-          conferenceId: nextConferenceId || undefined,
-          conferenceUuid: nextConferenceId || undefined,
-        } as UserInfoResponse
-      })
-
-      if (typeof response.data === 'string') {
-        return {
-          ...response,
-          data: JSON.stringify({ data: nextUsers }),
-        }
-      }
-
-      if (Array.isArray(response.data)) {
-        return {
-          ...response,
-          data: nextUsers,
-        }
-      }
-
-      return {
-        ...response,
-        data: {
-          ...(response.data && typeof response.data === 'object' ? response.data : {}),
-          data: nextUsers,
-        },
-      }
+          return {
+            ...user,
+            name: formData.name,
+            displayName: formData.displayName,
+            role: formData.role,
+            conferenceName: matchedConference?.name || user.conferenceName,
+            conferenceId: nextConferenceId || undefined,
+            conferenceUuid: nextConferenceId || undefined,
+          } as UserInfoResponse
+        })
+      )
     })
 
     setEditForm(prev => ({

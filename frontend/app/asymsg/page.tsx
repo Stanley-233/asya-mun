@@ -26,16 +26,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-toastify'
-import { parseApiPayload } from '@/lib/api/response-utils'
 import { buildLoginRedirect } from '@/lib/auth/return-to'
-
-const msgTypeLabels = {
-  'EVENT': '事件',
-  'NEWS': '新闻',
-  'CRISIS': '危机',
-  'WAR_REPORT': '战报',
-  'SECRET_LETTER': '密函'
-}
 
 export default function DirectiveAsymsgPage() {
   const queryClient = useQueryClient()
@@ -69,14 +60,14 @@ export default function DirectiveAsymsgPage() {
   const [messageToDelete, setMessageToDelete] = useState<MessageResponse | null>(null)
   
   // 获取用户列表
-  const { data: usersData, isLoading: usersLoading } = useGetUsers({
+  const { data: usersData } = useGetUsers({
     query: {
       enabled: isAuthenticated && canManageMessages,
     }
   })
-  
-  const requestPage = currentPage + pageIndexBase
 
+  const requestPage = currentPage + pageIndexBase
+  
   // 获取非对称消息列表
   const { data: messagesData, isLoading: messagesLoading, refetch } = useGetAllSecretInConference(
     {
@@ -100,7 +91,7 @@ export default function DirectiveAsymsgPage() {
   const { mutate: deleteMessage, isPending: isDeleting } = useDelete()
   
   // 解析用户数据
-  const users = parseApiPayload<UserInfoResponse[]>(usersData) || []
+  const users = usersData ?? []
 
   const getUserLabel = (targetUser: UserInfoResponse) => {
     const displayName = targetUser.displayName?.trim()
@@ -108,79 +99,37 @@ export default function DirectiveAsymsgPage() {
   }
   
   // 解析消息数据
-  const parsedMessagesData = parseApiPayload<any>(messagesData)
-  
-  const messages = parsedMessagesData?.content || []
-  const rawTotalPages =
-    parsedMessagesData?.totalPages ??
-    parsedMessagesData?.totalPage ??
-    parsedMessagesData?.page?.totalPages ??
-    0
-  const totalElements =
-    parsedMessagesData?.totalElements ??
-    parsedMessagesData?.total ??
-    parsedMessagesData?.page?.totalElements ??
-    0
-  const sizeFromApi =
-    parsedMessagesData?.size ??
-    parsedMessagesData?.pageable?.pageSize ??
-    parsedMessagesData?.page?.size
-  const computedTotalPages =
-    rawTotalPages && rawTotalPages > 0
-      ? rawTotalPages
-      : totalElements && sizeFromApi
-        ? Math.ceil(totalElements / sizeFromApi)
-        : 0
-  const totalPages = computedTotalPages
-  const pageNumber =
-    parsedMessagesData?.number ??
-    parsedMessagesData?.pageable?.pageNumber ??
-    parsedMessagesData?.page?.number
-  const isFirstPage =
-    parsedMessagesData?.first ??
-    (typeof pageNumber === 'number' ? pageNumber <= 0 : true)
-  const isLastPage =
-    parsedMessagesData?.last ??
-    (typeof pageNumber === 'number' && totalPages > 0
-      ? pageNumber >= totalPages - 1
-      : true)
+  const messages = messagesData?.content ?? []
+  const totalPages = messagesData?.totalPages ?? 0
+  const totalElements = messagesData?.totalElements ?? 0
+  const pageNumber = messagesData?.pageNumber
+  const displayPage = currentPage + 1
+  const isFirstPage = messagesData?.isFirstPage ?? true
+  const isLastPage = messagesData?.isLastPage ?? true
 
-  useEffect(() => {
-    if (!parsedMessagesData) return
+  const syncPageIndexBase = () => {
     if (typeof pageNumber !== 'number') return
-    if (currentPage !== 0) return
-    setPageIndexBase(pageNumber === 0 ? 0 : 1)
-  }, [parsedMessagesData, pageNumber, currentPage])
+    const nextPageIndexBase: 0 | 1 = pageNumber > 0 ? 1 : 0
+    if (nextPageIndexBase !== pageIndexBase) {
+      setPageIndexBase(nextPageIndexBase)
+    }
+  }
 
   useEffect(() => {
     if (!messagesData) return
     console.log('[asymsg] messagesData raw:', messagesData)
-    console.log('[asymsg] parsedMessagesData:', parsedMessagesData)
     console.log('[asymsg] pagination:', {
       currentPage,
-      requestPage,
+      displayPage,
       pageSize,
       totalPages,
       totalElements,
-      rawTotalPages,
-      sizeFromApi,
       pageNumber,
       isFirstPage,
       isLastPage,
       contentLength: messages.length,
     })
-  }, [messagesData])
-
-  useEffect(() => {
-    if (!parsedMessagesData) return
-    if (totalPages === 0 && currentPage !== 0) {
-      setCurrentPage(0)
-      return
-    }
-    if (totalPages > 0 && currentPage > totalPages - 1) {
-      setCurrentPage(totalPages - 1)
-    }
-  }, [parsedMessagesData, totalPages, currentPage])
+  }, [messagesData, currentPage, displayPage, pageSize, totalPages, totalElements, pageNumber, isFirstPage, isLastPage, messages.length])
   
   // 权限检查
   useEffect(() => {
@@ -377,7 +326,7 @@ export default function DirectiveAsymsgPage() {
             {totalPages > 1 && (
               <div className="flex items-center justify-between border-t pt-4">
                 <div className="text-sm text-muted-foreground">
-                  第 {currentPage + 1} 页，共 {totalPages} 页
+                  第 {displayPage} 页，共 {totalPages} 页
                 </div>
                 <div className="flex gap-2">
                   <Button
@@ -392,7 +341,10 @@ export default function DirectiveAsymsgPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setCurrentPage((p) => Math.min(totalPages - 1, p + 1))}
+                    onClick={() => {
+                      syncPageIndexBase()
+                      setCurrentPage((p) => Math.min(Math.max(totalPages - 1, 0), p + 1))
+                    }}
                     disabled={isLastPage}
                   >
                     下一页

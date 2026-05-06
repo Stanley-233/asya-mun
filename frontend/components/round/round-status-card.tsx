@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { parseApiPayload } from '@/lib/api/response-utils'
 import {
   getCurrentQueryKey,
   useDetail,
@@ -43,7 +42,7 @@ export function RoundStatusCard() {
     },
   })
 
-  const currentRound = useMemo(() => parseApiPayload<RoundResponse>(data), [data])
+  const currentRound = useMemo(() => data ?? null, [data])
   const nextRoundId = currentRound?.nextRoundId ?? ''
   const {
     data: nextRoundDetailData,
@@ -56,10 +55,7 @@ export function RoundStatusCard() {
       refetchIntervalInBackground: true,
     },
   })
-  const nextRound = useMemo(
-    () => parseApiPayload<RoundResponse>(nextRoundDetailData),
-    [nextRoundDetailData],
-  )
+  const nextRound = useMemo(() => nextRoundDetailData ?? null, [nextRoundDetailData])
 
   const nextRoundDisplayName = (() => {
     if (!nextRoundId) return '未设置'

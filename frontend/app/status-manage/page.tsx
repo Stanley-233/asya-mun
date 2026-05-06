@@ -38,7 +38,6 @@ import {
 } from '@/components/ui/select'
 import { useAuth } from '@/lib/contexts/auth-context'
 import { buildLoginRedirect } from '@/lib/auth/return-to'
-import { parseApiPayload } from '@/lib/api/response-utils'
 import { useGetAnnouncementImageInfo } from '@/lib/api/hooks/announcement'
 import {
   downloadAnnouncementImage,
@@ -58,7 +57,6 @@ import {
 } from '@/lib/api/hooks/delegate-attr'
 import type {
   DelegateAttrConfigCreateRequestAttrType,
-  UserInfoResponse,
 } from '@/lib/api/generated'
 import {
   formatFileSize,
@@ -72,7 +70,6 @@ import {
   getDelegateAttrDisplayValue,
   normalizeDelegateAttrPage,
   parseDelegateAttrConfigs,
-  parseDelegateAttrRecordPage,
   toRecordFormValues,
   type DelegateAttrColumnViewModel,
   type DelegateAttrFilterFormValue,
@@ -161,8 +158,7 @@ export default function StatusManagePage() {
   })
 
   const delegateUsers = useMemo(() => {
-    const parsed = parseApiPayload<UserInfoResponse[]>(usersData) || []
-    return parsed.filter(user => user.role === 'DELEGATE')
+    return (usersData ?? []).filter(user => user.role === 'DELEGATE')
   }, [usersData])
   const filteredDelegateUsers = useMemo(() => {
     const keyword = delegateFilterKeyword.trim().toLowerCase()
@@ -284,8 +280,7 @@ export default function StatusManagePage() {
         },
         {
           onSuccess: response => {
-            const parsed = parseDelegateAttrRecordPage(response)
-            setRecordPage(parsed.records)
+            setRecordPage(response.records)
           },
           onError: () => {
             toast.error('查询记录失败，请稍后重试')
@@ -801,7 +796,7 @@ export default function StatusManagePage() {
                         </td>
                       </tr>
                     ) : (
-                      recordPage.content.map(record => (
+                      recordPage.content.map((record: DelegateAttrRecordRowViewModel) => (
                         <tr key={record.recordId} className="border-t">
                           <td className="px-3 py-2 whitespace-nowrap">
                             {getDelegateDisplayLabel(record.delegateId, record.delegateName)}

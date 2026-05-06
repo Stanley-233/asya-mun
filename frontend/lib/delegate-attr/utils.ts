@@ -1,4 +1,5 @@
 import { parseApiPayload } from "@/lib/api/response-utils";
+import type { NormalizedPage } from "@/lib/api/core/page";
 import type {
   DelegateAttrConfigResponse,
   DelegateAttrRecordPageResponse,
@@ -32,14 +33,7 @@ export interface DelegateAttrFilterFormValue {
   numberValue?: string;
 }
 
-export interface NormalizedPage<T> {
-  content: T[];
-  totalPages: number;
-  totalElements: number;
-  pageNumber: number;
-  isFirstPage: boolean;
-  isLastPage: boolean;
-}
+export type { NormalizedPage };
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object";

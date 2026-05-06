@@ -9,6 +9,7 @@ import {
   getSecretMessages,
   update1,
 } from '../apis/message.api'
+import type { NormalizedPage } from '../core/page'
 import type {
   GetAllParams,
   GetAllSecretInConferenceParams,
@@ -48,9 +49,9 @@ export function useGetOne<TData = MessageResponse, TError = unknown>(
   })
 }
 
-export function useGetAll<TData = unknown, TError = unknown>(
+export function useGetAll<TData = NormalizedPage<MessageResponse>, TError = unknown>(
   params: GetAllParams,
-  options?: QueryHookOptions<unknown, TData, TError>,
+  options?: QueryHookOptions<NormalizedPage<MessageResponse>, TData, TError>,
 ) {
   return useQuery({
     queryKey: messageKeys.list(params),
@@ -71,9 +72,9 @@ export function useGetReceivers<TData = MessageReceiverVisibilityResponse[], TEr
   })
 }
 
-export function useGetSecretMessages<TData = unknown, TError = unknown>(
+export function useGetSecretMessages<TData = NormalizedPage<MessageResponse>, TError = unknown>(
   params: GetSecretMessagesParams,
-  options?: QueryHookOptions<unknown, TData, TError>,
+  options?: QueryHookOptions<NormalizedPage<MessageResponse>, TData, TError>,
 ) {
   return useQuery({
     queryKey: messageKeys.secret(params),
@@ -82,9 +83,9 @@ export function useGetSecretMessages<TData = unknown, TError = unknown>(
   })
 }
 
-export function useGetAllSecretInConference<TData = unknown, TError = unknown>(
+export function useGetAllSecretInConference<TData = NormalizedPage<MessageResponse>, TError = unknown>(
   params: GetAllSecretInConferenceParams,
-  options?: QueryHookOptions<unknown, TData, TError>,
+  options?: QueryHookOptions<NormalizedPage<MessageResponse>, TData, TError>,
 ) {
   return useQuery({
     queryKey: messageKeys.secretConference(params),

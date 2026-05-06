@@ -10,11 +10,15 @@ import {
   updateRecord,
 } from '../apis/delegate-attr.api'
 import type {
+  DelegateAttrColumnViewModel,
+  DelegateAttrRecordRowViewModel,
+  NormalizedPage,
+} from '../apis/delegate-attr.api'
+import type {
   DelegateAttrConfigCreateRequest,
   DelegateAttrConfigResponse,
   DelegateAttrConfigUpdateRequest,
   DelegateAttrManageQueryRequest,
-  DelegateAttrRecordPageResponse,
   DelegateAttrRecordUpsertRequest,
   ListMyRecordsParams,
   QueryForManagementParams,
@@ -40,9 +44,9 @@ export function useListConfigs<TData = DelegateAttrConfigResponse[], TError = un
   })
 }
 
-export function useListMyRecords<TData = DelegateAttrRecordPageResponse, TError = unknown>(
+export function useListMyRecords<TData = NormalizedPage<DelegateAttrRecordRowViewModel>, TError = unknown>(
   params: ListMyRecordsParams,
-  options?: QueryHookOptions<DelegateAttrRecordPageResponse, TData, TError>,
+  options?: QueryHookOptions<NormalizedPage<DelegateAttrRecordRowViewModel>, TData, TError>,
 ) {
   return useQuery({
     queryKey: delegateAttrKeys.listMyRecords(params),
@@ -53,7 +57,7 @@ export function useListMyRecords<TData = DelegateAttrRecordPageResponse, TError 
 
 export function useQueryForManagement<TError = unknown, TContext = unknown>(
   options?: MutationHookOptions<
-    DelegateAttrRecordPageResponse,
+    { configs: DelegateAttrColumnViewModel[]; records: NormalizedPage<DelegateAttrRecordRowViewModel> },
     { data: DelegateAttrManageQueryRequest; params: QueryForManagementParams },
     TError,
     TContext

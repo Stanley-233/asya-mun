@@ -18,9 +18,8 @@ import { InstructionDetailDialog, InstructionList } from '@/components/instructi
 import {
   INSTRUCTION_STATUS_LABELS,
   INSTRUCTION_TYPE_LABELS,
-  parseInstructionPage,
 } from '@/components/instruction/instruction-utils'
-import { parseApiPayload } from '@/lib/api/response-utils'
+import { createEmptyPage } from '@/lib/api/core/page'
 import { useAuth } from '@/lib/contexts/auth-context'
 import {
   getGetSubmissionSwitchQueryKey,
@@ -36,8 +35,6 @@ import type {
   GetForManagementInstructionType,
   GetForManagementStatus,
   InstructionResponse,
-  UserInfoResponse,
-  UserGroupResponse,
 } from '@/lib/api/generated'
 
 const ALL_FILTER = '__ALL__'
@@ -108,9 +105,9 @@ export default function InstructionsPage() {
   })
   const setSubmissionSwitchMutation = useSetSubmissionSwitch()
 
-  const groups = useMemo(() => parseApiPayload<UserGroupResponse[]>(groupsData) || [], [groupsData])
+  const groups = useMemo(() => groupsData ?? [], [groupsData])
   const delegateUsers = useMemo(() => {
-    const users = parseApiPayload<UserInfoResponse[]>(usersData) || []
+    const users = usersData ?? []
     return users
       .filter(user => user.role === 'DELEGATE')
       .sort((a, b) => {
@@ -137,11 +134,8 @@ export default function InstructionsPage() {
       return acc
     }, {})
   }, [delegateUsers])
-  const instructionPage = parseInstructionPage(parseApiPayload<unknown>(instructionsData))
-  const submissionSwitchPaused = useMemo(
-    () => parseApiPayload<boolean>(submissionSwitchData),
-    [submissionSwitchData],
-  )
+  const instructionPage = instructionsData ?? createEmptyPage<InstructionResponse>()
+  const submissionSwitchPaused = useMemo(() => submissionSwitchData ?? null, [submissionSwitchData])
   const isSubmissionPaused = !!submissionSwitchPaused
 
   useEffect(() => {

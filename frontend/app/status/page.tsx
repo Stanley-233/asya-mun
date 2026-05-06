@@ -18,7 +18,7 @@ import {
   formatDelegateAttrUpdatedAt,
   getDelegateAttrDisplayValue,
   parseDelegateAttrConfigs,
-  parseDelegateAttrRecordPage,
+  type DelegateAttrRecordRowViewModel,
 } from '@/lib/delegate-attr/utils'
 
 const PAGE_SIZE = 10
@@ -93,13 +93,12 @@ export default function StatusPage() {
     },
   )
 
-  const parsedRecordPage = useMemo(() => parseDelegateAttrRecordPage(myRecordsData), [myRecordsData])
-  const rows = parsedRecordPage.records.content
-  const totalPages = parsedRecordPage.records.totalPages
-  const totalElements = parsedRecordPage.records.totalElements
-  const isFirstPage = parsedRecordPage.records.isFirstPage || currentPage <= 0
+  const rows = myRecordsData?.content ?? []
+  const totalPages = myRecordsData?.totalPages ?? 0
+  const totalElements = myRecordsData?.totalElements ?? 0
+  const isFirstPage = (myRecordsData?.isFirstPage ?? true) || currentPage <= 0
   const isLastPage =
-    parsedRecordPage.records.isLastPage || (totalPages > 0 ? currentPage >= totalPages - 1 : true)
+    (myRecordsData?.isLastPage ?? true) || (totalPages > 0 ? currentPage >= totalPages - 1 : true)
 
   useEffect(() => {
     let active = true
@@ -210,7 +209,7 @@ export default function StatusPage() {
                       </td>
                     </tr>
                   ) : (
-                    rows.map(row => (
+                    rows.map((row: DelegateAttrRecordRowViewModel) => (
                       <tr key={row.recordId} className="border-t">
                         <td className="px-3 py-2">{formatDelegateAttrUpdatedAt(row.updatedAt)}</td>
                         {visibleColumns.map(column => (

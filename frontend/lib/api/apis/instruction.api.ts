@@ -1,4 +1,5 @@
 import { apiRequester } from '../client'
+import { normalizePagePayload, type NormalizedPage } from '../core/page'
 import { withQuery } from '../core/query'
 import type {
   GetForManagementParams,
@@ -47,15 +48,19 @@ export async function getInstruction(uuid: string) {
 }
 
 export async function getMyInstructions(params: GetMyInstructionsParams) {
-  return apiRequester.requestProtected<unknown>({
+  const response = await apiRequester.requestProtected<unknown>({
     path: withQuery('/api/instructions/my', params as Record<string, unknown>),
     method: 'GET',
   })
+  return normalizePagePayload<InstructionResponse>(response)
 }
 
 export async function getForManagement(params: GetForManagementParams) {
-  return apiRequester.requestProtected<unknown>({
+  const response = await apiRequester.requestProtected<unknown>({
     path: withQuery('/api/instructions/manage', params as Record<string, unknown>),
     method: 'GET',
   })
+  return normalizePagePayload<InstructionResponse>(response)
 }
+
+export type { NormalizedPage }

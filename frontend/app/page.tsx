@@ -11,7 +11,6 @@ import { useAuth } from '@/lib/contexts/auth-context'
 import { getSafeReturnTo, RETURN_TO_STORAGE_KEY } from '@/lib/auth/return-to'
 import { login, register, useGetRegistrationSwitch } from '@/lib/api/hooks/user'
 import { UserRegistrationRequestRole } from '@/lib/api/generated'
-import { parseApiPayload } from '@/lib/api/response-utils'
 import { toast } from 'react-toastify'
 
 interface ApiError {
@@ -82,11 +81,9 @@ export default function Page() {
   })
 
   useEffect(() => {
-    if (!registrationSwitchData) return
-    const allowed = parseApiPayload<boolean>(registrationSwitchData)
-    if (typeof allowed === 'boolean') {
-      setAllowRegister(allowed)
-      if (!allowed && tab === 'register') {
+    if (typeof registrationSwitchData === 'boolean') {
+      setAllowRegister(registrationSwitchData)
+      if (!registrationSwitchData && tab === 'register') {
         setTab('login')
       }
     }
@@ -190,12 +187,11 @@ export default function Page() {
         password: loginForm.password,
         role: 'DM' as UserRegistrationRequestRole,
       })
-      const responseData = parseApiPayload<{ token?: string }>(response)
-      const token = responseData?.token
+      const token = response?.token
 
       if (token) {
         localStorage.setItem('token', token)
-        localStorage.setItem('user', JSON.stringify(responseData))
+        localStorage.setItem('user', JSON.stringify(response))
         handleAuthSuccess('登录成功，正在进入工作台...')
       } else {
         toast.error('登录成功但未获取到 Token')
@@ -239,12 +235,11 @@ export default function Page() {
         password: registerForm.password,
         role: registerForm.role,
       })
-      const loginData = parseApiPayload<{ token?: string }>(loginResponse)
-      const token = loginData?.token
+      const token = loginResponse?.token
 
       if (token) {
         localStorage.setItem('token', token)
-        localStorage.setItem('user', JSON.stringify(loginData))
+        localStorage.setItem('user', JSON.stringify(loginResponse))
         setRegisterForm({ name: '', displayName: '', password: '', confirmPassword: '', role: 'DM' })
         handleAuthSuccess('注册成功，正在进入工作台...')
       } else {

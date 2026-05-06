@@ -1,5 +1,6 @@
 'use client'
 
+import { normalizePagePayload } from '@/lib/api/core/page'
 import type {
   GetForManagementInstructionType,
   GetForManagementStatus,
@@ -90,62 +91,5 @@ export function getInstructionSubmitterGroupNames(
 }
 
 export function parseInstructionPage(raw: unknown) {
-  const parsed = raw as {
-    content?: InstructionResponse[]
-    totalPages?: number
-    totalPage?: number
-    totalElements?: number
-    total?: number
-    size?: number
-    first?: boolean
-    last?: boolean
-    number?: number
-    pageable?: {
-      pageSize?: number
-      pageNumber?: number
-    }
-    page?: {
-      totalPages?: number
-      totalElements?: number
-      size?: number
-      number?: number
-    }
-  } | null
-
-  const content = parsed?.content || []
-  const rawTotalPages =
-    parsed?.totalPages ??
-    parsed?.totalPage ??
-    parsed?.page?.totalPages ??
-    0
-  const totalElements =
-    parsed?.totalElements ??
-    parsed?.total ??
-    parsed?.page?.totalElements ??
-    0
-  const sizeFromApi =
-    parsed?.size ??
-    parsed?.pageable?.pageSize ??
-    parsed?.page?.size
-  const totalPages =
-    rawTotalPages && rawTotalPages > 0
-      ? rawTotalPages
-      : totalElements && sizeFromApi
-        ? Math.ceil(totalElements / sizeFromApi)
-        : 0
-  const pageNumber =
-    parsed?.number ??
-    parsed?.pageable?.pageNumber ??
-    parsed?.page?.number
-
-  return {
-    content,
-    totalPages,
-    totalElements,
-    pageNumber,
-    isFirstPage: parsed?.first ?? (typeof pageNumber === 'number' ? pageNumber <= 0 : true),
-    isLastPage:
-      parsed?.last ??
-      (typeof pageNumber === 'number' && totalPages > 0 ? pageNumber >= totalPages - 1 : true),
-  }
+  return normalizePagePayload<InstructionResponse>(raw)
 }

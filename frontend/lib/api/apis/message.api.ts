@@ -1,4 +1,5 @@
 import { apiRequester } from '../client'
+import { normalizePagePayload, type NormalizedPage } from '../core/page'
 import { withQuery } from '../core/query'
 import type {
   GetAllParams,
@@ -33,10 +34,11 @@ export async function _delete(uuid: string) {
 }
 
 export async function getAll(params: GetAllParams) {
-  return apiRequester.requestProtected<unknown>({
+  const response = await apiRequester.requestProtected<unknown>({
     path: withQuery('/api/messages', params as Record<string, unknown>),
     method: 'GET',
   })
+  return normalizePagePayload<MessageResponse>(response)
 }
 
 export async function create1(data: MessageCreateRequest) {
@@ -55,15 +57,19 @@ export async function getReceivers(uuid: string) {
 }
 
 export async function getSecretMessages(params: GetSecretMessagesParams) {
-  return apiRequester.requestProtected<unknown>({
+  const response = await apiRequester.requestProtected<unknown>({
     path: withQuery('/api/messages/secret', params as Record<string, unknown>),
     method: 'GET',
   })
+  return normalizePagePayload<MessageResponse>(response)
 }
 
 export async function getAllSecretInConference(params: GetAllSecretInConferenceParams) {
-  return apiRequester.requestProtected<unknown>({
+  const response = await apiRequester.requestProtected<unknown>({
     path: withQuery('/api/messages/secret/conference', params as Record<string, unknown>),
     method: 'GET',
   })
+  return normalizePagePayload<MessageResponse>(response)
 }
+
+export type { NormalizedPage }

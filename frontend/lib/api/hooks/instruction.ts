@@ -8,6 +8,7 @@ import {
   review,
   setSubmissionSwitch,
 } from '../apis/instruction.api'
+import type { NormalizedPage } from '../core/page'
 import type {
   GetForManagementParams,
   GetMyInstructionsParams,
@@ -53,9 +54,9 @@ export function useGetInstruction<TData = InstructionResponse, TError = unknown>
   })
 }
 
-export function useGetMyInstructions<TData = unknown, TError = unknown>(
+export function useGetMyInstructions<TData = NormalizedPage<InstructionResponse>, TError = unknown>(
   params: GetMyInstructionsParams,
-  options?: QueryHookOptions<unknown, TData, TError>,
+  options?: QueryHookOptions<NormalizedPage<InstructionResponse>, TData, TError>,
 ) {
   return useQuery({
     queryKey: instructionKeys.my(params),
@@ -64,9 +65,9 @@ export function useGetMyInstructions<TData = unknown, TError = unknown>(
   })
 }
 
-export function useGetForManagement<TData = unknown, TError = unknown>(
+export function useGetForManagement<TData = NormalizedPage<InstructionResponse>, TError = unknown>(
   params: GetForManagementParams,
-  options?: QueryHookOptions<unknown, TData, TError>,
+  options?: QueryHookOptions<NormalizedPage<InstructionResponse>, TData, TError>,
 ) {
   return useQuery({
     queryKey: instructionKeys.management(params),

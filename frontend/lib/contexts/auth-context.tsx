@@ -2,7 +2,6 @@
 
 import React, { createContext, useContext, useMemo, useSyncExternalStore } from 'react'
 import { useGetCurrentUser } from '@/lib/api/hooks/user'
-import { parseApiPayload } from '@/lib/api/response-utils'
 import type { UserInfoResponse } from '@/lib/api/generated'
 
 export interface AuthContextType {
@@ -71,7 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const user = useMemo(() => {
     if (!hasToken || error || !currentUserData) return null
-    return parseApiPayload<UserInfoResponse>(currentUserData)
+    return currentUserData
   }, [currentUserData, error, hasToken])
 
   const logout = () => {

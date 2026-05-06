@@ -1,5 +1,12 @@
 import { apiRequester } from '../client'
 import { withQuery } from '../core/query'
+import {
+  normalizeDelegateAttrPage,
+  parseDelegateAttrRecordPage,
+  type DelegateAttrColumnViewModel,
+  type DelegateAttrRecordRowViewModel,
+  type NormalizedPage,
+} from '@/lib/delegate-attr/utils'
 import type {
   DelegateAttrConfigCreateRequest,
   DelegateAttrConfigResponse,
@@ -42,11 +49,12 @@ export async function queryForManagement(
   data: DelegateAttrManageQueryRequest,
   params: QueryForManagementParams,
 ) {
-  return apiRequester.requestProtected<DelegateAttrRecordPageResponse>({
+  const response = await apiRequester.requestProtected<DelegateAttrRecordPageResponse>({
     path: withQuery('/api/delegate-attrs/manage/query', params as Record<string, unknown>),
     method: 'POST',
     body: data,
   })
+  return parseDelegateAttrRecordPage(response)
 }
 
 export async function createRecord(delegateId: string, data: DelegateAttrRecordUpsertRequest) {
@@ -73,8 +81,15 @@ export async function createConfig(data: DelegateAttrConfigCreateRequest) {
 }
 
 export async function listMyRecords(params: ListMyRecordsParams) {
-  return apiRequester.requestProtected<DelegateAttrRecordPageResponse>({
+  const response = await apiRequester.requestProtected<DelegateAttrRecordPageResponse>({
     path: withQuery('/api/delegate-attrs/my-records', params as Record<string, unknown>),
     method: 'GET',
   })
+  return normalizeDelegateAttrPage(response as unknown as Record<string, unknown>)
+}
+
+export type {
+  DelegateAttrColumnViewModel,
+  DelegateAttrRecordRowViewModel,
+  NormalizedPage,
 }

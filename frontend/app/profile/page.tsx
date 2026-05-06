@@ -18,15 +18,13 @@ import { useUpdateUser } from "@/lib/api/hooks/user"
 import { useGetMine } from "@/lib/api/hooks/conference"
 import { SecretMessageList, MessageDetailDialog } from "@/components/message"
 import { InstructionDetailDialog, InstructionList, InstructionSubmitForm } from '@/components/instruction'
-import { parseApiPayload } from '@/lib/api/response-utils'
+import { createEmptyPage } from '@/lib/api/core/page'
 import { buildLoginRedirect } from '@/lib/auth/return-to'
 import { useGetMyInstructions, useGetSubmissionSwitch } from '@/lib/api/hooks/instruction'
 import {
   INSTRUCTION_STATUS_LABELS,
-  parseInstructionPage,
 } from '@/components/instruction/instruction-utils'
 import type {
-  ConferenceResponse,
   GetMyInstructionsStatus,
   InstructionResponse,
   MessageResponse,
@@ -96,16 +94,9 @@ export default function ProfilePage() {
     },
   })
 
-  const parsedInstructionData = parseApiPayload<unknown>(myInstructionsData)
-  const instructionPage = parseInstructionPage(parsedInstructionData)
-  const conference = useMemo(
-    () => parseApiPayload<ConferenceResponse>(conferenceData),
-    [conferenceData],
-  )
-  const instructionSubmissionPaused = useMemo(
-    () => parseApiPayload<boolean>(submissionSwitchData),
-    [submissionSwitchData],
-  )
+  const instructionPage = myInstructionsData ?? createEmptyPage<InstructionResponse>()
+  const conference = useMemo(() => conferenceData ?? null, [conferenceData])
+  const instructionSubmissionPaused = useMemo(() => submissionSwitchData ?? null, [submissionSwitchData])
   const isInstructionSubmissionPaused = !!instructionSubmissionPaused
   const instructionSubmitDisabledReason = !conference
     ? '尚未关联会议，暂时无法提交指令，请联系管理员。'
