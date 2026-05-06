@@ -1,13 +1,24 @@
 import { apiRequester } from '../client'
+import { normalizePagePayload, type NormalizedPage } from '../core/page'
 import { withQuery } from '../core/query'
 import type {
   BatchRegisterRequest,
+  Pageable,
   SetRegistrationSwitchParams,
   ResetPasswordBody,
   UserInfoResponse,
+  UserInfoResponseRole,
   UserRegistrationRequest,
   UserUpdateRequest,
 } from '../generated'
+
+export interface ListUsersParams {
+  name?: string
+  displayName?: string
+  conferenceUuid?: string
+  role?: UserInfoResponseRole
+  pageable: Pageable
+}
 
 export async function updateUser(uuid: string, data: UserUpdateRequest) {
   return apiRequester.requestProtected<void>({
@@ -63,11 +74,12 @@ export async function batchRegister(data: BatchRegisterRequest) {
   })
 }
 
-export async function listAll1() {
-  return apiRequester.requestProtected<UserInfoResponse[]>({
-    path: '/api/users',
+export async function listAll1(params: ListUsersParams) {
+  const response = await apiRequester.requestProtected<unknown>({
+    path: withQuery('/api/users', { ...params }),
     method: 'GET',
   })
+  return normalizePagePayload<UserInfoResponse>(response)
 }
 
 export async function getCurrentUser() {
@@ -83,3 +95,5 @@ export async function deleteUser(uuid: string) {
     method: 'DELETE',
   })
 }
+
+export type { NormalizedPage }

@@ -31,6 +31,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import type { UserInfoResponse, UserUpdateRequestRole, ConferenceRequestStatus, BatchRegisterUserItem } from "@/lib/api/generated"
+import type { ListUsersParams } from "@/lib/api/hooks/user"
 import { getListAll1QueryKey } from "@/lib/api/hooks/user"
 import { getListAll2QueryKey } from "@/lib/api/hooks/conference"
 
@@ -55,12 +56,21 @@ const statusOptions = [
 ]
 
 const UNASSIGNED_CONFERENCE_VALUE = '__UNASSIGNED__'
+const ALL_FILTER_VALUE = '__ALL__'
+const USER_PAGE_SIZE = 10
 
 type UserEditFormValue = {
   name: string
   displayName: string
   role: UserUpdateRequestRole
   conferenceId: string
+}
+
+type UserFilterFormValue = {
+  name: string
+  displayName: string
+  conferenceUuid: string
+  role: string
 }
 
 const getUserConferenceId = (user: UserInfoResponse) => {
@@ -76,6 +86,13 @@ function updateUsersCache(
   }
 
   if (!current || typeof current !== 'object' || !('data' in (current as object))) {
+    if (current && typeof current === 'object' && 'content' in (current as object)) {
+      const page = current as { content?: UserInfoResponse[] }
+      return {
+        ...page,
+        content: updater(page.content ?? []),
+      }
+    }
     return current
   }
 
@@ -120,7 +137,6 @@ export default function AdminPage() {
   const router = useRouter()
   const queryClient = useQueryClient()
   const { isLoading: authLoading, isSysAdmin, isAuthenticated } = useAuth()
-  const { data: usersData, isLoading: usersLoading, refetch: refetchUsers } = useListAll1()
   const { data: conferencesData, refetch: refetchConferences } = useListAll2()
   const { mutateAsync: updateUserAsync, isPending: isUpdating } = useUpdateUser()
   const { mutate: deleteUser, isPending: isDeleting } = useDeleteUser()
@@ -149,9 +165,42 @@ export default function AdminPage() {
   const [batchConferenceId, setBatchConferenceId] = useState('')
   const [batchUsers, setBatchUsers] = useState<BatchRegisterUserItem[]>([])
   const [batchCsvError, setBatchCsvError] = useState<string | null>(null)
+  const [userFilters, setUserFilters] = useState<UserFilterFormValue>({
+    name: '',
+    displayName: '',
+    conferenceUuid: ALL_FILTER_VALUE,
+    role: ALL_FILTER_VALUE,
+  })
+  const [appliedUserFilters, setAppliedUserFilters] = useState<UserFilterFormValue>({
+    name: '',
+    displayName: '',
+    conferenceUuid: ALL_FILTER_VALUE,
+    role: ALL_FILTER_VALUE,
+  })
+  const [userPage, setUserPage] = useState(0)
+
+  const userListParams = useMemo<ListUsersParams>(() => ({
+    name: appliedUserFilters.name.trim() || undefined,
+    displayName: appliedUserFilters.displayName.trim() || undefined,
+    conferenceUuid:
+      appliedUserFilters.conferenceUuid !== ALL_FILTER_VALUE
+        ? appliedUserFilters.conferenceUuid
+        : undefined,
+    role:
+      appliedUserFilters.role !== ALL_FILTER_VALUE
+        ? (appliedUserFilters.role as UserUpdateRequestRole)
+        : undefined,
+    pageable: {
+      page: userPage,
+      size: USER_PAGE_SIZE,
+      sort: ['name,asc'],
+    },
+  }), [appliedUserFilters, userPage])
+
+  const { data: usersData, isLoading: usersLoading, refetch: refetchUsers } = useListAll1(userListParams)
 
   const users = useMemo(
-    () => usersData ?? [],
+    () => usersData?.content ?? [],
     [usersData]
   )
 
@@ -164,6 +213,8 @@ export default function AdminPage() {
     () => registrationSwitchData ?? null,
     [registrationSwitchData]
   )
+  const totalUserPages = usersData?.totalPages ?? 0
+  const totalUserElements = usersData?.totalElements ?? 0
 
   useEffect(() => {
     if (authLoading) return
@@ -309,7 +360,7 @@ export default function AdminPage() {
   const syncUserInCache = (userId: string, formData: UserEditFormValue) => {
     const matchedConference = conferences.find(conf => conf.uuid === formData.conferenceId)
 
-    queryClient.setQueryData(getListAll1QueryKey(), (current: unknown) => {
+    queryClient.setQueryData(getListAll1QueryKey(userListParams), (current: unknown) => {
       return updateUsersCache(current, (userArray) =>
         userArray.map((user) => {
           if (user.uuid !== userId) return user
@@ -334,9 +385,33 @@ export default function AdminPage() {
     }))
   }
 
+  const handleUserFilterChange = (field: keyof UserFilterFormValue, value: string) => {
+    setUserFilters(prev => ({
+      ...prev,
+      [field]: value,
+    }))
+  }
+
+  const handleApplyUserFilters = () => {
+    setUserPage(0)
+    setAppliedUserFilters(userFilters)
+  }
+
+  const handleResetUserFilters = () => {
+    const resetFilters = {
+      name: '',
+      displayName: '',
+      conferenceUuid: ALL_FILTER_VALUE,
+      role: ALL_FILTER_VALUE,
+    }
+    setUserPage(0)
+    setUserFilters(resetFilters)
+    setAppliedUserFilters(resetFilters)
+  }
+
   const refreshAdminData = async () => {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: getListAll1QueryKey() }),
+      queryClient.invalidateQueries({ queryKey: getListAll1QueryKey(userListParams) }),
       queryClient.invalidateQueries({ queryKey: getListAll2QueryKey() }),
       refetchUsers(),
       refetchConferences(),
@@ -656,115 +731,117 @@ export default function AdminPage() {
           <p className="text-muted-foreground mb-6">管理系统中的所有用户和会议</p>
         </div>
 
-        {/* 注册开关 */}
-        <Card>
-          <CardHeader>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <CardTitle>注册开关</CardTitle>
-                <CardDescription>
-                  {registrationSwitchLoading || registrationAllowed === null
-                    ? '正在获取当前状态...'
-                    : registrationAllowed
-                      ? '当前允许注册'
-                      : '当前禁止注册'}
-                </CardDescription>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant={registrationAllowed ? 'outline' : 'default'}
-                  onClick={() => handleToggleRegistration(true)}
-                  disabled={registrationSwitchLoading || registrationAllowed === true || isSettingRegistrationSwitch}
-                >
-                  开启注册
-                </Button>
-                <Button
-                  variant={!registrationAllowed ? 'outline' : 'default'}
-                  onClick={() => handleToggleRegistration(false)}
-                  disabled={registrationSwitchLoading || registrationAllowed === false || isSettingRegistrationSwitch}
-                >
-                  关闭注册
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
-        </Card>
-
-        {/* 新建会议卡片 */}
-        <Card>
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <div>
-                <CardTitle>会议管理</CardTitle>
-                <CardDescription>创建新的会议</CardDescription>
-              </div>
-              {!showCreateConference && (
-                <Button onClick={() => setShowCreateConference(true)}>
-                  新建会议
-                </Button>
-              )}
-            </div>
-          </CardHeader>
-          {showCreateConference && (
-            <CardContent>
-              <form onSubmit={handleCreateConference} className="space-y-4">
+        <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
+          {/* 注册开关 */}
+          <Card className="h-full">
+            <CardHeader>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <Label htmlFor="conference-name">会议名称</Label>
-                  <Input
-                    id="conference-name"
-                    name="name"
-                    type="text"
-                    value={conferenceForm.name}
-                    onChange={handleConferenceInputChange}
-                    placeholder="输入会议名称"
-                    className="mt-2"
-                  />
+                  <CardTitle>注册开关</CardTitle>
+                  <CardDescription>
+                    {registrationSwitchLoading || registrationAllowed === null
+                      ? '正在获取当前状态...'
+                      : registrationAllowed
+                        ? '当前允许注册'
+                        : '当前禁止注册'}
+                  </CardDescription>
                 </div>
-
-                <div>
-                  <Label htmlFor="conference-description">会议描述</Label>
-                  <Textarea
-                    id="conference-description"
-                    name="description"
-                    value={conferenceForm.description}
-                    onChange={handleConferenceInputChange}
-                    placeholder="输入会议描述"
-                    className="mt-2"
-                    rows={4}
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="conference-status">会议状态</Label>
-                  <Select 
-                    value={conferenceForm.status} 
-                    onValueChange={handleConferenceStatusChange}
+                <div className="flex gap-2">
+                  <Button
+                    variant={registrationAllowed ? 'outline' : 'default'}
+                    onClick={() => handleToggleRegistration(true)}
+                    disabled={registrationSwitchLoading || registrationAllowed === true || isSettingRegistrationSwitch}
                   >
-                    <SelectTrigger id="conference-status" className="mt-2">
-                      <SelectValue placeholder="选择会议状态" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {statusOptions.map(option => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    开启注册
+                  </Button>
+                  <Button
+                    variant={!registrationAllowed ? 'outline' : 'default'}
+                    onClick={() => handleToggleRegistration(false)}
+                    disabled={registrationSwitchLoading || registrationAllowed === false || isSettingRegistrationSwitch}
+                  >
+                    关闭注册
+                  </Button>
                 </div>
+              </div>
+            </CardHeader>
+          </Card>
 
-                <div className="flex gap-3">
-                  <Button type="submit" disabled={isCreating}>
-                    {isCreating ? '创建中...' : '创建会议'}
-                  </Button>
-                  <Button type="button" variant="outline" onClick={handleCancelCreateConference}>
-                    取消
-                  </Button>
+          {/* 新建会议卡片 */}
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle>会议管理</CardTitle>
+                  <CardDescription>创建新的会议</CardDescription>
                 </div>
-              </form>
-            </CardContent>
-          )}
-        </Card>
+                {!showCreateConference && (
+                  <Button onClick={() => setShowCreateConference(true)}>
+                    新建会议
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+            {showCreateConference && (
+              <CardContent>
+                <form onSubmit={handleCreateConference} className="space-y-4">
+                  <div>
+                    <Label htmlFor="conference-name">会议名称</Label>
+                    <Input
+                      id="conference-name"
+                      name="name"
+                      type="text"
+                      value={conferenceForm.name}
+                      onChange={handleConferenceInputChange}
+                      placeholder="输入会议名称"
+                      className="mt-2"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="conference-description">会议描述</Label>
+                    <Textarea
+                      id="conference-description"
+                      name="description"
+                      value={conferenceForm.description}
+                      onChange={handleConferenceInputChange}
+                      placeholder="输入会议描述"
+                      className="mt-2"
+                      rows={4}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="conference-status">会议状态</Label>
+                    <Select
+                      value={conferenceForm.status}
+                      onValueChange={handleConferenceStatusChange}
+                    >
+                      <SelectTrigger id="conference-status" className="mt-2">
+                        <SelectValue placeholder="选择会议状态" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {statusOptions.map(option => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <Button type="submit" disabled={isCreating}>
+                      {isCreating ? '创建中...' : '创建会议'}
+                    </Button>
+                    <Button type="button" variant="outline" onClick={handleCancelCreateConference}>
+                      取消
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            )}
+          </Card>
+        </div>
 
         {/* 用户管理 */}
         <div>
@@ -785,128 +862,226 @@ export default function AdminPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {users.length === 0 ? (
-              <Card>
-                <CardContent className="pt-6">
-                  <p className="text-center text-muted-foreground">暂无用户数据</p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="overflow-x-auto rounded-lg border">
+            <div className="rounded-lg border">
+              <div className="overflow-x-auto">
                 <table className="min-w-full text-sm">
                   <thead className="bg-muted/50 text-muted-foreground">
                     <tr>
-                      <th style={cellPaddingStyle} className="py-3 text-left font-medium">用户昵称</th>
-                      <th style={cellPaddingStyle} className="py-3 text-left font-medium">显示名称</th>
-                      <th style={cellPaddingStyle} className="py-3 text-left font-medium">关联会议</th>
-                      <th style={cellPaddingStyle} className="py-3 text-left font-medium">用户角色</th>
-                      <th style={cellPaddingStyle} className="py-3 text-right font-medium">操作</th>
+                      <th style={cellPaddingStyle} className="py-3 text-left font-medium align-top">
+                        <div className="min-w-40 space-y-2">
+                          <div>用户昵称</div>
+                          <Input
+                            id="user-filter-name"
+                            value={userFilters.name}
+                            onChange={(e) => handleUserFilterChange('name', e.target.value)}
+                            placeholder="全部"
+                            className="h-9 bg-background"
+                          />
+                        </div>
+                      </th>
+                      <th style={cellPaddingStyle} className="py-3 text-left font-medium align-top">
+                        <div className="min-w-40 space-y-2">
+                          <div>显示名称</div>
+                          <Input
+                            id="user-filter-display-name"
+                            value={userFilters.displayName}
+                            onChange={(e) => handleUserFilterChange('displayName', e.target.value)}
+                            placeholder="全部"
+                            className="h-9 bg-background"
+                          />
+                        </div>
+                      </th>
+                      <th style={cellPaddingStyle} className="py-3 text-left font-medium align-top">
+                        <div className="min-w-44 space-y-2">
+                          <div>关联会议</div>
+                          <Select
+                            value={userFilters.conferenceUuid}
+                            onValueChange={(value) => handleUserFilterChange('conferenceUuid', value)}
+                          >
+                            <SelectTrigger id="user-filter-conference" className="h-9 bg-background">
+                              <SelectValue placeholder="全部会议" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value={ALL_FILTER_VALUE}>全部会议</SelectItem>
+                              {conferences.map(conf => (
+                                <SelectItem key={conf.uuid} value={conf.uuid}>
+                                  {conf.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </th>
+                      <th style={cellPaddingStyle} className="py-3 text-left font-medium align-top">
+                        <div className="min-w-36 space-y-2">
+                          <div>用户角色</div>
+                          <Select
+                            value={userFilters.role}
+                            onValueChange={(value) => handleUserFilterChange('role', value)}
+                          >
+                            <SelectTrigger id="user-filter-role" className="h-9 bg-background">
+                              <SelectValue placeholder="全部角色" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value={ALL_FILTER_VALUE}>全部角色</SelectItem>
+                              {roleOptions.map(option => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </th>
+                      <th style={cellPaddingStyle} className="py-3 text-right font-medium align-top">
+                        <div className="flex min-w-40 flex-col items-end gap-2">
+                          <div>操作</div>
+                          <div className="flex gap-2">
+                            <Button variant="outline" size="sm" onClick={handleResetUserFilters}>
+                              重置
+                            </Button>
+                            <Button size="sm" onClick={handleApplyUserFilters}>
+                              查询
+                            </Button>
+                          </div>
+                        </div>
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
-                    {users.map(user => (
-                      <tr key={user.uuid} className="align-top">
-                        {editingId === user.uuid ? (
-                          <>
-                            <td style={cellPaddingStyle} className="py-4">
-                              <Input
-                                id={`name-${user.uuid}`}
-                                type="text"
-                                value={editForm[user.uuid]?.name || ''}
-                                onChange={(e) => handleFieldChange(user.uuid, 'name', e.target.value)}
-                              />
-                            </td>
-                            <td style={cellPaddingStyle} className="py-4">
-                              <Input
-                                id={`displayName-${user.uuid}`}
-                                type="text"
-                                value={editForm[user.uuid]?.displayName || ''}
-                                onChange={(e) => handleFieldChange(user.uuid, 'displayName', e.target.value)}
-                                placeholder="用于展示的名称（可选）"
-                              />
-                            </td>
-                            <td style={cellPaddingStyle} className="py-4 text-sm text-muted-foreground">
-                              <Select
-                                value={getConferenceSelectValue(user.uuid)}
-                                onValueChange={(value) => handleConferenceSelectChange(user.uuid, value)}
-                                disabled={!isConferenceSelectable}
-                              >
-                                <SelectTrigger id={`conference-${user.uuid}`}>
-                                  <SelectValue placeholder={isConferenceSelectable ? '选择会议' : '暂无会议可选'} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value={UNASSIGNED_CONFERENCE_VALUE}>未关联</SelectItem>
-                                  {conferences.map(conf => (
-                                    <SelectItem key={conf.uuid} value={conf.uuid}>
-                                      {conf.name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </td>
-                            <td style={cellPaddingStyle} className="py-4">
-                              <Select
-                                value={editForm[user.uuid]?.role || ''}
-                                onValueChange={(value) => handleFieldChange(user.uuid, 'role', value)}
-                              >
-                                <SelectTrigger id={`role-${user.uuid}`}>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {roleOptions.map(option => (
-                                    <SelectItem key={option.value} value={option.value}>
-                                      {option.label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </td>
-                            <td style={cellPaddingStyle} className="py-4">
-                              <div className="flex flex-wrap justify-end gap-2">
-                                <Button variant="outline" onClick={handleEditCancel}>
-                                  取消
-                                </Button>
-                                <Button onClick={() => void handleSave(user.uuid)} disabled={isSaving}>
-                                  {getSaveButtonLabel()}
-                                </Button>
-                              </div>
-                            </td>
-                          </>
-                        ) : (
-                          <>
-                            <td style={cellPaddingStyle} className="py-4 font-medium">
-                              {user.name}
-                            </td>
-                            <td style={cellPaddingStyle} className="py-4">
-                              {user.displayName || '—'}
-                            </td>
-                            <td style={cellPaddingStyle} className="py-4 text-sm text-muted-foreground">
-                              {getUserConferenceLabel(user)}
-                            </td>
-                            <td style={cellPaddingStyle} className="py-4">
-                              {roleLabels[user.role] || user.role}
-                            </td>
-                            <td style={cellPaddingStyle} className="py-4">
-                              <div className="flex flex-wrap justify-end gap-2">
-                                <Button onClick={() => handleEditStart(user.uuid)}>
-                                  编辑
-                                </Button>
-                                <Button variant="secondary" onClick={() => handleResetPasswordStart(user)}>
-                                  重置密码
-                                </Button>
-                                <Button variant="destructive" onClick={() => handleDeleteUser(user)}>
-                                  删除
-                                </Button>
-                              </div>
-                            </td>
-                          </>
-                        )}
+                    {users.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground sm:px-6">
+                          暂无用户数据
+                        </td>
                       </tr>
-                    ))}
+                    ) : (
+                      users.map(user => (
+                        <tr key={user.uuid} className="align-top">
+                          {editingId === user.uuid ? (
+                            <>
+                              <td style={cellPaddingStyle} className="py-4">
+                                <Input
+                                  id={`name-${user.uuid}`}
+                                  type="text"
+                                  value={editForm[user.uuid]?.name || ''}
+                                  onChange={(e) => handleFieldChange(user.uuid, 'name', e.target.value)}
+                                />
+                              </td>
+                              <td style={cellPaddingStyle} className="py-4">
+                                <Input
+                                  id={`displayName-${user.uuid}`}
+                                  type="text"
+                                  value={editForm[user.uuid]?.displayName || ''}
+                                  onChange={(e) => handleFieldChange(user.uuid, 'displayName', e.target.value)}
+                                  placeholder="用于展示的名称（可选）"
+                                />
+                              </td>
+                              <td style={cellPaddingStyle} className="py-4 text-sm text-muted-foreground">
+                                <Select
+                                  value={getConferenceSelectValue(user.uuid)}
+                                  onValueChange={(value) => handleConferenceSelectChange(user.uuid, value)}
+                                  disabled={!isConferenceSelectable}
+                                >
+                                  <SelectTrigger id={`conference-${user.uuid}`}>
+                                    <SelectValue placeholder={isConferenceSelectable ? '选择会议' : '暂无会议可选'} />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value={UNASSIGNED_CONFERENCE_VALUE}>未关联</SelectItem>
+                                    {conferences.map(conf => (
+                                      <SelectItem key={conf.uuid} value={conf.uuid}>
+                                        {conf.name}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </td>
+                              <td style={cellPaddingStyle} className="py-4">
+                                <Select
+                                  value={editForm[user.uuid]?.role || ''}
+                                  onValueChange={(value) => handleFieldChange(user.uuid, 'role', value)}
+                                >
+                                  <SelectTrigger id={`role-${user.uuid}`}>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {roleOptions.map(option => (
+                                      <SelectItem key={option.value} value={option.value}>
+                                        {option.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </td>
+                              <td style={cellPaddingStyle} className="py-4">
+                                <div className="flex flex-wrap justify-end gap-2">
+                                  <Button variant="outline" onClick={handleEditCancel}>
+                                    取消
+                                  </Button>
+                                  <Button onClick={() => void handleSave(user.uuid)} disabled={isSaving}>
+                                    {getSaveButtonLabel()}
+                                  </Button>
+                                </div>
+                              </td>
+                            </>
+                          ) : (
+                            <>
+                              <td style={cellPaddingStyle} className="py-4 font-medium">
+                                {user.name}
+                              </td>
+                              <td style={cellPaddingStyle} className="py-4">
+                                {user.displayName || '—'}
+                              </td>
+                              <td style={cellPaddingStyle} className="py-4 text-sm text-muted-foreground">
+                                {getUserConferenceLabel(user)}
+                              </td>
+                              <td style={cellPaddingStyle} className="py-4">
+                                {roleLabels[user.role] || user.role}
+                              </td>
+                              <td style={cellPaddingStyle} className="py-4">
+                                <div className="flex flex-wrap justify-end gap-2">
+                                  <Button onClick={() => handleEditStart(user.uuid)}>
+                                    编辑
+                                  </Button>
+                                  <Button variant="secondary" onClick={() => handleResetPasswordStart(user)}>
+                                    重置密码
+                                  </Button>
+                                  <Button variant="destructive" onClick={() => handleDeleteUser(user)}>
+                                    删除
+                                  </Button>
+                                </div>
+                              </td>
+                            </>
+                          )}
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
-            )}
+            </div>
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-muted-foreground">
+                第 {Math.min(userPage + 1, Math.max(totalUserPages, 1))} 页，共 {Math.max(totalUserPages, 1)} 页，共 {totalUserElements} 位用户
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setUserPage(prev => Math.max(prev - 1, 0))}
+                  disabled={userPage === 0}
+                >
+                  上一页
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setUserPage(prev => Math.min(prev + 1, Math.max(totalUserPages - 1, 0)))}
+                  disabled={totalUserPages <= 1 || userPage >= totalUserPages - 1}
+                >
+                  下一页
+                </Button>
+              </div>
+            </div>
           </div>
         )}
         </div>

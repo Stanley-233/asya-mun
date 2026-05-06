@@ -3,6 +3,11 @@ package top.bearingwall.asya.controller
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import io.jsonwebtoken.JwtException
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Pageable
+import org.springframework.data.domain.Sort
+import org.springframework.data.web.PageableDefault
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -85,19 +90,33 @@ class UserController(
         }
     }
 
-    @Operation(summary = "获取所有用户", description = "仅系统管理员可访问")
+    @Operation(summary = "分页查询用户", description = "仅系统管理员可访问，可按昵称、显示名称、关联会议、角色筛选")
     @GetMapping
-    fun listAll(@RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String): ResponseEntity<Result<List<UserInfoResponse>>> {
+    fun listAll(
+        @RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String,
+        @RequestParam(required = false) name: String?,
+        @RequestParam(required = false) displayName: String?,
+        @RequestParam(required = false) conferenceUuid: UUID?,
+        @RequestParam(required = false) role: UserRole?,
+        @RequestParam(required = false) current: Int?,
+        @RequestParam(required = false) pageNum: Int?,
+        @PageableDefault(sort = ["name"], direction = Sort.Direction.ASC) pageable: Pageable
+    ): ResponseEntity<Result<Page<UserInfoResponse>>> {
         return try {
-            val token = extractBearer(authorization)
-            // 简单校验角色：从 token 中解析角色
-            val parsed = top.bearingwall.asya.util.JwtUtil.parseToken(token)
-            val role = parsed.claims["role"]?.toString()
-            if (role != UserRole.SYS_ADMIN.name) {
+            val user = userService.getUserFromToken(extractBearer(authorization))
+            if (user.role != UserRole.SYS_ADMIN) {
                 return ResponseEntity.status(HttpStatus.OK)
                     .body(Result.failure(BizCode.TOKEN_INVALID, "需要管理员权限"))
             }
-            val users = userService.getAllUsers()
+
+            val effectivePageable = resolvePageable(pageable, current, pageNum)
+            val users = userService.getUsers(
+                pageable = effectivePageable,
+                name = name,
+                displayName = displayName,
+                conferenceUuid = conferenceUuid,
+                role = role
+            )
             ResponseEntity.ok(Result.success(users))
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.OK)
@@ -238,6 +257,12 @@ class UserController(
             throw IllegalArgumentException("Authorization header must start with 'Bearer '")
         }
         return authorization.substring(prefix.length)
+    }
+
+    private fun resolvePageable(pageable: Pageable, current: Int?, pageNum: Int?): Pageable {
+        val oneBasedPage = current ?: pageNum ?: return pageable
+        val zeroBasedPage = (oneBasedPage - 1).coerceAtLeast(0)
+        return PageRequest.of(zeroBasedPage, pageable.pageSize, pageable.sort)
     }
 
     private fun <T> handleException(e: Exception): ResponseEntity<Result<T>> {

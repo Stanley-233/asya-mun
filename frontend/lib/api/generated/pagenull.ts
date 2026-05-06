@@ -10,15 +10,15 @@ import type { Pageablenull } from "./pageablenull";
 import type { Sortnull } from "./sortnull";
 
 export interface Pagenull {
-  totalPages?: number;
   totalElements?: number;
+  totalPages?: number;
   first?: boolean;
   last?: boolean;
   size?: number;
   content?: DelegateAttrRecordResponse[];
   number?: number;
   sort?: Sortnull;
-  pageable?: Pageablenull;
   numberOfElements?: number;
+  pageable?: Pageablenull;
   empty?: boolean;
 }

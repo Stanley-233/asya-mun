@@ -1,6 +1,10 @@
 package top.bearingwall.asya.service
 
+import jakarta.persistence.criteria.JoinType
 import org.slf4j.LoggerFactory
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
+import org.springframework.data.jpa.domain.Specification
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -117,16 +121,42 @@ class UserService(
     @Transactional(readOnly = true)
     fun getAllUsers(): List<UserInfoResponse> {
         return userRepository.findAll()
-            .map { u ->
-                UserInfoResponse(
-                    uuid = u.uuid?.toString() ?: "",
-                    name = u.name,
-                    displayName = u.displayName,
-                    role = u.role,
-                    conferenceUuid = u.conference?.uuid?.toString(),
-                    conferenceName = u.conference?.name
-                )
+            .map(::toUserInfoResponse)
+    }
+
+    @Transactional(readOnly = true)
+    fun getUsers(
+        pageable: Pageable,
+        name: String?,
+        displayName: String?,
+        conferenceUuid: UUID?,
+        role: UserRole?
+    ): Page<UserInfoResponse> {
+        val specification = Specification<User> { root, _, cb ->
+            val predicates = mutableListOf<jakarta.persistence.criteria.Predicate>()
+
+            name?.trim()?.takeIf { it.isNotEmpty() }?.let { keyword ->
+                predicates += cb.like(cb.lower(root.get("name")), "%${keyword.lowercase()}%")
             }
+
+            displayName?.trim()?.takeIf { it.isNotEmpty() }?.let { keyword ->
+                predicates += cb.like(cb.lower(root.get("displayName")), "%${keyword.lowercase()}%")
+            }
+
+            conferenceUuid?.let {
+                val conference = root.join<User, Any>("conference", JoinType.LEFT)
+                predicates += cb.equal(conference.get<UUID>("uuid"), it)
+            }
+
+            role?.let {
+                predicates += cb.equal(root.get<UserRole>("role"), it)
+            }
+
+            cb.and(*predicates.toTypedArray())
+        }
+
+        return userRepository.findAll(specification, pageable)
+            .map(::toUserInfoResponse)
     }
 
     @Transactional
@@ -148,14 +178,7 @@ class UserService(
         val user = userRepository.findById(userId).orElseThrow {
             IllegalStateException("User not found by token subject")
         }
-        return UserInfoResponse(
-            uuid = user.uuid?.toString() ?: "",
-            name = user.name,
-            displayName = user.displayName,
-            role = user.role,
-            conferenceUuid = user.conference?.uuid?.toString(),
-            conferenceName = user.conference?.name
-        )
+        return toUserInfoResponse(user)
     }
 
     @Transactional
@@ -197,14 +220,7 @@ class UserService(
         }
 
         val saved = userRepository.save(target)
-        return UserInfoResponse(
-            uuid = saved.uuid?.toString() ?: "",
-            name = saved.name,
-            displayName = saved.displayName,
-            role = saved.role,
-            conferenceUuid = saved.conference?.uuid?.toString(),
-            conferenceName = saved.conference?.name
-        )
+        return toUserInfoResponse(saved)
     }
 
     @Transactional(readOnly = true)
@@ -260,16 +276,20 @@ class UserService(
                 conference = conference
             )
             val saved = userRepository.save(user)
-            createdUsers.add(UserInfoResponse(
-                uuid = saved.uuid.toString(),
-                name = saved.name,
-                displayName = saved.displayName,
-                role = saved.role,
-                conferenceUuid = saved.conference?.uuid?.toString(),
-                conferenceName = saved.conference?.name
-            ))
+            createdUsers.add(toUserInfoResponse(saved))
         }
 
         return BatchRegisterResponse(createdUsers.size, createdUsers)
+    }
+
+    private fun toUserInfoResponse(user: User): UserInfoResponse {
+        return UserInfoResponse(
+            uuid = user.uuid?.toString() ?: "",
+            name = user.name,
+            displayName = user.displayName,
+            role = user.role,
+            conferenceUuid = user.conference?.uuid?.toString(),
+            conferenceName = user.conference?.name
+        )
     }
 }

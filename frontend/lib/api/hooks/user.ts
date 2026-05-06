@@ -10,6 +10,8 @@ import {
   resetPassword,
   setRegistrationSwitch,
   updateUser,
+  type ListUsersParams,
+  type NormalizedPage,
 } from '../apis/user.api'
 import type {
   BatchRegisterRequest,
@@ -22,7 +24,7 @@ import type { MutationHookOptions, QueryHookOptions } from './shared'
 
 export const userKeys = {
   registrationSwitch: () => ['/api/users/registration-switch'] as const,
-  listAll: () => ['/api/users'] as const,
+  listAll: (params: ListUsersParams) => ['/api/users', params] as const,
   current: () => ['/api/users/user'] as const,
 }
 
@@ -40,12 +42,13 @@ export function useGetRegistrationSwitch<TData = boolean, TError = unknown>(
   })
 }
 
-export function useListAll1<TData = UserInfoResponse[], TError = unknown>(
-  options?: QueryHookOptions<UserInfoResponse[], TData, TError>,
+export function useListAll1<TData = NormalizedPage<UserInfoResponse>, TError = unknown>(
+  params: ListUsersParams,
+  options?: QueryHookOptions<NormalizedPage<UserInfoResponse>, TData, TError>,
 ) {
   return useQuery({
-    queryKey: userKeys.listAll(),
-    queryFn: listAll1,
+    queryKey: userKeys.listAll(params),
+    queryFn: () => listAll1(params),
     ...options?.query,
   })
 }
@@ -106,3 +109,4 @@ export function useDeleteUser<TError = unknown, TContext = unknown>(
 }
 
 export { login, register }
+export type { ListUsersParams }
