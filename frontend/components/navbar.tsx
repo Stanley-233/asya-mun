@@ -63,6 +63,10 @@ function getRoleLabel(role?: string | null, isAuthenticated?: boolean) {
   return ROLE_LABELS[role] ?? role
 }
 
+function getDisplayName(user?: { displayName?: string | null; name?: string | null }) {
+  return user?.displayName?.trim() || user?.name || "访客"
+}
+
 function UserPanel({
   collapsed = false,
   showLogout,
@@ -73,7 +77,7 @@ function UserPanel({
   onLogout: () => void
 }) {
   const { user, isAuthenticated } = useAuth()
-  const displayName = user?.displayName?.trim() || user?.name || "访客"
+  const displayName = getDisplayName(user)
   const role = getRoleLabel(user?.role, isAuthenticated)
 
   return (
@@ -84,17 +88,17 @@ function UserPanel({
       )}
       title={collapsed ? `${displayName} · ${role}` : undefined}
     >
-      <div className={cn("flex min-w-0 flex-1 items-center gap-2.5 transition-all duration-300 ease-out", collapsed && "flex-none justify-center")}>
-        <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-          <CircleUserRound className="size-4.5" />
-        </div>
-        {!collapsed && (
+      {!collapsed && (
+        <div className="flex min-w-0 flex-1 items-center gap-2.5 transition-all duration-300 ease-out">
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <CircleUserRound className="size-4.5" />
+          </div>
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold leading-5">{displayName}</p>
             <p className="text-[0.68rem] font-medium uppercase tracking-[0.18em] text-muted-foreground">{role}</p>
           </div>
-        )}
-      </div>
+        </div>
+      )}
       {showLogout && (
         <button
           type="button"
@@ -248,6 +252,8 @@ export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [closedGroups, setClosedGroups] = useState<string[]>([])
   const isDelegate = user?.role === "DELEGATE"
+  const displayName = getDisplayName(user)
+  const role = getRoleLabel(user?.role, isAuthenticated)
   const groups = buildNavGroups({
     isAuthenticated,
     isLoading,
@@ -314,10 +320,11 @@ export function Navbar() {
           {collapsed && (
             <Link
               href="/progress"
-              className="flex size-11 items-center justify-center rounded-2xl bg-primary/10 text-lg font-black text-primary transition-all duration-300 ease-out"
-              title="ASYA 工作台"
+              className="flex size-11 items-center justify-center rounded-2xl bg-primary/10 text-primary transition-all duration-300 ease-out"
+              title={`${displayName} · ${role}`}
+              aria-label={`${displayName} · ${role}`}
             >
-              A
+              <CircleUserRound className="size-5" />
             </Link>
           )}
           <Button
@@ -345,9 +352,11 @@ export function Navbar() {
           />
         </nav>
 
-        <div className={cn("border-t border-sidebar-border p-3 transition-all duration-300 ease-out", collapsed && "px-2")}>
-          <UserPanel collapsed={collapsed} showLogout={isAuthenticated && !isLoading} onLogout={logout} />
-        </div>
+        {(!collapsed || (isAuthenticated && !isLoading)) && (
+          <div className={cn("border-t border-sidebar-border p-3 transition-all duration-300 ease-out", collapsed && "px-2")}>
+            <UserPanel collapsed={collapsed} showLogout={isAuthenticated && !isLoading} onLogout={logout} />
+          </div>
+        )}
       </aside>
     </>
   )
