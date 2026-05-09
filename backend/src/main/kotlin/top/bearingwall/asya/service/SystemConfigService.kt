@@ -2,6 +2,8 @@ package top.bearingwall.asya.service
 
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import top.bearingwall.asya.audit.Auditable
+import top.bearingwall.asya.model.AuditActionType
 import top.bearingwall.asya.model.SystemConfig
 import top.bearingwall.asya.repository.SystemConfigRepository
 import java.util.UUID
@@ -25,6 +27,7 @@ class SystemConfigService(
     }
 
     @Transactional
+    @Auditable(type = AuditActionType.USER_REGISTRATION_SWITCH, content = "设置用户注册开关")
     fun setRegistrationAllowed(allowed: Boolean) {
         val config = configRepository.findById(KEY_REGISTRATION_ALLOWED)
             .orElse(SystemConfig(key = KEY_REGISTRATION_ALLOWED, value = allowed.toString(), description = "全局用户注册开关"))
@@ -74,6 +77,7 @@ class SystemConfigService(
     }
 
     @Transactional
+    @Auditable(type = AuditActionType.INSTRUCTION_SUBMISSION_SWITCH, content = "设置指令提交通道开关")
     fun setInstructionSubmissionPaused(paused: Boolean) {
         val config = configRepository.findById(KEY_INSTRUCTION_SUBMISSION_PAUSED)
             .orElse(

@@ -5,7 +5,11 @@ import java.util.UUID
 data class AuditActor(
     val uuid: UUID? = null,
     val name: String? = null,
-    val ip: String? = null
+    val ip: String? = null,
+    val requestMethod: String? = null,
+    val requestPath: String? = null,
+    val requestQuery: String? = null,
+    val userAgent: String? = null
 )
 
 object AuditContextHolder {

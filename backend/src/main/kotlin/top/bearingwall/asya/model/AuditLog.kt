@@ -30,12 +30,33 @@ class AuditLog(
     @Column(name = "actor_ip", length = 45)
     var actorIp: String? = null,
 
+    @Column(name = "request_method", length = 10)
+    var requestMethod: String? = null,
+
+    @Column(name = "request_path", length = 255)
+    var requestPath: String? = null,
+
+    @Column(name = "request_query", length = 1000)
+    var requestQuery: String? = null,
+
+    @Column(name = "user_agent", length = 300)
+    var userAgent: String? = null,
+
     @Enumerated(EnumType.STRING)
     @Column(name = "action_type", nullable = false, length = 64)
     var actionType: AuditActionType,
 
-    @Column(name = "event_content", nullable = false, length = 1000)
+    @Column(name = "resource_type", length = 80)
+    var resourceType: String? = null,
+
+    @Column(name = "resource_id", length = 120)
+    var resourceId: String? = null,
+
+    @Column(name = "event_content", nullable = false, columnDefinition = "text")
     var eventContent: String,
+
+    @Column(name = "context_data", columnDefinition = "text")
+    var contextData: String? = null,
 
     @Column(name = "success", nullable = false)
     var success: Boolean = true

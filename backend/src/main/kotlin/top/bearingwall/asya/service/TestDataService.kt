@@ -3,9 +3,11 @@ package top.bearingwall.asya.service
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import top.bearingwall.asya.audit.Auditable
 import top.bearingwall.asya.dto.MessageType
 import top.bearingwall.asya.dto.TestDataBootstrapResponse
 import top.bearingwall.asya.dto.TestDataUserResponse
+import top.bearingwall.asya.model.AuditActionType
 import top.bearingwall.asya.model.Conference
 import top.bearingwall.asya.model.ConferenceStatus
 import top.bearingwall.asya.model.Instruction
@@ -36,6 +38,7 @@ class TestDataService(
     private val nameFormatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
 
     @Transactional
+    @Auditable(type = AuditActionType.TEST_DATA_BOOTSTRAP, content = "初始化测试数据")
     fun bootstrapScenario(requester: User): TestDataBootstrapResponse {
         require(requester.role == UserRole.SYS_ADMIN) { "Only SYS_ADMIN can bootstrap test data" }
 

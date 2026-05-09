@@ -3,9 +3,11 @@ package top.bearingwall.asya.service
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
+import top.bearingwall.asya.audit.Auditable
 import top.bearingwall.asya.dto.AnnouncementImageResponse
 import top.bearingwall.asya.model.Attachment
 import top.bearingwall.asya.model.AttachmentTargetType
+import top.bearingwall.asya.model.AuditActionType
 import java.util.UUID
 
 @Service
@@ -15,6 +17,7 @@ class AnnouncementService(
 ) {
 
     @Transactional
+    @Auditable(type = AuditActionType.ANNOUNCEMENT_IMAGE_UPDATE, content = "更新公告图片")
     fun replaceAnnouncementImage(file: MultipartFile): AnnouncementImageResponse {
         val oldUuid = systemConfigService.getAnnouncementImageUuid()
         val uploaded = attachmentService.uploadAttachment(file, AttachmentTargetType.ANNOUNCEMENT, null)

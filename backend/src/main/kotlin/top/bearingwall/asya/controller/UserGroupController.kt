@@ -14,7 +14,7 @@ import top.bearingwall.asya.dto.UserGroupResponse
 import top.bearingwall.asya.model.UserGroup
 import top.bearingwall.asya.model.UserRole
 import top.bearingwall.asya.repository.UserGroupRepository
-import top.bearingwall.asya.repository.UserRepository
+import top.bearingwall.asya.service.UserGroupService
 import top.bearingwall.asya.util.JwtUtil
 import java.util.UUID
 
@@ -23,7 +23,7 @@ import java.util.UUID
 @Tag(name = "用户组管理")
 class UserGroupController(
     private val userGroupRepository: UserGroupRepository,
-    private val userRepository: UserRepository
+    private val userGroupService: UserGroupService
 ) {
 
     private val allowedWriteRoles = setOf(UserRole.DH.name, UserRole.DM.name, UserRole.SYS_ADMIN.name)
@@ -51,8 +51,7 @@ class UserGroupController(
     ): ResponseEntity<Result<UserGroupResponse>> {
         return try {
             requireWriteRole(authorization)
-            val group = userGroupRepository.save(UserGroup(groupName = req.groupName))
-            ResponseEntity.status(HttpStatus.CREATED).body(Result.success(group.toResponse()))
+            ResponseEntity.status(HttpStatus.CREATED).body(Result.success(userGroupService.createUserGroup(req.groupName)))
         } catch (e: SecurityException) {
             ResponseEntity.status(HttpStatus.FORBIDDEN).body(Result.failure(BizCode.PERMISSION_DENIED, e.message ?: "权限不足"))
         } catch (e: Exception) {
@@ -100,9 +99,7 @@ class UserGroupController(
     ): ResponseEntity<Result<UserGroupResponse>> {
         return try {
             requireWriteRole(authorization)
-            val group = userGroupRepository.findById(id).orElseThrow { IllegalArgumentException("用户组不存在") }
-            group.groupName = req.groupName
-            ResponseEntity.ok(Result.success(userGroupRepository.save(group).toResponse()))
+            ResponseEntity.ok(Result.success(userGroupService.updateUserGroup(id, req.groupName)))
         } catch (e: SecurityException) {
             ResponseEntity.status(HttpStatus.FORBIDDEN).body(Result.failure(BizCode.PERMISSION_DENIED, e.message ?: "权限不足"))
         } catch (e: IllegalArgumentException) {
@@ -120,7 +117,7 @@ class UserGroupController(
     ): ResponseEntity<Result<Unit>> {
         return try {
             requireWriteRole(authorization)
-            userGroupRepository.deleteById(id)
+            userGroupService.deleteUserGroup(id)
             ResponseEntity.ok(Result.success(Unit))
         } catch (e: SecurityException) {
             ResponseEntity.status(HttpStatus.FORBIDDEN).body(Result.failure(BizCode.PERMISSION_DENIED, e.message ?: "权限不足"))
@@ -138,10 +135,7 @@ class UserGroupController(
     ): ResponseEntity<Result<UserGroupResponse>> {
         return try {
             requireWriteRole(authorization)
-            val group = userGroupRepository.findById(id).orElseThrow { IllegalArgumentException("用户组不存在") }
-            val uuids = req.userUuids.map { UUID.fromString(it) }
-            group.users = userRepository.findAllById(uuids).toMutableSet()
-            ResponseEntity.ok(Result.success(userGroupRepository.save(group).toResponse()))
+            ResponseEntity.ok(Result.success(userGroupService.setGroupMembers(id, req.userUuids)))
         } catch (e: SecurityException) {
             ResponseEntity.status(HttpStatus.FORBIDDEN).body(Result.failure(BizCode.PERMISSION_DENIED, e.message ?: "权限不足"))
         } catch (e: IllegalArgumentException) {
@@ -160,9 +154,7 @@ class UserGroupController(
     ): ResponseEntity<Result<UserGroupResponse>> {
         return try {
             requireWriteRole(authorization)
-            val group = userGroupRepository.findById(id).orElseThrow { IllegalArgumentException("用户组不存在") }
-            group.users.removeIf { it.uuid == uuid }
-            ResponseEntity.ok(Result.success(userGroupRepository.save(group).toResponse()))
+            ResponseEntity.ok(Result.success(userGroupService.removeUserFromGroup(id, uuid)))
         } catch (e: SecurityException) {
             ResponseEntity.status(HttpStatus.FORBIDDEN).body(Result.failure(BizCode.PERMISSION_DENIED, e.message ?: "权限不足"))
         } catch (e: IllegalArgumentException) {

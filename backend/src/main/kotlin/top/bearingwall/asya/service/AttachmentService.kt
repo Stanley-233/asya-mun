@@ -3,10 +3,12 @@ package top.bearingwall.asya.service
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
+import top.bearingwall.asya.audit.Auditable
 import top.bearingwall.asya.dto.AttachmentInfoResponse
 import top.bearingwall.asya.dto.AttachmentUploadResponse
 import top.bearingwall.asya.model.Attachment
 import top.bearingwall.asya.model.AttachmentTargetType
+import top.bearingwall.asya.model.AuditActionType
 import top.bearingwall.asya.repository.AttachmentRepository
 import java.util.UUID
 
@@ -16,12 +18,21 @@ class AttachmentService(
 ) {
 
     @Transactional
+    @Auditable(type = AuditActionType.ATTACHMENT_UPLOAD, content = "上传附件")
     fun uploadAttachment(file: MultipartFile): AttachmentUploadResponse {
-        return uploadAttachment(file, null, null)
+        return storeAttachment(file, null, null)
     }
 
     @Transactional
     fun uploadAttachment(
+        file: MultipartFile,
+        targetType: AttachmentTargetType?,
+        targetId: UUID?
+    ): AttachmentUploadResponse {
+        return storeAttachment(file, targetType, targetId)
+    }
+
+    private fun storeAttachment(
         file: MultipartFile,
         targetType: AttachmentTargetType?,
         targetId: UUID?
@@ -66,6 +77,7 @@ class AttachmentService(
     }
 
     @Transactional
+    @Auditable(type = AuditActionType.ATTACHMENT_DELETE, content = "删除附件")
     fun deleteAttachment(uuid: UUID) {
         if (!attachmentRepository.existsById(uuid)) {
             throw IllegalArgumentException("Attachment not found: $uuid")

@@ -31,6 +31,10 @@ class AuditContextInterceptor : HandlerInterceptor {
 
     override fun preHandle(request: HttpServletRequest, response: HttpServletResponse, handler: Any): Boolean {
         val clientIp = resolveClientIp(request)
+        val requestMethod = request.method?.trim()?.takeIf { it.isNotBlank() }
+        val requestPath = request.requestURI?.trim()?.takeIf { it.isNotBlank() }
+        val requestQuery = request.queryString?.trim()?.takeIf { it.isNotBlank() }
+        val userAgent = request.getHeader("User-Agent")?.trim()?.takeIf { it.isNotBlank() }
         val authHeader = request.getHeader("Authorization")
         if (!authHeader.isNullOrBlank() && authHeader.startsWith("Bearer ")) {
             val token = authHeader.removePrefix("Bearer ").trim()
@@ -38,12 +42,38 @@ class AuditContextInterceptor : HandlerInterceptor {
                 val parsed = JwtUtil.parseToken(token)
                 val actorUuid = runCatching { UUID.fromString(parsed.subject) }.getOrNull()
                 val actorName = parsed.claims["name"]?.toString()
-                AuditContextHolder.set(AuditActor(uuid = actorUuid, name = actorName, ip = clientIp))
+                AuditContextHolder.set(
+                    AuditActor(
+                        uuid = actorUuid,
+                        name = actorName,
+                        ip = clientIp,
+                        requestMethod = requestMethod,
+                        requestPath = requestPath,
+                        requestQuery = requestQuery,
+                        userAgent = userAgent
+                    )
+                )
             } catch (_: Exception) {
-                AuditContextHolder.set(AuditActor(ip = clientIp))
+                AuditContextHolder.set(
+                    AuditActor(
+                        ip = clientIp,
+                        requestMethod = requestMethod,
+                        requestPath = requestPath,
+                        requestQuery = requestQuery,
+                        userAgent = userAgent
+                    )
+                )
             }
         } else {
-            AuditContextHolder.set(AuditActor(ip = clientIp))
+            AuditContextHolder.set(
+                AuditActor(
+                    ip = clientIp,
+                    requestMethod = requestMethod,
+                    requestPath = requestPath,
+                    requestQuery = requestQuery,
+                    userAgent = userAgent
+                )
+            )
         }
         return true
     }

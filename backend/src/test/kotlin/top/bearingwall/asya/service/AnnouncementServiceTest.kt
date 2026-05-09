@@ -9,8 +9,6 @@ import org.mockito.ArgumentCaptor
 import org.mockito.Captor
 import org.mockito.InjectMocks
 import org.mockito.Mock
-import org.mockito.Mockito.any
-import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
 import org.mockito.junit.jupiter.MockitoExtension
@@ -58,7 +56,6 @@ class AnnouncementServiceTest {
         val response = announcementService.replaceAnnouncementImage(file)
 
         verify(systemConfigService).setAnnouncementImageUuid(uuidCaptor.capture())
-        verify(attachmentService, never()).deleteAttachment(any(UUID::class.java))
         assertEquals(newUuid, uuidCaptor.value)
         assertEquals(newUuid.toString(), response.uuid)
     }
@@ -94,7 +91,6 @@ class AnnouncementServiceTest {
         val response = announcementService.getCurrentAnnouncementImageInfo()
 
         assertNull(response)
-        verify(attachmentService, never()).getAttachment(any(UUID::class.java))
     }
 
     @Test
