@@ -22,6 +22,26 @@ const nextConfig: NextConfig = {
         source: '/api/:path*',
         destination: 'http://127.0.0.1:8080/api/:path*',
       },
+      {
+        source: '/doc.html',
+        destination: 'http://127.0.0.1:8080/doc.html',
+      },
+      {
+        source: '/swagger-ui.html',
+        destination: 'http://127.0.0.1:8080/swagger-ui.html',
+      },
+      {
+        source: '/swagger-ui/:path*',
+        destination: 'http://127.0.0.1:8080/swagger-ui/:path*',
+      },
+      {
+        source: '/v3/api-docs/:path*',
+        destination: 'http://127.0.0.1:8080/v3/api-docs/:path*',
+      },
+      {
+        source: '/webjars/:path*',
+        destination: 'http://127.0.0.1:8080/webjars/:path*',
+      },
     ];
   },
 };

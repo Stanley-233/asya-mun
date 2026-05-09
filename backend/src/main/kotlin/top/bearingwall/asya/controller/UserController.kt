@@ -51,6 +51,7 @@ class UserController(
         }
     }
 
+    @Operation(summary = "用户登录", description = "使用用户名和密码登录，成功后返回用户信息与 Bearer Token。")
     @PostMapping("/login")
     fun login(
         @RequestBody request: UserRegistrationRequest

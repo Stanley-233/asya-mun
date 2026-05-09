@@ -22,3 +22,25 @@ spring:
 logging:
   level:
     root: WARN
+
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+  group-configs:
+    - group: default
+      paths-to-match:
+        - /api/**
+
+knife4j:
+  enable: true
+  setting:
+    language: zh_cn
+    enable-footer: false
+    enable-footer-custom: true
+    footer-custom-content: Asya Backend API Docs

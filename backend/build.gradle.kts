@@ -61,6 +61,9 @@ dependencies {
     developmentOnly("org.springframework.boot:spring-boot-docker-compose")
     // API 文档
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.9")
+    implementation("com.github.xiaoymin:knife4j-openapi3-jakarta-spring-boot-starter:4.4.0") {
+        exclude(group = "org.springdoc", module = "springdoc-openapi-starter-webmvc-ui")
+    }
     // Lombok 注解处理器
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")
