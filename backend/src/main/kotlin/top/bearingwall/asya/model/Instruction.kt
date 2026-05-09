@@ -1,6 +1,8 @@
 package top.bearingwall.asya.model
 
 import jakarta.persistence.*
+import org.hibernate.annotations.JdbcTypeCode
+import org.hibernate.type.SqlTypes
 import top.bearingwall.asya.util.LocalDateTimeStringConverter
 import java.time.LocalDateTime
 import java.util.UUID
@@ -24,7 +26,8 @@ class Instruction(
     var title: String,
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "instruction_type", nullable = false, length = 32)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "instruction_type", nullable = false, length = 32, columnDefinition = "instructiontype")
     var instructionType: InstructionType,
 
     @Lob
@@ -32,7 +35,8 @@ class Instruction(
     var content: String,
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 32)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(nullable = false, length = 32, columnDefinition = "instructionstatus")
     var status: InstructionStatus = InstructionStatus.SUBMITTED,
 
     @Lob
@@ -57,4 +61,3 @@ class Instruction(
     @Convert(converter = LocalDateTimeStringConverter::class)
     var reviewedGameTime: LocalDateTime? = null
 )
-

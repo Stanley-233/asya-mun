@@ -2,6 +2,7 @@ package top.bearingwall.asya.service
 
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
+import org.springframework.data.jpa.domain.Specification
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import top.bearingwall.asya.audit.Auditable
@@ -143,13 +144,12 @@ class MessageService(
         receiverId: UUID? = null,
         keyword: String? = null
     ): Page<MessageResponse> {
-        return messageRepository.findSecretMessagesForConferenceWithFilter(
-            conferenceUuid,
-            senderId,
-            receiverId,
-            keyword,
-            pageable
-        ).map {
+        var spec = byConference(conferenceUuid).and(isSecret())
+        senderId?.let { spec = spec.and(hasSender(it)) }
+        receiverId?.let { spec = spec.and(hasReceiver(it)) }
+        keyword?.trim()?.takeIf { it.isNotEmpty() }?.let { spec = spec.and(titleContains(it)) }
+
+        return messageRepository.findAll(spec, pageable).map {
             it.toResponse(omitContent = true)
         }
     }
@@ -218,6 +218,38 @@ class MessageService(
         hasAttachment = if (omitContent) null else this.attachments.isNotEmpty(),
         attachmentUuids = if (omitContent) null else this.attachments.mapNotNull { it.uuid?.toString() }
     )
+
+    private fun byConference(conferenceUuid: UUID): Specification<Message> {
+        return Specification { root, _, cb ->
+            cb.equal(root.get<top.bearingwall.asya.model.Conference>("conference").get<UUID>("uuid"), conferenceUuid)
+        }
+    }
+
+    private fun isSecret(): Specification<Message> {
+        return Specification { root, _, cb ->
+            cb.isTrue(root.get("isSecret"))
+        }
+    }
+
+    private fun hasSender(senderUuid: UUID): Specification<Message> {
+        return Specification { root, _, cb ->
+            cb.equal(root.get<top.bearingwall.asya.model.User>("sender").get<UUID>("uuid"), senderUuid)
+        }
+    }
+
+    private fun hasReceiver(receiverUuid: UUID): Specification<Message> {
+        return Specification { root, query, cb ->
+            query.distinct(true)
+            val receiverJoin = root.join<Message, top.bearingwall.asya.model.MessageReceiver>("receiverMappings")
+            cb.equal(receiverJoin.get<top.bearingwall.asya.model.User>("receiver").get<UUID>("uuid"), receiverUuid)
+        }
+    }
+
+    private fun titleContains(keyword: String): Specification<Message> {
+        return Specification { root, _, cb ->
+            cb.like(cb.lower(root.get("title")), "%${keyword.lowercase()}%")
+        }
+    }
 
     private fun applyAttachments(message: Message, attachmentUuids: List<String>?) {
         if (attachmentUuids == null) {

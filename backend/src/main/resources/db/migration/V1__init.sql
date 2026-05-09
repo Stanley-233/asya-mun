@@ -1,13 +1,108 @@
+create type public.conferencestatus as enum (
+    'PREPARING',
+    'RUNNING',
+    'COMPLETED'
+);
+
+create type public.userrole as enum (
+    'DELEGATE',
+    'DM',
+    'DH',
+    'SYS_ADMIN'
+);
+
+create type public.messagetype as enum (
+    'EVENT',
+    'NEWS',
+    'CRISIS',
+    'SECRET_LETTER',
+    'WAR_REPORT'
+);
+
+create type public.attachmenttargettype as enum (
+    'MESSAGE',
+    'DIRECTIVE',
+    'ANNOUNCEMENT'
+);
+
+create type public.auditactiontype as enum (
+    'USER_REGISTER',
+    'USER_LOGIN',
+    'USER_BATCH_REGISTER',
+    'USER_UPDATE',
+    'USER_DELETE',
+    'USER_PASSWORD_RESET',
+    'USER_REGISTRATION_SWITCH',
+    'MESSAGE_CREATE',
+    'MESSAGE_UPDATE',
+    'MESSAGE_DELETE',
+    'ATTACHMENT_UPLOAD',
+    'ATTACHMENT_DELETE',
+    'ANNOUNCEMENT_IMAGE_UPDATE',
+    'CONFERENCE_CREATE',
+    'CONFERENCE_UPDATE',
+    'CONFERENCE_ASSIGN_USER',
+    'USER_GROUP_CREATE',
+    'USER_GROUP_UPDATE',
+    'USER_GROUP_DELETE',
+    'USER_GROUP_MEMBERS_UPDATE',
+    'USER_GROUP_MEMBER_REMOVE',
+    'TIMELINE_UPDATE',
+    'TIMELINE_JUMP',
+    'ROUND_PUBLISH',
+    'ROUND_PAUSE',
+    'ROUND_RESUME',
+    'ROUND_SET_NEXT',
+    'ROUND_UPDATE',
+    'ROUND_SET_CURRENT',
+    'ROUND_SET_REMAINING',
+    'ROUND_AUTO_ADVANCE',
+    'INSTRUCTION_CREATE',
+    'INSTRUCTION_REVIEW',
+    'INSTRUCTION_SUBMISSION_SWITCH',
+    'DELEGATE_ATTR_CONFIG_CREATE',
+    'DELEGATE_ATTR_CONFIG_UPDATE',
+    'DELEGATE_ATTR_RECORD_CREATE',
+    'DELEGATE_ATTR_RECORD_UPDATE',
+    'DELEGATE_ATTR_RECORD_DELETE',
+    'TEST_DATA_BOOTSTRAP'
+);
+
+create type public.instructiontype as enum (
+    'MILITARY',
+    'DIPLOMACY',
+    'INTERNAL',
+    'OTHER'
+);
+
+create type public.instructionstatus as enum (
+    'SUBMITTED',
+    'IN_PROGRESS',
+    'REJECTED',
+    'FEEDBACKED'
+);
+
+create type public.roundstatus as enum (
+    'RUNNING',
+    'PAUSED'
+);
+
+create type public.delegateattrtype as enum (
+    'TEXT',
+    'NUMBER'
+);
+
 create table public.conferences
 (
-    uuid        uuid         not null
+    uuid        uuid              not null
         primary key,
-    description varchar(255),
-    name        varchar(255) not null,
-    status      varchar(255) not null
-        constraint conferences_status_check
-            check ((status)::text = ANY
-                   ((ARRAY ['PREPARING'::character varying, 'RUNNING'::character varying, 'COMPLETED'::character varying])::text[]))
+    description varchar(255)      not null,
+    name        varchar(255)      not null,
+    status      conferencestatus not null,
+    constraint chk_conferences_name_not_blank
+        check (btrim(name) <> ''),
+    constraint chk_conferences_description_not_blank
+        check (btrim(description) <> '')
 );
 
 alter table public.conferences
@@ -18,7 +113,11 @@ create table public.system_configs
     config_key   varchar(50)  not null
         primary key,
     description  varchar(255),
-    config_value varchar(255) not null
+    config_value varchar(255) not null,
+    constraint chk_system_configs_key_not_blank
+        check (btrim(config_key) <> ''),
+    constraint chk_system_configs_value_not_blank
+        check (btrim(config_value) <> '')
 );
 
 alter table public.system_configs
@@ -30,35 +129,72 @@ create table public.time_anchors
         primary key,
     anchor_game_time varchar(255),
     anchor_real_time timestamp(6),
-    is_current       boolean,
+    is_current       boolean        not null default false,
     time_ratio       numeric(10, 2),
     update_time      timestamp(6),
-    conference_id    uuid not null
-        constraint fko1cdj59ojnuofj8g9l6376p9r
-            references public.conferences
+    conference_id    uuid           not null
+        constraint fk_time_anchors_conference
+            references public.conferences,
+    constraint chk_time_anchors_ratio_non_negative
+        check (time_ratio is null or time_ratio >= 0),
+    constraint chk_time_anchors_payload_all_or_none
+        check (
+            (
+                anchor_real_time is null
+                and anchor_game_time is null
+                and time_ratio is null
+            )
+            or (
+                anchor_real_time is not null
+                and anchor_game_time is not null
+                and time_ratio is not null
+            )
+        )
 );
 
 alter table public.time_anchors
     owner to asya;
 
+create index idx_time_anchors_conference_id
+    on public.time_anchors (conference_id, id desc);
+
+create index idx_time_anchors_conference_current
+    on public.time_anchors (conference_id, is_current);
+
+create unique index uk_time_anchors_one_current_per_conference
+    on public.time_anchors (conference_id)
+    where is_current;
+
 create table public.users
 (
-    uuid          uuid         not null
+    uuid          uuid      not null
         primary key,
     display_name  varchar(255),
     name          varchar(255) not null,
     password      varchar(255) not null,
-    role          varchar(255) not null
-        constraint users_role_check
-            check ((role)::text = ANY
-                   ((ARRAY ['DELEGATE'::character varying, 'DM'::character varying, 'DH'::character varying, 'SYS_ADMIN'::character varying])::text[])),
-    conference_id uuid
-        constraint fk3krvvry8t7dak156f22oxfgfs
-            references public.conferences
+    role          userrole not null,
+    conference_id uuid,
+    constraint fk_users_conference
+        foreign key (conference_id)
+            references public.conferences,
+    constraint uk_users_name
+        unique (name),
+    constraint chk_users_name_not_blank
+        check (btrim(name) <> ''),
+    constraint chk_users_password_not_blank
+        check (btrim(password) <> ''),
+    constraint chk_users_display_name_not_blank
+        check (display_name is null or btrim(display_name) <> '')
 );
 
 alter table public.users
     owner to asya;
+
+create index idx_users_conference_id
+    on public.users (conference_id);
+
+create index idx_users_role
+    on public.users (role);
 
 create table public.messages
 (
@@ -66,38 +202,69 @@ create table public.messages
         primary key,
     brief             varchar(500),
     msg_content       text,
-    is_secret         boolean,
-    msg_type          varchar(20)
-        constraint messages_msg_type_check
-            check ((msg_type)::text = ANY
-                   ((ARRAY ['EVENT'::character varying, 'NEWS'::character varying, 'CRISIS'::character varying, 'SECRET_LETTER'::character varying, 'WAR_REPORT'::character varying])::text[])),
+    is_secret         boolean      not null default false,
+    msg_type          messagetype,
     publish_game_time varchar(255) not null,
     publish_real_time timestamp(6) not null,
     title             varchar(200),
-    conference_id     uuid
-        constraint fkfxr9qkf9bum4tombxal163wv1
+    conference_id     uuid         not null
+        constraint fk_messages_conference
             references public.conferences,
     sender_id         uuid
-        constraint fk4ui4nnwntodh6wjvck53dbk9m
-            references public.users
+        constraint fk_messages_sender
+            references public.users,
+    constraint chk_messages_publish_game_time_not_blank
+        check (btrim(publish_game_time) <> ''),
+    constraint chk_messages_title_not_blank
+        check (title is null or btrim(title) <> ''),
+    constraint chk_messages_brief_not_blank
+        check (brief is null or btrim(brief) <> '')
 );
 
 alter table public.messages
     owner to asya;
 
+create index idx_messages_conference_public_time
+    on public.messages (conference_id, is_secret, publish_real_time desc);
+
+create index idx_messages_conference_sender
+    on public.messages (conference_id, sender_id);
+
+create index idx_messages_secret_lookup
+    on public.messages (is_secret, publish_real_time desc);
+
 create table public.attachments
 (
-    uuid        uuid         not null
+    uuid        uuid                   not null
         primary key,
-    file_blob   oid          not null,
-    file_name   varchar(255) not null,
-    file_size   bigint       not null,
-    file_type   varchar(20)  not null,
+    file_blob   oid                    not null,
+    file_name   varchar(255)           not null,
+    file_size   bigint                 not null,
+    file_type   varchar(20)            not null,
     target_id   uuid,
-    target_type varchar(30),
+    target_type attachmenttargettype,
     message_id  uuid
-        constraint fkcf4ta8qdkixetfy7wnqfv3vkv
-            references public.messages
+        constraint fk_attachments_message
+            references public.messages,
+    constraint chk_attachments_file_name_not_blank
+        check (btrim(file_name) <> ''),
+    constraint chk_attachments_file_type_not_blank
+        check (btrim(file_type) <> ''),
+    constraint chk_attachments_file_size_non_negative
+        check (file_size >= 0),
+    constraint chk_attachments_target_pair
+        check (
+            (target_type is null and target_id is null)
+            or (target_type is not null and target_id is not null)
+        ),
+    constraint chk_attachments_message_target_consistency
+        check (
+            message_id is null
+            or (
+                target_type = 'MESSAGE'
+                and target_id is not null
+            )
+        )
 );
 
 alter table public.attachments
@@ -111,22 +278,24 @@ create index idx_attachment_target
 
 create table public.audit_logs
 (
-    id            bigint generated by default as identity
+    id             bigint generated by default as identity
         primary key,
-    action_type   varchar(64)  not null,
-    actor_name    varchar(120),
-    actor_uuid    uuid,
-    actor_ip      varchar(45),
+    action_type    auditactiontype not null,
+    actor_name     varchar(120),
+    actor_uuid     uuid,
+    actor_ip       varchar(45),
     request_method varchar(10),
-    request_path  varchar(255),
-    request_query varchar(1000),
-    user_agent    varchar(300),
-    resource_type varchar(80),
-    resource_id   varchar(120),
-    event_content text         not null,
-    context_data  text,
-    event_time    timestamp(6) not null,
-    success       boolean      not null
+    request_path   varchar(255),
+    request_query  varchar(1000),
+    user_agent     varchar(300),
+    resource_type  varchar(80),
+    resource_id    varchar(120),
+    event_content  text              not null,
+    context_data   text,
+    event_time     timestamp(6)      not null,
+    success        boolean           not null,
+    constraint chk_audit_logs_event_content_not_blank
+        check (btrim(event_content) <> '')
 );
 
 alter table public.audit_logs
@@ -141,11 +310,18 @@ create index idx_audit_logs_action_type
 create index idx_audit_logs_actor_uuid
     on public.audit_logs (actor_uuid);
 
+create index idx_audit_logs_success
+    on public.audit_logs (success);
+
 create table public.user_groups
 (
     id         bigint generated by default as identity
         primary key,
-    group_name varchar(120) not null
+    group_name varchar(120) not null,
+    constraint uk_user_groups_group_name
+        unique (group_name),
+    constraint chk_user_groups_group_name_not_blank
+        check (btrim(group_name) <> '')
 );
 
 alter table public.user_groups
@@ -154,10 +330,10 @@ alter table public.user_groups
 create table public.user_group_members
 (
     group_id  bigint not null
-        constraint fktojippg1wvsa2cybvlq4gbi4l
+        constraint fk_user_group_members_group
             references public.user_groups,
     user_uuid uuid   not null
-        constraint fk1wco1flyu1yewhn4w5xcwhe5
+        constraint fk_user_group_members_user
             references public.users,
     primary key (group_id, user_uuid)
 );
@@ -165,14 +341,17 @@ create table public.user_group_members
 alter table public.user_group_members
     owner to asya;
 
+create index idx_user_group_members_user_uuid
+    on public.user_group_members (user_uuid);
+
 create table public.message_receivers
 (
     readable_at timestamp(6) not null,
     message_id  uuid         not null
-        constraint fkqo0ye7kcad9rwk3al53u9m17
+        constraint fk_message_receivers_message
             references public.messages,
     user_id     uuid         not null
-        constraint fkcvx3xtpr0ggley36ewhknghbs
+        constraint fk_message_receivers_user
             references public.users,
     primary key (message_id, user_id)
 );
@@ -180,38 +359,61 @@ create table public.message_receivers
 alter table public.message_receivers
     owner to asya;
 
+create index idx_message_receivers_user_readable
+    on public.message_receivers (user_id, readable_at);
+
 create table public.instructions
 (
-    uuid                uuid         not null
+    uuid                uuid               not null
         primary key,
-    instruction_content text         not null,
-    instruction_type    varchar(32)  not null
-        constraint instructions_instruction_type_check
-            check ((instruction_type)::text = ANY
-                   ((ARRAY ['MILITARY'::character varying, 'DIPLOMACY'::character varying, 'INTERNAL'::character varying, 'OTHER'::character varying])::text[])),
+    instruction_content text               not null,
+    instruction_type    instructiontype   not null,
     review_comment      text,
     reviewed_game_time  varchar(255),
     reviewed_real_time  timestamp(6),
-    status              varchar(32)  not null
-        constraint instructions_status_check
-            check ((status)::text = ANY
-                   ((ARRAY ['SUBMITTED'::character varying, 'IN_PROGRESS'::character varying, 'REJECTED'::character varying, 'FEEDBACKED'::character varying])::text[])),
-    submit_game_time    varchar(255) not null,
-    submit_real_time    timestamp(6) not null,
-    title               varchar(200) not null,
-    conference_id       uuid         not null
-        constraint fk7bgblwt3nc9dq0eplbqcb7sxd
+    status              instructionstatus not null,
+    submit_game_time    varchar(255)       not null,
+    submit_real_time    timestamp(6)       not null,
+    title               varchar(200)       not null,
+    conference_id       uuid               not null
+        constraint fk_instructions_conference
             references public.conferences,
     reviewed_by         uuid
-        constraint fk80c3ym25y7aaww8iasdyyu0d4
+        constraint fk_instructions_reviewed_by
             references public.users,
-    submitter_id        uuid         not null
-        constraint fkqd3pb3rb239fry3i1apyiih7
-            references public.users
+    submitter_id        uuid               not null
+        constraint fk_instructions_submitter
+            references public.users,
+    constraint chk_instructions_title_not_blank
+        check (btrim(title) <> ''),
+    constraint chk_instructions_content_not_blank
+        check (btrim(instruction_content) <> ''),
+    constraint chk_instructions_submit_game_time_not_blank
+        check (btrim(submit_game_time) <> ''),
+    constraint chk_instructions_reviewed_game_time_not_blank
+        check (reviewed_game_time is null or btrim(reviewed_game_time) <> ''),
+    constraint chk_instructions_review_payload
+        check (
+            (
+                reviewed_by is null
+                and reviewed_real_time is null
+                and reviewed_game_time is null
+            )
+            or reviewed_by is not null
+        )
 );
 
 alter table public.instructions
     owner to asya;
+
+create index idx_instructions_submitter_status_time
+    on public.instructions (submitter_id, status, submit_real_time desc, uuid desc);
+
+create index idx_instructions_conference_query
+    on public.instructions (conference_id, status, instruction_type, submit_real_time desc, uuid desc);
+
+create index idx_instructions_reviewed_by
+    on public.instructions (reviewed_by);
 
 create table public.rounds
 (
@@ -219,19 +421,27 @@ create table public.rounds
         primary key,
     duration_seconds  bigint       not null,
     end_at            timestamp(6),
-    is_current        boolean      not null,
+    is_current        boolean      not null default false,
     name              varchar(255) not null,
     remaining_seconds bigint       not null,
-    status            varchar(255) not null
-        constraint rounds_status_check
-            check ((status)::text = ANY ((ARRAY ['RUNNING'::character varying, 'PAUSED'::character varying])::text[])),
+    status            roundstatus not null,
     updated_at        timestamp(6) not null,
     conference_id     uuid         not null
-        constraint fko9e2ki88g2jjiqxlabt1je88q
+        constraint fk_rounds_conference
             references public.conferences,
     next_round_id     uuid
-        constraint fk41xnioqopl6exymr5dmnyfr9s
-            references public.rounds
+        constraint fk_rounds_next_round
+            references public.rounds,
+    constraint chk_rounds_name_not_blank
+        check (btrim(name) <> ''),
+    constraint chk_rounds_duration_non_negative
+        check (duration_seconds >= 0),
+    constraint chk_rounds_remaining_non_negative
+        check (remaining_seconds >= 0),
+    constraint chk_rounds_remaining_not_exceed_duration
+        check (remaining_seconds <= duration_seconds),
+    constraint chk_rounds_next_round_not_self
+        check (next_round_id is null or next_round_id <> uuid)
 );
 
 alter table public.rounds
@@ -243,31 +453,50 @@ create index idx_round_conference_current
 create index idx_round_end_at
     on public.rounds (end_at);
 
+create index idx_round_conference_updated_at
+    on public.rounds (conference_id, updated_at desc);
+
+create index idx_round_expired_current
+    on public.rounds (status, end_at)
+    where is_current;
+
+create unique index uk_rounds_one_current_per_conference
+    on public.rounds (conference_id)
+    where is_current;
+
 create table public.delegate_attr_configs
 (
-    id            uuid                 not null
+    id            uuid               not null
         primary key,
-    attr_key      varchar(80)          not null,
-    attr_label    varchar(120)         not null,
-    attr_type     varchar(16)          not null
-        constraint delegate_attr_configs_attr_type_check
-            check ((attr_type)::text = ANY ((ARRAY ['TEXT'::character varying, 'NUMBER'::character varying])::text[])),
-    created_at    timestamp(6)         not null,
+    attr_key      varchar(80)        not null,
+    attr_label    varchar(120)       not null,
+    attr_type     delegateattrtype not null,
+    created_at    timestamp(6)       not null,
     created_by    uuid,
-    enabled       boolean              not null,
-    sort_order    integer              not null,
-    updated_at    timestamp(6)         not null,
+    enabled       boolean            not null,
+    sort_order    integer            not null,
+    updated_at    timestamp(6)       not null,
     updated_by    uuid,
-    conference_id uuid                 not null
-        constraint fk5srdxdhk89gfsuteeqgudwos4
+    conference_id uuid               not null
+        constraint fk_delegate_attr_configs_conference
             references public.conferences,
-    visible       boolean default true not null,
+    visible       boolean            not null default true,
     constraint uk_delegate_attr_config_conference_key
-        unique (conference_id, attr_key)
+        unique (conference_id, attr_key),
+    constraint chk_delegate_attr_configs_key_not_blank
+        check (btrim(attr_key) <> ''),
+    constraint chk_delegate_attr_configs_label_not_blank
+        check (btrim(attr_label) <> '')
 );
 
 alter table public.delegate_attr_configs
     owner to asya;
+
+create index idx_delegate_attr_configs_conference_sort
+    on public.delegate_attr_configs (conference_id, sort_order, id);
+
+create index idx_delegate_attr_configs_conference_enabled_sort
+    on public.delegate_attr_configs (conference_id, enabled, sort_order, id);
 
 create table public.delegate_attr_records
 (
@@ -278,15 +507,21 @@ create table public.delegate_attr_records
     updated_at    timestamp(6) not null,
     updated_by    uuid,
     conference_id uuid         not null
-        constraint fkfguajkwvuijfle7h1s89gupqa
+        constraint fk_delegate_attr_records_conference
             references public.conferences,
     delegate_id   uuid         not null
-        constraint fk8nnm2lj2j6v9wb87iwwch70mt
+        constraint fk_delegate_attr_records_delegate
             references public.users
 );
 
 alter table public.delegate_attr_records
     owner to asya;
+
+create index idx_delegate_attr_records_delegate_conference
+    on public.delegate_attr_records (delegate_id, conference_id, created_at desc, id desc);
+
+create index idx_delegate_attr_records_conference
+    on public.delegate_attr_records (conference_id);
 
 create table public.delegate_attr_values
 (
@@ -295,14 +530,21 @@ create table public.delegate_attr_values
     value_number   numeric(20, 6),
     value_text     varchar(1000),
     attr_config_id uuid not null
-        constraint fkdrysidubi3ixwaa9f5xsep27l
+        constraint fk_delegate_attr_values_attr_config
             references public.delegate_attr_configs,
     record_id      uuid not null
-        constraint fkb21uco395w18tkt778rq4ui0o
+        constraint fk_delegate_attr_values_record
             references public.delegate_attr_records,
     constraint uk_delegate_attr_value_record_config
-        unique (record_id, attr_config_id)
+        unique (record_id, attr_config_id),
+    constraint chk_delegate_attr_values_not_both_null
+        check (value_text is not null or value_number is not null),
+    constraint chk_delegate_attr_values_text_not_blank
+        check (value_text is null or btrim(value_text) <> '')
 );
 
 alter table public.delegate_attr_values
     owner to asya;
+
+create index idx_delegate_attr_values_attr_config
+    on public.delegate_attr_values (attr_config_id);

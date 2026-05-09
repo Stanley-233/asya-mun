@@ -1,6 +1,8 @@
 package top.bearingwall.asya.model
 
 import jakarta.persistence.*
+import org.hibernate.annotations.JdbcTypeCode
+import org.hibernate.type.SqlTypes
 import java.time.LocalDateTime
 import java.util.UUID
 
@@ -31,7 +33,8 @@ class Round(
     var remainingSeconds: Long,
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(nullable = false, columnDefinition = "roundstatus")
     var status: RoundStatus,
 
     @Column(name = "is_current", nullable = false)

@@ -1,6 +1,8 @@
 package top.bearingwall.asya.model
 
 import jakarta.persistence.*
+import org.hibernate.annotations.JdbcTypeCode
+import org.hibernate.type.SqlTypes
 import java.util.UUID
 
 @Entity
@@ -20,7 +22,8 @@ class User(
     var password: String,
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(nullable = false, columnDefinition = "userrole")
     var role: UserRole,
 
     @ManyToOne(fetch = FetchType.LAZY)

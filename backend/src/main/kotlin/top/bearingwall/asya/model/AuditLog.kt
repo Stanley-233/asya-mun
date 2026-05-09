@@ -8,6 +8,8 @@ import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Table
+import org.hibernate.annotations.JdbcTypeCode
+import org.hibernate.type.SqlTypes
 import java.time.LocalDateTime
 import java.util.UUID
 
@@ -43,7 +45,8 @@ class AuditLog(
     var userAgent: String? = null,
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "action_type", nullable = false, length = 64)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "action_type", nullable = false, length = 64, columnDefinition = "auditactiontype")
     var actionType: AuditActionType,
 
     @Column(name = "resource_type", length = 80)

@@ -1,6 +1,8 @@
 package top.bearingwall.asya.model
 
 import jakarta.persistence.*
+import org.hibernate.annotations.JdbcTypeCode
+import org.hibernate.type.SqlTypes
 import top.bearingwall.asya.dto.MessageType
 import top.bearingwall.asya.util.LocalDateTimeStringConverter
 import java.time.LocalDateTime
@@ -32,7 +34,8 @@ class Message(
     var content: String? = null,
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "msg_type", length = 20)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "msg_type", length = 20, columnDefinition = "messagetype")
     var msgType: MessageType? = null,
 
     @Column(name = "publish_real_time", nullable = false)

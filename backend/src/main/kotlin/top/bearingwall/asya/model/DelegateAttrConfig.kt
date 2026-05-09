@@ -12,6 +12,8 @@ import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
+import org.hibernate.annotations.JdbcTypeCode
+import org.hibernate.type.SqlTypes
 import java.time.LocalDateTime
 import java.util.UUID
 
@@ -41,7 +43,8 @@ class DelegateAttrConfig(
     var attrLabel: String,
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "attr_type", nullable = false, length = 16)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "attr_type", nullable = false, length = 16, columnDefinition = "delegateattrtype")
     var attrType: DelegateAttrType,
 
     @Column(name = "enabled", nullable = false)

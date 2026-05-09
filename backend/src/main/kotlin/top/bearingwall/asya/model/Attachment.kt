@@ -1,6 +1,8 @@
 package top.bearingwall.asya.model
 
 import jakarta.persistence.*
+import org.hibernate.annotations.JdbcTypeCode
+import org.hibernate.type.SqlTypes
 import java.util.UUID
 
 @Entity
@@ -35,7 +37,8 @@ class Attachment(
     var message: Message? = null,
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "target_type", length = 30)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "target_type", length = 30, columnDefinition = "attachmenttargettype")
     var targetType: AttachmentTargetType? = null,
 
     @Column(name = "target_id")

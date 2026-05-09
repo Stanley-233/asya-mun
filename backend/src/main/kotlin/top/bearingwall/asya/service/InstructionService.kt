@@ -2,6 +2,7 @@ package top.bearingwall.asya.service
 
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
+import org.springframework.data.jpa.domain.Specification
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import top.bearingwall.asya.audit.Auditable
@@ -60,7 +61,9 @@ class InstructionService(
         status: InstructionStatus? = null
     ): Page<InstructionResponse> {
         getUser(submitterUuid)
-        return instructionRepository.findAllBySubmitterUuid(submitterUuid, status, pageable).map { it.toResponse() }
+        var spec = bySubmitter(submitterUuid)
+        status?.let { spec = spec.and(hasStatus(it)) }
+        return instructionRepository.findAll(spec, pageable).map { it.toResponse() }
     }
 
     @Transactional(readOnly = true)
@@ -92,14 +95,13 @@ class InstructionService(
         val conferenceUuid = requester.conference?.uuid ?: throw IllegalStateException("User not associated with any conference")
         val normalizedSubmitterUuids = submitterUuids?.toSet()?.takeIf { it.isNotEmpty() }
 
-        return instructionRepository.findForConferenceManagement(
-            conferenceUuid = conferenceUuid,
-            status = status,
-            instructionType = instructionType,
-            userGroupId = userGroupId,
-            submitterUuids = normalizedSubmitterUuids,
-            pageable = pageable
-        ).map { it.toResponse() }
+        var spec = byConference(conferenceUuid)
+        status?.let { spec = spec.and(hasStatus(it)) }
+        instructionType?.let { spec = spec.and(hasInstructionType(it)) }
+        userGroupId?.let { spec = spec.and(inUserGroup(it)) }
+        normalizedSubmitterUuids?.let { spec = spec.and(submitterIn(it)) }
+
+        return instructionRepository.findAll(spec, pageable).map { it.toResponse() }
     }
 
     @Transactional
@@ -139,6 +141,50 @@ class InstructionService(
     private fun requireManagementRole(user: User) {
         if (user.role !in setOf(UserRole.DH, UserRole.DM, UserRole.SYS_ADMIN)) {
             throw SecurityException("Permission denied")
+        }
+    }
+
+    private fun bySubmitter(submitterUuid: UUID): Specification<Instruction> {
+        return Specification { root, _, cb ->
+            cb.equal(root.get<User>("submitter").get<UUID>("uuid"), submitterUuid)
+        }
+    }
+
+    private fun byConference(conferenceUuid: UUID): Specification<Instruction> {
+        return Specification { root, _, cb ->
+            cb.equal(root.get<top.bearingwall.asya.model.Conference>("conference").get<UUID>("uuid"), conferenceUuid)
+        }
+    }
+
+    private fun hasStatus(status: InstructionStatus): Specification<Instruction> {
+        return Specification { root, _, cb ->
+            cb.equal(root.get<InstructionStatus>("status"), status)
+        }
+    }
+
+    private fun hasInstructionType(instructionType: InstructionType): Specification<Instruction> {
+        return Specification { root, _, cb ->
+            cb.equal(root.get<InstructionType>("instructionType"), instructionType)
+        }
+    }
+
+    private fun submitterIn(submitterUuids: Set<UUID>): Specification<Instruction> {
+        return Specification { root, _, _ ->
+            root.get<User>("submitter").get<UUID>("uuid").`in`(submitterUuids)
+        }
+    }
+
+    private fun inUserGroup(userGroupId: Long): Specification<Instruction> {
+        return Specification { root, query, cb ->
+            query.distinct(true)
+            val subquery = query.subquery(Long::class.java)
+            val userGroupRoot = subquery.from(top.bearingwall.asya.model.UserGroup::class.java)
+            val usersJoin = userGroupRoot.join<top.bearingwall.asya.model.UserGroup, User>("users")
+            subquery.select(cb.literal(1L)).where(
+                cb.equal(userGroupRoot.get<Long>("id"), userGroupId),
+                cb.equal(usersJoin.get<UUID>("uuid"), root.get<User>("submitter").get<UUID>("uuid"))
+            )
+            cb.exists(subquery)
         }
     }
 
