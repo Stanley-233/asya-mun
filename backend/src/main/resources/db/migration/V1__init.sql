@@ -255,6 +255,7 @@ create table public.attachments
     constraint chk_attachments_target_pair
         check (
             (target_type is null and target_id is null)
+            or (target_type = 'ANNOUNCEMENT' and target_id is null)
             or (target_type is not null and target_id is not null)
         ),
     constraint chk_attachments_message_target_consistency

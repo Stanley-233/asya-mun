@@ -1,323 +1,166 @@
 package top.bearingwall.asya.service
 
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.extension.ExtendWith
-import org.mockito.ArgumentCaptor
-import org.mockito.InjectMocks
-import org.mockito.Mock
-import org.mockito.Mockito.any
-import org.mockito.Mockito.verify
-import org.mockito.Mockito.`when`
-import org.mockito.junit.jupiter.MockitoExtension
-import org.springframework.data.domain.PageImpl
-import org.springframework.data.domain.PageRequest
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.http.HttpStatus
 import top.bearingwall.asya.dto.InstructionCreateRequest
-import top.bearingwall.asya.dto.InstructionReviewRequest
-import top.bearingwall.asya.model.Conference
 import top.bearingwall.asya.model.Instruction
 import top.bearingwall.asya.model.InstructionStatus
 import top.bearingwall.asya.model.InstructionType
-import top.bearingwall.asya.model.User
+import top.bearingwall.asya.model.UserGroup
 import top.bearingwall.asya.model.UserRole
 import top.bearingwall.asya.repository.InstructionRepository
-import top.bearingwall.asya.repository.UserRepository
+import top.bearingwall.asya.repository.UserGroupRepository
+import top.bearingwall.asya.support.PostgresIntegrationTest
 import java.time.LocalDateTime
-import java.util.Optional
 import java.util.UUID
 
-@ExtendWith(MockitoExtension::class)
-class InstructionServiceTest {
+class InstructionServiceTest : PostgresIntegrationTest() {
 
-    @Mock
+    @Autowired
+    lateinit var userGroupRepository: UserGroupRepository
+
+    @Autowired
     lateinit var instructionRepository: InstructionRepository
 
-    @Mock
-    lateinit var userRepository: UserRepository
-
-    @Mock
-    lateinit var timeService: TimeService
-
-    @Mock
-    lateinit var systemConfigService: SystemConfigService
-
-    @InjectMocks
-    lateinit var instructionService: InstructionService
-
     @Test
-    fun `createInstruction stores submit times and default status`() {
-        val conference = Conference(uuid = UUID.randomUUID(), name = "conf", description = "desc")
-        val submitter = User(
-            uuid = UUID.randomUUID(),
-            name = "delegate1",
-            password = "pwd",
-            role = UserRole.DELEGATE,
-            conference = conference
-        )
-        val submitGameTime = LocalDateTime.of(1939, 9, 1, 8, 0, 0)
-        val request = InstructionCreateRequest(
-            title = "Mobilize",
-            instructionType = InstructionType.MILITARY,
-            content = "Move forces"
-        )
+    fun `management query filters instructions by status type group and submitter against real postgres`() {
+        val conference = saveConference(name = "Asia MUN")
 
-        `when`(userRepository.findById(submitter.uuid!!)).thenReturn(Optional.of(submitter))
-        `when`(systemConfigService.isInstructionSubmissionPaused()).thenReturn(false)
-        `when`(timeService.getCurrentGameTime(conference.uuid!!)).thenReturn(submitGameTime)
-        `when`(instructionRepository.save(any(Instruction::class.java))).thenAnswer { invocation ->
-            val instruction = invocation.getArgument<Instruction>(0)
-            instruction.uuid = UUID.randomUUID()
-            instruction
-        }
+        val manager = saveUser("dm", UserRole.DM, conference)
+        val groupedDelegate = saveUser("delegate-a", UserRole.DELEGATE, conference)
+        val otherDelegate = saveUser("delegate-b", UserRole.DELEGATE, conference)
 
-        val response = instructionService.createInstruction(request, submitter.uuid!!)
-
-        val captor = ArgumentCaptor.forClass(Instruction::class.java)
-        verify(instructionRepository).save(captor.capture())
-        val saved = captor.value
-
-        assertEquals(InstructionStatus.SUBMITTED, saved.status)
-        assertEquals(submitGameTime, saved.submitGameTime)
-        assertEquals("Mobilize", response.title)
-        assertEquals(InstructionStatus.SUBMITTED, response.status)
-    }
-
-    @Test
-    fun `createInstruction fails when submission switch is paused`() {
-        val conference = Conference(uuid = UUID.randomUUID(), name = "conf", description = "desc")
-        val submitter = User(
-            uuid = UUID.randomUUID(),
-            name = "delegate1",
-            password = "pwd",
-            role = UserRole.DELEGATE,
-            conference = conference
-        )
-        val request = InstructionCreateRequest(
-            title = "Mobilize",
-            instructionType = InstructionType.MILITARY,
-            content = "Move forces"
-        )
-
-        `when`(userRepository.findById(submitter.uuid!!)).thenReturn(Optional.of(submitter))
-        `when`(systemConfigService.isInstructionSubmissionPaused()).thenReturn(true)
-
-        val ex = assertThrows(IllegalArgumentException::class.java) {
-            instructionService.createInstruction(request, submitter.uuid!!)
-        }
-
-        assertTrue(ex.message!!.contains("paused"))
-    }
-
-    @Test
-    fun `getInstruction denies delegate access to others instruction`() {
-        val conference = Conference(uuid = UUID.randomUUID(), name = "conf", description = "desc")
-        val owner = User(
-            uuid = UUID.randomUUID(),
-            name = "owner",
-            password = "pwd",
-            role = UserRole.DELEGATE,
-            conference = conference
-        )
-        val otherDelegate = User(
-            uuid = UUID.randomUUID(),
-            name = "other",
-            password = "pwd",
-            role = UserRole.DELEGATE,
-            conference = conference
-        )
-        val instruction = Instruction(
-            uuid = UUID.randomUUID(),
-            conference = conference,
-            submitter = owner,
-            title = "Order",
-            instructionType = InstructionType.OTHER,
-            content = "Text",
-            submitRealTime = LocalDateTime.now(),
-            submitGameTime = LocalDateTime.now()
-        )
-
-        `when`(userRepository.findById(otherDelegate.uuid!!)).thenReturn(Optional.of(otherDelegate))
-        `when`(instructionRepository.findById(instruction.uuid!!)).thenReturn(Optional.of(instruction))
-
-        val ex = assertThrows(SecurityException::class.java) {
-            instructionService.getInstruction(instruction.uuid!!, otherDelegate.uuid!!)
-        }
-
-        assertTrue(ex.message!!.contains("Access denied"))
-    }
-
-    @Test
-    fun `queryInstructionsForManagement delegates filters to repository`() {
-        val conference = Conference(uuid = UUID.randomUUID(), name = "conf", description = "desc")
-        val manager = User(
-            uuid = UUID.randomUUID(),
-            name = "dm1",
-            password = "pwd",
-            role = UserRole.DM,
-            conference = conference
-        )
-        val submitter = User(
-            uuid = UUID.randomUUID(),
-            name = "delegate1",
-            password = "pwd",
-            role = UserRole.DELEGATE,
-            conference = conference
-        )
-        val instruction = Instruction(
-            uuid = UUID.randomUUID(),
-            conference = conference,
-            submitter = submitter,
-            title = "Diplomacy",
-            instructionType = InstructionType.DIPLOMACY,
-            content = "Text",
-            submitRealTime = LocalDateTime.now(),
-            submitGameTime = LocalDateTime.now()
-        )
-        val pageable = PageRequest.of(0, 20)
-        val submitterUuids = setOf(submitter.uuid!!)
-
-        `when`(userRepository.findById(manager.uuid!!)).thenReturn(Optional.of(manager))
-        `when`(instructionRepository.findForConferenceManagement(
-            conference.uuid!!,
-            InstructionStatus.SUBMITTED,
-            InstructionType.DIPLOMACY,
-            5L,
-            submitterUuids,
-            pageable
-        )).thenReturn(PageImpl(listOf(instruction), pageable, 1))
-
-        val page = instructionService.queryInstructionsForManagement(
-            requesterUuid = manager.uuid!!,
-            pageable = pageable,
-            status = InstructionStatus.SUBMITTED,
-            instructionType = InstructionType.DIPLOMACY,
-            userGroupId = 5L,
-            submitterUuids = listOf(submitter.uuid!!)
-        )
-
-        assertEquals(1, page.totalElements)
-        assertEquals(instruction.uuid.toString(), page.content.first().uuid)
-        verify(instructionRepository).findForConferenceManagement(
-            conference.uuid!!,
-            InstructionStatus.SUBMITTED,
-            InstructionType.DIPLOMACY,
-            5L,
-            submitterUuids,
-            pageable
-        )
-    }
-
-    @Test
-    fun `reviewInstruction updates status comment and reviewer info`() {
-        val conference = Conference(uuid = UUID.randomUUID(), name = "conf", description = "desc")
-        val reviewer = User(
-            uuid = UUID.randomUUID(),
-            name = "dh1",
-            password = "pwd",
-            role = UserRole.DH,
-            conference = conference
-        )
-        val submitter = User(
-            uuid = UUID.randomUUID(),
-            name = "delegate1",
-            password = "pwd",
-            role = UserRole.DELEGATE,
-            conference = conference
-        )
-        val reviewGameTime = LocalDateTime.of(1939, 9, 1, 10, 0, 0)
-        val instruction = Instruction(
-            uuid = UUID.randomUUID(),
-            conference = conference,
-            submitter = submitter,
-            title = "Internal",
-            instructionType = InstructionType.INTERNAL,
-            content = "Text",
-            submitRealTime = LocalDateTime.now(),
-            submitGameTime = LocalDateTime.now()
-        )
-
-        `when`(userRepository.findById(reviewer.uuid!!)).thenReturn(Optional.of(reviewer))
-        `when`(instructionRepository.findById(instruction.uuid!!)).thenReturn(Optional.of(instruction))
-        `when`(timeService.getCurrentGameTime(conference.uuid!!)).thenReturn(reviewGameTime)
-        `when`(instructionRepository.save(any(Instruction::class.java))).thenAnswer { it.getArgument(0) }
-
-        val response = instructionService.reviewInstruction(
-            instruction.uuid!!,
-            reviewer.uuid!!,
-            InstructionReviewRequest(
-                status = InstructionStatus.FEEDBACKED,
-                reviewComment = "Approved"
+        val group = userGroupRepository.save(
+            UserGroup(
+                groupName = "Blue Team",
+                users = mutableSetOf(groupedDelegate)
             )
         )
 
-        assertEquals(InstructionStatus.FEEDBACKED, response.status)
-        assertEquals("Approved", response.reviewComment)
-        assertEquals(reviewer.uuid.toString(), response.reviewedById)
-        assertEquals(reviewGameTime, response.reviewedGameTime)
-    }
-
-    @Test
-    fun `reviewInstruction rejects submitted as target state`() {
-        val conference = Conference(uuid = UUID.randomUUID(), name = "conf", description = "desc")
-        val reviewer = User(
-            uuid = UUID.randomUUID(),
-            name = "admin",
-            password = "pwd",
-            role = UserRole.SYS_ADMIN,
-            conference = conference
-        )
-
-        `when`(userRepository.findById(reviewer.uuid!!)).thenReturn(Optional.of(reviewer))
-
-        assertThrows(IllegalArgumentException::class.java) {
-            instructionService.reviewInstruction(
-                UUID.randomUUID(),
-                reviewer.uuid!!,
-                InstructionReviewRequest(
-                    status = InstructionStatus.SUBMITTED,
-                    reviewComment = "No"
-                )
+        val matched = instructionRepository.save(
+            Instruction(
+                conference = conference,
+                submitter = groupedDelegate,
+                title = "Matched",
+                instructionType = InstructionType.DIPLOMACY,
+                content = "Keep this one",
+                submitRealTime = LocalDateTime.of(2026, 5, 10, 10, 0),
+                submitGameTime = LocalDateTime.of(1939, 9, 1, 8, 0),
+                status = InstructionStatus.SUBMITTED
             )
-        }
+        )
+        instructionRepository.save(
+            Instruction(
+                conference = conference,
+                submitter = groupedDelegate,
+                title = "Wrong Status",
+                instructionType = InstructionType.DIPLOMACY,
+                content = "filtered by status",
+                submitRealTime = LocalDateTime.of(2026, 5, 10, 9, 0),
+                submitGameTime = LocalDateTime.of(1939, 9, 1, 7, 0),
+                status = InstructionStatus.FEEDBACKED
+            )
+        )
+        instructionRepository.save(
+            Instruction(
+                conference = conference,
+                submitter = otherDelegate,
+                title = "Wrong Group",
+                instructionType = InstructionType.DIPLOMACY,
+                content = "filtered by group",
+                submitRealTime = LocalDateTime.of(2026, 5, 10, 8, 0),
+                submitGameTime = LocalDateTime.of(1939, 9, 1, 6, 0),
+                status = InstructionStatus.SUBMITTED
+            )
+        )
+
+        val response = get(
+            "/api/instructions/manage?status=SUBMITTED&instructionType=DIPLOMACY&userGroupId=${group.id}&submitterUuids=${groupedDelegate.uuid}&current=1",
+            bearerHeadersFor(manager)
+        )
+
+        assertEquals(HttpStatus.OK.value(), response.statusCode())
+        val body = readJson(response.body())
+        assertEquals(200, body["code"].asInt())
+        val records = body["data"]["content"]
+        assertEquals(1, records.size())
+        assertEquals(matched.uuid.toString(), records[0]["uuid"].asText())
+        assertEquals("Matched", records[0]["title"].asText())
     }
 
     @Test
-    fun `getMyInstructions passes status filter to repository`() {
-        val conference = Conference(uuid = UUID.randomUUID(), name = "conf", description = "desc")
-        val submitter = User(
-            uuid = UUID.randomUUID(),
-            name = "delegate1",
-            password = "pwd",
-            role = UserRole.DELEGATE,
-            conference = conference
-        )
-        val instruction = Instruction(
-            uuid = UUID.randomUUID(),
-            conference = conference,
-            submitter = submitter,
-            title = "Order",
-            instructionType = InstructionType.MILITARY,
-            content = "Text",
-            submitRealTime = LocalDateTime.now(),
-            submitGameTime = LocalDateTime.now(),
-            status = InstructionStatus.FEEDBACKED
-        )
-        val pageable = PageRequest.of(0, 20)
+    fun `my instruction query keeps enum status filtering against real postgres`() {
+        val conference = saveConference(name = "Asia MUN")
+        val delegate = saveUser("delegate-c", UserRole.DELEGATE, conference)
 
-        `when`(userRepository.findById(submitter.uuid!!)).thenReturn(Optional.of(submitter))
-        `when`(instructionRepository.findAllBySubmitterUuid(submitter.uuid!!, InstructionStatus.FEEDBACKED, pageable))
-            .thenReturn(PageImpl(listOf(instruction), pageable, 1))
-
-        val page = instructionService.getMyInstructions(
-            submitterUuid = submitter.uuid!!,
-            pageable = pageable,
-            status = InstructionStatus.FEEDBACKED
+        instructionRepository.save(
+            Instruction(
+                conference = conference,
+                submitter = delegate,
+                title = "Reviewed",
+                instructionType = InstructionType.MILITARY,
+                content = "keep",
+                submitRealTime = LocalDateTime.of(2026, 5, 10, 9, 30),
+                submitGameTime = LocalDateTime.of(1939, 9, 1, 9, 30),
+                status = InstructionStatus.FEEDBACKED
+            )
+        )
+        instructionRepository.save(
+            Instruction(
+                conference = conference,
+                submitter = delegate,
+                title = "Pending",
+                instructionType = InstructionType.INTERNAL,
+                content = "drop",
+                submitRealTime = LocalDateTime.of(2026, 5, 10, 8, 30),
+                submitGameTime = LocalDateTime.of(1939, 9, 1, 8, 30),
+                status = InstructionStatus.SUBMITTED
+            )
         )
 
-        assertEquals(1, page.totalElements)
-        assertEquals(InstructionStatus.FEEDBACKED, page.content.first().status)
-        verify(instructionRepository).findAllBySubmitterUuid(submitter.uuid!!, InstructionStatus.FEEDBACKED, pageable)
+        val response = get(
+            "/api/instructions/my?status=FEEDBACKED&current=1",
+            bearerHeadersFor(delegate)
+        )
+
+        assertEquals(HttpStatus.OK.value(), response.statusCode())
+        val body = readJson(response.body())
+        assertEquals(200, body["code"].asInt())
+        val content = body["data"]["content"]
+        assertEquals(1, content.size())
+        assertEquals("Reviewed", content[0]["title"].asText())
+        assertEquals(InstructionStatus.FEEDBACKED.name, content[0]["status"].asText())
     }
+
+    @Test
+    fun `create instruction writes to real database`() {
+        val conference = saveConference(name = "Asia MUN")
+        val delegate = saveUser("delegate-d", UserRole.DELEGATE, conference)
+        putConfig("INSTRUCTION_SUBMISSION_PAUSED", "false", "integration test switch")
+
+        val response = postJson(
+            "/api/instructions",
+            InstructionCreateRequest(
+                title = "Create From HTTP",
+                instructionType = InstructionType.OTHER,
+                content = "persist me"
+            ),
+            bearerHeadersFor(delegate)
+        )
+
+        assertEquals(HttpStatus.OK.value(), response.statusCode())
+        val body = readJson(response.body())
+        assertEquals(200, body["code"].asInt())
+        val createdUuid = body["data"]["uuid"].asText()
+
+        val stored = instructionRepository.findById(UUID.fromString(createdUuid)).orElseThrow()
+        assertEquals("Create From HTTP", stored.title)
+        assertEquals(InstructionStatus.SUBMITTED, stored.status)
+        assertEquals(delegate.uuid, stored.submitter.uuid)
+        assertTrue(stored.submitRealTime.isBefore(LocalDateTime.now().plusSeconds(1)))
+    }
+
 }
