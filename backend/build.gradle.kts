@@ -49,6 +49,9 @@ dependencies {
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     // 数据库全家桶
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+    implementation("org.springframework.boot:spring-boot-flyway")
+    implementation("org.flywaydb:flyway-core")
+    implementation("org.flywaydb:flyway-database-postgresql")
     // runtimeOnly("org.xerial:sqlite-jdbc")
     runtimeOnly("org.postgresql:postgresql:42.7.11")
     // 2. Hibernate 社区方言包 (Spring Boot 3 + Hibernate 6 必需
@@ -57,7 +60,7 @@ dependencies {
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     developmentOnly("org.springframework.boot:spring-boot-docker-compose")
     // API 文档
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.0")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.9")
     // Lombok 注解处理器
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")
