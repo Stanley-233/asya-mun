@@ -1,11 +1,11 @@
 {
   "name": "asya-frontend",
-  "version": "0.9.2",
+  "version": "0.10.0",
   "private": true,
   "scripts": {
-    "predev": "node ../scripts/sync-version.mjs --package ./package.json --version-file ../VERSION",
+    "predev": "node ../scripts/sync-version.mjs --package ./package.json --version-file ../VERSION --public-changelog ./public/VERSION_CHANGELOG.md",
     "dev": "next dev --webpack",
-    "prebuild": "node ../scripts/sync-version.mjs --package ./package.json --version-file ../VERSION",
+    "prebuild": "node ../scripts/sync-version.mjs --package ./package.json --version-file ../VERSION --public-changelog ./public/VERSION_CHANGELOG.md",
     "build": "next build",
     "prestart": "node ../scripts/sync-version.mjs --package ./package.json --version-file ../VERSION",
     "start": "next start",
@@ -27,6 +27,7 @@
     "radix-ui": "^1.4.3",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "react-markdown": "^10.1.0",
     "react-toastify": "^11.0.5",
     "shadcn": "^3.7.0",
     "tailwind-merge": "^3.4.0",

@@ -11,6 +11,7 @@ import {
   CircleUserRound,
   Command,
   FileText,
+  Info,
   LayoutDashboard,
   LogIn,
   LogOut,
@@ -63,7 +64,7 @@ function getRoleLabel(role?: string | null, isAuthenticated?: boolean) {
   return ROLE_LABELS[role] ?? role
 }
 
-function getDisplayName(user?: { displayName?: string | null; name?: string | null }) {
+function getDisplayName(user?: { displayName?: string | null; name?: string | null } | null) {
   return user?.displayName?.trim() || user?.name || "访客"
 }
 
@@ -152,9 +153,10 @@ function buildNavGroups({
 
   const systemItems: NavItem[] = isLoading
     ? []
-    : isSysAdmin
-      ? [{ href: "/admin", label: "系统管理", icon: Settings }]
-      : []
+    : [
+        ...(isSysAdmin ? [{ href: "/admin", label: "系统管理", icon: Settings }] : []),
+        { href: "/about", label: "关于", icon: Info },
+      ]
 
   return [
     { label: "代表", icon: LayoutDashboard, items: delegateItems },

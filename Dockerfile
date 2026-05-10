@@ -33,6 +33,7 @@ RUN --mount=type=cache,target=/pnpm/store,sharing=locked \
     pnpm install --frozen-lockfile
 
 COPY frontend ./
+COPY VERSION_CHANGELOG.md ./public/VERSION_CHANGELOG.md
 
 ENV SKIP_TYPE_CHECK=true
 ENV NEXT_PUBLIC_API_BASE_URL=
