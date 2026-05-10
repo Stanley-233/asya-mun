@@ -398,7 +398,7 @@ function getInstructionSubmitErrorMessage(error: unknown) {
       : ''
 
   if (message.includes('Instruction submission is paused')) {
-    return '系统已全局暂停指令提交，请等待管理员恢复。'
+    return '当前会议已暂停指令提交，请等待主席团指导恢复。'
   }
 
   return message.trim() || fallbackMessage

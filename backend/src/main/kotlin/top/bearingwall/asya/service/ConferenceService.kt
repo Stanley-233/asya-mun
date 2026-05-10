@@ -100,10 +100,28 @@ class ConferenceService(
         )
     }
 
+    @Transactional(readOnly = true)
+    fun isInstructionSubmissionPaused(conferenceUuid: UUID): Boolean {
+        val conference = conferenceRepository.findById(conferenceUuid)
+            .orElseThrow { IllegalArgumentException("Conference not found") }
+        return conference.instructionSubmissionPaused
+    }
+
+    @Transactional
+    @Auditable(type = AuditActionType.INSTRUCTION_SUBMISSION_SWITCH, content = "设置会议指令提交暂停开关")
+    fun setInstructionSubmissionPaused(conferenceUuid: UUID, paused: Boolean): ConferenceResponse {
+        val conference = conferenceRepository.findById(conferenceUuid)
+            .orElseThrow { IllegalArgumentException("Conference not found") }
+        conference.instructionSubmissionPaused = paused
+        val saved = conferenceRepository.save(conference)
+        return saved.toResponse()
+    }
+
     private fun Conference.toResponse(): ConferenceResponse = ConferenceResponse(
         uuid = this.uuid?.toString() ?: "",
         name = this.name,
         description = this.description,
-        status = this.status
+        status = this.status,
+        instructionSubmissionPaused = this.instructionSubmissionPaused
     )
 }

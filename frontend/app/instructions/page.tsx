@@ -168,11 +168,11 @@ export default function InstructionsPage() {
       await setSubmissionSwitchMutation.mutateAsync({
         params: { paused: !isSubmissionPaused },
       })
-      toast.success(!isSubmissionPaused ? '已暂停全局指令提交' : '已恢复全局指令提交')
+      toast.success(!isSubmissionPaused ? '已暂停会议指令提交' : '已恢复会议指令提交')
       await queryClient.invalidateQueries({ queryKey: getGetSubmissionSwitchQueryKey() })
     } catch (error) {
       console.error('Set submission switch failed:', error)
-      toast.error('更新全局指令提交开关失败，请稍后重试')
+      toast.error('更新会议指令提交开关失败，请稍后重试')
     }
   }
 

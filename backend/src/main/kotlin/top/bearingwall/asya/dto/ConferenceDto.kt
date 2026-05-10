@@ -22,7 +22,9 @@ data class ConferenceResponse(
     @Schema(description = "会议描述")
     val description: String,
     @Schema(description = "会议状态")
-    val status: ConferenceStatus
+    val status: ConferenceStatus,
+    @Schema(description = "指令提交是否暂停")
+    val instructionSubmissionPaused: Boolean = false
 )
 
 @Schema(description = "用户关联会议请求")

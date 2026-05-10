@@ -23,6 +23,9 @@ class Conference(
     @Column(nullable = false, columnDefinition = "conferencestatus")
     var status: ConferenceStatus = ConferenceStatus.PREPARING,
 
+    @Column(nullable = false)
+    var instructionSubmissionPaused: Boolean = false,
+
     @OneToMany(mappedBy = "conference", fetch = FetchType.LAZY)
     var users: MutableSet<User> = mutableSetOf()
 )

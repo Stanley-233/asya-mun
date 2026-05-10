@@ -21,7 +21,6 @@ import top.bearingwall.asya.model.InstructionStatus
 import top.bearingwall.asya.model.InstructionType
 import top.bearingwall.asya.model.UserRole
 import top.bearingwall.asya.service.InstructionService
-import top.bearingwall.asya.service.SystemConfigService
 import top.bearingwall.asya.service.UserService
 import java.util.UUID
 
@@ -31,7 +30,7 @@ import java.util.UUID
 class InstructionController(
     private val instructionService: InstructionService,
     private val userService: UserService,
-    private val systemConfigService: SystemConfigService
+    private val conferenceService: top.bearingwall.asya.service.ConferenceService
 ) {
 
     @Operation(summary = "提交指令", description = "仅代表可提交，提交后不可修改")
@@ -137,7 +136,7 @@ class InstructionController(
         }
     }
 
-    @Operation(summary = "设置全局指令提交暂停开关", description = "仅 DH / SYS_ADMIN 可设置。paused=true 表示暂停提交")
+    @Operation(summary = "设置会议指令提交暂停开关", description = "仅 DH / SYS_ADMIN 可设置。paused=true 表示暂停提交")
     @PostMapping("/submission-switch")
     fun setSubmissionSwitch(
         @RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String,
@@ -149,20 +148,25 @@ class InstructionController(
             if (user.role !in setOf(UserRole.DH, UserRole.SYS_ADMIN)) {
                 throw SecurityException("仅DH或系统管理员可设置")
             }
+            val conferenceUuid = user.conference?.uuid ?: throw IllegalStateException("用户未关联任何会议")
             val targetPaused = paused ?: request?.paused
             require(targetPaused != null) { "缺少 paused 参数" }
-            systemConfigService.setInstructionSubmissionPaused(targetPaused)
-            ResponseEntity.ok(Result.success(systemConfigService.isInstructionSubmissionPaused()))
+            conferenceService.setInstructionSubmissionPaused(conferenceUuid, targetPaused)
+            ResponseEntity.ok(Result.success(conferenceService.isInstructionSubmissionPaused(conferenceUuid)))
         } catch (e: Exception) {
             handleException(e)
         }
     }
 
-    @Operation(summary = "查询全局指令提交暂停开关")
+    @Operation(summary = "查询会议指令提交暂停开关")
     @GetMapping("/submission-switch")
-    fun getSubmissionSwitch(): ResponseEntity<Result<Boolean>> {
+    fun getSubmissionSwitch(
+        @RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String
+    ): ResponseEntity<Result<Boolean>> {
         return try {
-            ResponseEntity.ok(Result.success(systemConfigService.isInstructionSubmissionPaused()))
+            val user = userService.getUserFromToken(extractBearer(authorization))
+            val conferenceUuid = user.conference?.uuid ?: throw IllegalStateException("用户未关联任何会议")
+            ResponseEntity.ok(Result.success(conferenceService.isInstructionSubmissionPaused(conferenceUuid)))
         } catch (e: Exception) {
             handleException(e)
         }
