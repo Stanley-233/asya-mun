@@ -88,7 +88,7 @@ export function InstructionList({
 
       {!isLoading && instructions.length > 0 && (
         <>
-          <div className="grid grid-cols-1 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {instructions.map(instruction => (
               <button
                 key={instruction.uuid}

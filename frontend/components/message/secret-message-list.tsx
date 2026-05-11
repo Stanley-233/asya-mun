@@ -98,7 +98,7 @@ export function SecretMessageList({
       {/* Message List */}
       {!isLoading && messages.length > 0 && (
         <>
-          <div className="grid grid-cols-1 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {messages.map((message: MessageResponse) => (
               <MessageCard
                 key={message.uuid}
