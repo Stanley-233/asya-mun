@@ -166,10 +166,11 @@ function buildNavGroups({
     : [
         ...(canManageConference
           ? [
-              { href: "/conference", label: "会议管理", icon: UsersRound },
-              { href: "/status-manage", label: "状态管理", icon: ShieldCheck },
-              { href: "/asymsg", label: "非对称管理", icon: MessagesSquare },
-              { href: "/instructions", label: "指令管理", icon: FileText },
+              { href: "/conference-info", label: "会议信息", icon: UsersRound },
+              { href: "/conference-progress", label: "会议进程", icon: Timer },
+              { href: "/status-manage", label: "代表状态", icon: ShieldCheck },
+              { href: "/asymsg", label: "非对称消息", icon: MessagesSquare },
+              { href: "/instructions", label: "代表指令", icon: FileText },
             ]
           : []),
       ]

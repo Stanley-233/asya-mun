@@ -39,8 +39,6 @@ import type {
   UserInfoResponse,
   UserGroupResponse
 } from "@/lib/api/generated"
-import { TimelineManager } from '@/components/timeline-manager'
-import { RoundManager } from '@/components/round/round-manager'
 import { parseApiPayload } from '@/lib/api/response-utils'
 
 const statusLabels = {
@@ -62,7 +60,7 @@ const roleLabels: Record<string, string> = {
   'DH': '主席团指导'
 }
 
-export default function ConferencePage() {
+export default function ConferenceInfoPage() {
   const router = useRouter()
   const { user, isLoading: authLoading, isAuthenticated } = useAuth()
 
@@ -70,10 +68,9 @@ export default function ConferencePage() {
     const displayName = targetUser.displayName?.trim()
     return displayName ? `${displayName}（${targetUser.name}）` : targetUser.name
   }
-  
-  // 检查用户权限
+
   const canManageConference = user?.role === 'DM' || user?.role === 'DH' || user?.role === 'SYS_ADMIN'
-  
+
   const { data: conferenceData, isLoading: conferenceLoading } = useGetMine()
   const { data: usersData, isLoading: usersLoading, error: usersError } = useGetUsers({
     query: {
@@ -98,7 +95,6 @@ export default function ConferencePage() {
   })
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
-  // 用户组相关状态
   const [groupNameInput, setGroupNameInput] = useState('')
   const [editingGroup, setEditingGroup] = useState<UserGroupResponse | null>(null)
   const [showGroupForm, setShowGroupForm] = useState(false)
@@ -123,7 +119,6 @@ export default function ConferencePage() {
   const filteredUsers = useMemo(() => {
     const keyword = memberKeyword.trim().toLowerCase()
     if (!keyword) return users
-
     return users.filter(user => {
       const normalizedDisplayName = (user.displayName?.trim() || '').toLowerCase()
       const normalizedName = (user.name || '').toLowerCase()
@@ -207,17 +202,11 @@ export default function ConferencePage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }))
+    setFormData(prev => ({ ...prev, [name]: value }))
   }
 
   const handleStatusChange = (value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      status: value as ConferenceRequestStatus
-    }))
+    setFormData(prev => ({ ...prev, status: value as ConferenceRequestStatus }))
   }
 
   const handleEdit = () => {
@@ -246,34 +235,20 @@ export default function ConferencePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
     if (!formData.name.trim()) {
       setMessage({ type: 'error', text: '会议名称不能为空' })
       return
     }
-
     if (!formData.description.trim()) {
       setMessage({ type: 'error', text: '会议描述不能为空' })
       return
     }
-
     try {
       updateConference(
+        { data: { name: formData.name, description: formData.description, status: formData.status } },
         {
-          data: {
-            name: formData.name,
-            description: formData.description,
-            status: formData.status
-          }
-        },
-        {
-          onSuccess: () => {
-            setMessage({ type: 'success', text: '会议信息更新成功' })
-            setIsEditing(false)
-          },
-          onError: () => {
-            setMessage({ type: 'error', text: '更新失败，请重试' })
-          }
+          onSuccess: () => { setMessage({ type: 'success', text: '会议信息更新成功' }); setIsEditing(false) },
+          onError: () => { setMessage({ type: 'error', text: '更新失败，请重试' }) }
         }
       )
     } catch {
@@ -297,15 +272,11 @@ export default function ConferencePage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold mb-6">会议管理</h1>
+      <div className="max-w-7xl mx-auto space-y-6">
+        <h1 className="text-3xl font-bold">会议信息</h1>
 
-        {/* 两栏布局：移动端单栏，桌面端双栏 */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* 左栏：会议管理相关 */}
-          <div className="space-y-6">
-            {/* 会议信息卡片 */}
-            <Card>
+        {/* 会议信息卡片 */}
+        <Card>
           <CardHeader>
             <div className="flex justify-between items-center">
               <div>
@@ -346,7 +317,6 @@ export default function ConferencePage() {
                     className="mt-2"
                   />
                 </div>
-
                 <div>
                   <Label htmlFor="description">会议描述</Label>
                   <Textarea
@@ -359,38 +329,28 @@ export default function ConferencePage() {
                     rows={4}
                   />
                 </div>
-
                 <div>
                   <Label htmlFor="status">会议状态</Label>
                   <select
                     id="status"
                     value={formData.status}
-                    onChange={(e) => handleStatusChange(e.target.value as ConferenceRequestStatus)}
+                    onChange={(e) => handleStatusChange(e.target.value)}
                     className="flex h-8 w-full items-center justify-between rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 mt-2"
                   >
                     {statusOptions.map(option => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
+                      <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
                   </select>
                 </div>
-
                 <div className="flex gap-3">
                   <Button type="submit" disabled={isUpdating}>
                     {isUpdating ? '保存中...' : '保存修改'}
                   </Button>
-                  <Button type="button" variant="outline" onClick={handleCancel}>
-                    取消
-                  </Button>
+                  <Button type="button" variant="outline" onClick={handleCancel}>取消</Button>
                 </div>
               </form>
             ) : (
               <div className="space-y-4">
-                {/* <div>
-                  <Label className="text-xs text-muted-foreground">会议ID</Label>
-                  <p className="font-mono text-sm break-all">{conference.uuid}</p>
-                </div> */}
                 <div>
                   <Label className="text-xs text-muted-foreground">会议名称</Label>
                   <p className="text-sm font-medium">{conference.name}</p>
@@ -494,7 +454,6 @@ export default function ConferencePage() {
                 <p className="text-sm text-red-900 font-semibold">加载用户组失败，请查看控制台日志</p>
               </div>
             ) : (<>
-            {/* 新建/编辑表单 */}
             {showGroupForm && (
               <div className="flex gap-2 items-center p-3 bg-muted/50 rounded-lg">
                 <Input
@@ -548,6 +507,8 @@ export default function ConferencePage() {
             </>)}
           </CardContent>
         </Card>
+
+        {/* 删除确认 */}
         <AlertDialog open={deletingGroupId !== null} onOpenChange={open => !open && setDeletingGroupId(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
@@ -569,10 +530,7 @@ export default function ConferencePage() {
         <Dialog
           open={managingGroup !== null}
           onOpenChange={open => {
-            if (!open) {
-              setManagingGroup(null)
-              setMemberKeyword('')
-            }
+            if (!open) { setManagingGroup(null); setMemberKeyword('') }
           }}
         >
           <DialogContent className="max-h-[85vh]">
@@ -624,29 +582,12 @@ export default function ConferencePage() {
               <Button onClick={handleSaveMembers} disabled={isSettingMembers} className="flex-1 sm:flex-none">
                 {isSettingMembers ? '保存中...' : '保存成员'}
               </Button>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setManagingGroup(null)
-                  setMemberKeyword('')
-                }}
-              >
+              <Button variant="outline" onClick={() => { setManagingGroup(null); setMemberKeyword('') }}>
                 取消
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
-          </div>
-
-          {/* 右栏：时间轴管理 */}
-          <div className="space-y-6">
-            {/* 时间轴管理 */}
-            <TimelineManager />
-
-            {/* 回合管理 */}
-            <RoundManager />
-          </div>
-        </div>
       </div>
     </div>
   )
