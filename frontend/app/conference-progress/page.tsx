@@ -53,7 +53,7 @@ function getStatusLabel(status?: RoundResponse['status']) {
 export default function ConferenceProgressPage() {
   const router = useRouter()
   const queryClient = useQueryClient()
-  const { user, isLoading: authLoading, isAuthenticated, canManageConference } = useAuth()
+  const { user, isLoading: authLoading, isAuthenticated } = useAuth()
 
   const canManage = user?.role === 'DM' || user?.role === 'DH' || user?.role === 'SYS_ADMIN'
 

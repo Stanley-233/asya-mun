@@ -19,7 +19,9 @@ import {
   Menu,
   MessagesSquare,
   Settings,
+  Puzzle,
   ShieldCheck,
+  Swords,
   Timer,
   UsersRound,
 } from "lucide-react"
@@ -175,6 +177,12 @@ function buildNavGroups({
           : []),
       ]
 
+  const dlcItems: NavItem[] = isLoading
+    ? []
+    : isAuthenticated
+      ? [{ href: "/dlc/medieval-strategy", label: "中世纪战略", icon: Swords }]
+      : []
+
   const systemItems: NavItem[] = isLoading
     ? []
     : [
@@ -185,6 +193,7 @@ function buildNavGroups({
   return [
     { label: "代表", icon: LayoutDashboard, items: delegateItems },
     { label: "学团", icon: Command, items: academyItems },
+    { label: "DLC", icon: Puzzle, items: dlcItems },
     { label: "系统", icon: Settings, items: systemItems },
   ].filter((group) => group.items.length > 0)
 }
