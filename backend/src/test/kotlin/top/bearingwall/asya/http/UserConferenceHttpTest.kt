@@ -41,6 +41,56 @@ class UserConferenceHttpTest : PostgresIntegrationTest() {
     }
 
     @Test
+    fun `login returns user not found instead of 500 when system has no users`() {
+        val loginResponse = postJson(
+            "/api/users/login",
+            UserRegistrationRequest(
+                name = "missing-user",
+                password = "secret123",
+                role = UserRole.DM
+            )
+        )
+
+        assertEquals(HttpStatus.OK.value(), loginResponse.statusCode())
+        val loginBody = readJson(loginResponse.body())
+        assertEquals(4004, loginBody["code"].asInt())
+        assertEquals("系统中还没有该用户，请先完成注册", loginBody["message"].asText())
+    }
+
+    @Test
+    fun `registration switch stays open during bootstrap even if config is disabled`() {
+        putConfig("REGISTRATION_ALLOWED", "false", "integration switch")
+
+        val switchResponse = get("/api/users/registration-switch")
+
+        assertEquals(HttpStatus.OK.value(), switchResponse.statusCode())
+        val switchBody = readJson(switchResponse.body())
+        assertEquals(200, switchBody["code"].asInt())
+        assertEquals(true, switchBody["data"].asBoolean())
+    }
+
+    @Test
+    fun `registration returns business failure instead of 500 when switch is disabled after bootstrap`() {
+        putConfig("REGISTRATION_ALLOWED", "false", "integration switch")
+        saveUser("sys-admin", UserRole.SYS_ADMIN)
+
+        val registerResponse = postJson(
+            "/api/users/register",
+            UserRegistrationRequest(
+                name = "late-user",
+                displayName = "Late User",
+                password = "secret123",
+                role = UserRole.DELEGATE
+            )
+        )
+
+        assertEquals(HttpStatus.OK.value(), registerResponse.statusCode())
+        val registerBody = readJson(registerResponse.body())
+        assertEquals(4001, registerBody["code"].asInt())
+        assertEquals("系统当前禁止新用户注册", registerBody["message"].asText())
+    }
+
+    @Test
     fun `admin can assign user to conference and list filtered users over http`() {
         val admin = saveUser("sys-admin", UserRole.SYS_ADMIN)
         val conference = saveConference(name = "Assigned Conference")

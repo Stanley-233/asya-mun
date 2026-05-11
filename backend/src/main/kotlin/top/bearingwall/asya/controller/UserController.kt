@@ -48,6 +48,11 @@ class UserController(
         } catch (e: IllegalArgumentException) {
             ResponseEntity.status(HttpStatus.OK)
                 .body(Result.failure(BizCode.USER_EXISTS, e.message ?: BizCode.USER_EXISTS.message))
+        } catch (e: IllegalStateException) {
+            ResponseEntity.status(HttpStatus.OK)
+                .body(Result.failure(BizCode.PARAM_ERROR, e.message ?: BizCode.PARAM_ERROR.message))
+        } catch (e: Exception) {
+            handleException(e)
         }
     }
 
@@ -66,10 +71,12 @@ class UserController(
                 .body(Result.success(response))
         } catch (_: IllegalStateException) {
             ResponseEntity.status(HttpStatus.OK)
-                .body(Result.failure(BizCode.USER_NOT_FOUND, BizCode.USER_NOT_FOUND.message))
-        } catch (_: IllegalArgumentException) {
+                .body(Result.failure(BizCode.USER_NOT_FOUND, "系统中还没有该用户，请先完成注册"))
+        } catch (e: IllegalArgumentException) {
             ResponseEntity.status(HttpStatus.OK)
-                .body(Result.failure(BizCode.PASSWORD_ERROR, BizCode.PASSWORD_ERROR.message))
+                .body(Result.failure(BizCode.PASSWORD_ERROR, e.message ?: BizCode.PASSWORD_ERROR.message))
+        } catch (e: Exception) {
+            handleException(e)
         }
     }
 
@@ -248,7 +255,7 @@ class UserController(
     @GetMapping("/registration-switch")
     fun getRegistrationSwitch(): ResponseEntity<Result<Boolean>> {
         return try {
-            val allowed = systemConfigService.isRegistrationAllowed()
+            val allowed = userService.isRegistrationAvailable()
             ResponseEntity.ok(Result.success(allowed))
         } catch (e: Exception) {
             handleException(e)

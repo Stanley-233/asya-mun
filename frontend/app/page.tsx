@@ -15,7 +15,10 @@ import { toast } from 'react-toastify'
 
 interface ApiError {
   message?: string
+  code?: string
+  status?: number
   response?: {
+    status?: number
     data?: {
       message?: string
     }
@@ -25,6 +28,11 @@ interface ApiError {
 function getApiErrorMessage(error: unknown, fallback: string) {
   const apiError = error as ApiError
   return apiError.message || apiError.response?.data?.message || fallback
+}
+
+function isBackendUnavailable(error: unknown) {
+  const apiError = error as ApiError
+  return !apiError.response && apiError.status === undefined
 }
 
 const LICENSE_ACKNOWLEDGED_KEY = 'asya-license-acknowledged'
@@ -107,10 +115,12 @@ export default function Page() {
       }
     : registrationSwitchError
       ? {
-          label: '后端未连接',
-          detail: '当前无法访问认证服务，请检查后端是否启动',
-          tone: 'text-red-700',
-          badge: 'bg-red-500',
+          label: isBackendUnavailable(registrationSwitchError) ? '后端未连接' : '状态检测失败',
+          detail: isBackendUnavailable(registrationSwitchError)
+            ? '当前无法访问认证服务，请检查后端是否启动'
+            : '认证服务已响应，但初始化状态暂时无法读取，可直接尝试注册首个系统管理员账号',
+          tone: isBackendUnavailable(registrationSwitchError) ? 'text-red-700' : 'text-amber-700',
+          badge: isBackendUnavailable(registrationSwitchError) ? 'bg-red-500' : 'bg-amber-500',
           Icon: AlertCircle,
           iconClassName: '',
         }
