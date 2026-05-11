@@ -5,6 +5,7 @@ import {
   AlertDialog,
   AlertDialogCancel,
   AlertDialogContent,
+  AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
@@ -82,6 +83,9 @@ export function InstructionReviewDialog({
       <AlertDialogContent className="max-w-lg">
         <AlertDialogHeader className="items-start text-left">
           <AlertDialogTitle>批改指令</AlertDialogTitle>
+          <AlertDialogDescription>
+            选择批改状态并填写给提交人的评语。
+          </AlertDialogDescription>
         </AlertDialogHeader>
 
         <div className="space-y-4">

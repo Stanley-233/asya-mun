@@ -853,6 +853,9 @@ export function MessageEditDialog({
               <AlertDialogTitle>
                 {isEditing ? '编辑消息' : '创建消息'}
               </AlertDialogTitle>
+              <AlertDialogDescription>
+                填写消息内容、发布时间、附件和非对称可见范围。
+              </AlertDialogDescription>
             </AlertDialogHeader>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-4 overflow-y-auto flex-1 px-1 -mx-1">

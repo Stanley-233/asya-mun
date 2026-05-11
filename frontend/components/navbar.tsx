@@ -4,17 +4,18 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
   Activity,
-  BadgeInfo,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   CircleUserRound,
+  ClipboardList,
   Command,
   FileText,
   Info,
   LayoutDashboard,
   LogIn,
   LogOut,
+  Mail,
   Menu,
   MessagesSquare,
   Settings,
@@ -34,6 +35,7 @@ import {
 } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/lib/contexts/auth-context"
+import { ProfileDialog } from "@/components/profile-dialog"
 
 type NavItem = {
   href: string
@@ -54,6 +56,9 @@ const ROLE_LABELS: Record<string, string> = {
   DELEGATE: "代表",
 }
 
+const collapsedTooltipClassName =
+  "pointer-events-none absolute left-1/2 top-full z-50 mt-2 -translate-x-1/2 whitespace-nowrap rounded-md bg-sidebar-foreground px-2 py-1 text-xs font-medium text-sidebar opacity-0 shadow-md transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100"
+
 function isActivePath(pathname: string, href: string) {
   if (href === "/") return pathname === "/"
   return pathname === href || pathname.startsWith(`${href}/`)
@@ -72,10 +77,12 @@ function UserPanel({
   collapsed = false,
   showLogout,
   onLogout,
+  onClick,
 }: {
   collapsed?: boolean
   showLogout: boolean
   onLogout: () => void
+  onClick?: () => void
 }) {
   const { user, isAuthenticated } = useAuth()
   const displayName = getDisplayName(user)
@@ -83,12 +90,23 @@ function UserPanel({
 
   return (
     <div
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } } : undefined}
       className={cn(
-        "flex items-center gap-2 rounded-2xl border border-sidebar-border/70 bg-white/70 p-2 text-sidebar-foreground shadow-sm transition-all duration-300 ease-out",
-        collapsed && "justify-center rounded-xl px-2"
+        "group relative flex items-center gap-2 rounded-2xl border border-sidebar-border/70 bg-white/70 p-2 text-sidebar-foreground shadow-sm transition-all duration-300 ease-out",
+        collapsed && "justify-center rounded-xl px-2 hover:-translate-y-0.5 hover:bg-white hover:shadow-md hover:ring-2 hover:ring-primary/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25",
+        onClick && "cursor-pointer hover:bg-white/90 hover:border-primary/20",
       )}
-      title={collapsed ? `${displayName} · ${role}` : undefined}
+      title={collapsed ? `${displayName} · ${role}，点击查看个人信息` : onClick ? "查看个人信息" : undefined}
+      aria-label={collapsed ? `${displayName} · ${role}，点击查看个人信息` : undefined}
     >
+      {collapsed && (
+        <span className={collapsedTooltipClassName}>
+          {displayName}
+        </span>
+      )}
       {!collapsed && (
         <div className="flex min-w-0 flex-1 items-center gap-2.5 transition-all duration-300 ease-out">
           <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -103,9 +121,12 @@ function UserPanel({
       {showLogout && (
         <button
           type="button"
-          onClick={onLogout}
+          onClick={(e) => {
+            e.stopPropagation()
+            onLogout()
+          }}
           title="退出"
-          className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-destructive/10 text-destructive transition-all duration-300 ease-out hover:bg-destructive/15"
+          className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-destructive/10 text-destructive transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-destructive/15 hover:shadow-sm hover:ring-2 hover:ring-destructive/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/25"
           aria-label="退出"
         >
           <LogOut className="size-4" />
@@ -130,12 +151,14 @@ function buildNavGroups({
 }): NavGroup[] {
   const delegateItems: NavItem[] = [
     ...(isAuthenticated ? [{ href: "/progress", label: "会议", icon: Timer }] : []),
-    ...(isDelegate ? [{ href: "/status", label: "状态", icon: Activity }] : []),
+    ...(isDelegate ? [{ href: "/status", label: "我的状态", icon: Activity }] : []),
+    ...(isDelegate ? [{ href: "/my-instructions", label: "我的指令", icon: ClipboardList }] : []),
+    ...(isDelegate ? [{ href: "/my-messages", label: "我的非对称", icon: Mail }] : []),
     ...(isLoading
       ? []
-      : isAuthenticated
-        ? [{ href: "/profile", label: "个人", icon: BadgeInfo }]
-        : [{ href: "/login", label: "登录", icon: LogIn }]),
+      : !isAuthenticated
+        ? [{ href: "/login", label: "登录", icon: LogIn }]
+        : []),
   ]
 
   const academyItems: NavItem[] = isLoading
@@ -191,12 +214,18 @@ function NavigationGroups({
               type="button"
               onClick={() => onToggleGroup(group.label)}
               className={cn(
-                "mb-0.5 flex h-5 w-full items-center gap-2 rounded-lg px-3 text-left text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground transition-all duration-300 ease-out hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                collapsed && "mb-0.5 size-7 justify-center px-0"
+                "group relative mb-0.5 flex h-5 w-full items-center gap-2 rounded-lg px-3 text-left text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground transition-all duration-300 ease-out hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring/30",
+                collapsed && "mb-0.5 size-7 justify-center px-0 hover:-translate-y-0.5 hover:shadow-sm hover:ring-2 hover:ring-primary/15"
               )}
               title={collapsed ? group.label : undefined}
               aria-expanded={!groupClosed}
+              aria-label={collapsed ? `${group.label}${groupClosed ? "，点击展开" : "，点击折叠"}` : undefined}
             >
+              {collapsed && (
+                <span className={collapsedTooltipClassName}>
+                  {group.label}
+                </span>
+              )}
               <group.icon className="size-3.5 shrink-0" />
               {!collapsed && (
                 <>
@@ -221,12 +250,19 @@ function NavigationGroups({
                       href={item.href}
                       onClick={onNavigate}
                       title={collapsed ? item.label : undefined}
+                      aria-label={collapsed ? item.label : undefined}
                       className={cn(
-                        "group flex h-9 items-center gap-2.5 rounded-xl px-3 text-[0.92rem] font-semibold text-muted-foreground transition-all duration-300 ease-out hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                        "group relative flex h-9 items-center gap-2.5 rounded-xl px-3 text-[0.92rem] font-semibold text-muted-foreground transition-all duration-300 ease-out hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring/30",
                         active && "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm",
-                        collapsed && "size-10 justify-center px-0"
+                        collapsed && "size-10 justify-center px-0 hover:-translate-y-0.5 hover:shadow-md hover:ring-2 hover:ring-primary/15",
+                        !collapsed && "hover:translate-x-0.5"
                       )}
                     >
+                      {collapsed && (
+                        <span className={collapsedTooltipClassName}>
+                          {item.label}
+                        </span>
+                      )}
                       <item.icon
                         className={cn(
                           "size-4.5 shrink-0 stroke-[1.9] transition-colors",
@@ -253,6 +289,7 @@ export function Navbar() {
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [closedGroups, setClosedGroups] = useState<string[]>([])
+  const [profileDialogOpen, setProfileDialogOpen] = useState(false)
   const isDelegate = user?.role === "DELEGATE"
   const displayName = getDisplayName(user)
   const role = getRoleLabel(user?.role, isAuthenticated)
@@ -270,6 +307,8 @@ export function Navbar() {
         : [...current, label]
     )
   }
+
+  const openProfileDialog = () => setProfileDialogOpen(true)
 
   return (
     <>
@@ -297,7 +336,7 @@ export function Navbar() {
               />
             </div>
             <div className="border-t border-sidebar-border p-4">
-              <UserPanel showLogout={isAuthenticated && !isLoading} onLogout={logout} />
+              <UserPanel showLogout={isAuthenticated && !isLoading} onLogout={logout} onClick={isAuthenticated ? openProfileDialog : undefined} />
             </div>
           </SheetContent>
         </Sheet>
@@ -320,14 +359,18 @@ export function Navbar() {
             <p className="mt-1 text-2xl font-black tracking-tight text-sidebar-foreground">ASYA 系统</p>
           </Link>
           {collapsed && (
-            <Link
-              href="/progress"
-              className="flex size-11 items-center justify-center rounded-2xl bg-primary/10 text-primary transition-all duration-300 ease-out"
-              title={`${displayName} · ${role}`}
-              aria-label={`${displayName} · ${role}`}
+            <button
+              type="button"
+              onClick={isAuthenticated ? openProfileDialog : undefined}
+              className="group relative flex size-11 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-sm transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-primary/15 hover:shadow-md hover:ring-2 hover:ring-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+              title={`${displayName} · ${role}，点击查看个人信息`}
+              aria-label={`${displayName} · ${role}，点击查看个人信息`}
             >
+              <span className={collapsedTooltipClassName}>
+                {displayName}
+              </span>
               <CircleUserRound className="size-5" />
-            </Link>
+            </button>
           )}
           <Button
             type="button"
@@ -335,11 +378,15 @@ export function Navbar() {
             size="icon"
             onClick={() => setCollapsed((value) => !value)}
             className={cn(
-              "rounded-xl text-muted-foreground transition-all duration-300 ease-out hover:text-sidebar-foreground",
-              collapsed && "absolute left-11 top-5 size-7 rounded-full border bg-sidebar shadow-sm"
+              "group relative rounded-xl text-muted-foreground transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-sidebar-accent hover:text-sidebar-foreground hover:shadow-sm hover:ring-2 hover:ring-primary/15 focus-visible:ring-2 focus-visible:ring-primary/25",
+              collapsed && "absolute left-11 top-5 size-7 rounded-full border bg-sidebar shadow-sm hover:bg-sidebar-accent"
             )}
             aria-label={collapsed ? "展开侧栏" : "折叠侧栏"}
+            title={collapsed ? "展开侧栏" : "折叠侧栏"}
           >
+            <span className={collapsedTooltipClassName}>
+              {collapsed ? "展开侧栏" : "折叠侧栏"}
+            </span>
             {collapsed ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
           </Button>
         </div>
@@ -356,10 +403,12 @@ export function Navbar() {
 
         {(!collapsed || (isAuthenticated && !isLoading)) && (
           <div className={cn("border-t border-sidebar-border p-3 transition-all duration-300 ease-out", collapsed && "px-2")}>
-            <UserPanel collapsed={collapsed} showLogout={isAuthenticated && !isLoading} onLogout={logout} />
+            <UserPanel collapsed={collapsed} showLogout={isAuthenticated && !isLoading} onLogout={logout} onClick={isAuthenticated ? openProfileDialog : undefined} />
           </div>
         )}
       </aside>
+
+      <ProfileDialog open={profileDialogOpen} onOpenChange={setProfileDialogOpen} />
     </>
   )
 }

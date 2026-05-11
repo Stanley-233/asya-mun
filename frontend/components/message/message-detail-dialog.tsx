@@ -433,12 +433,15 @@ export function MessageDetailDialog({
             <AlertDialogTitle className="text-2xl">
               {isLoading ? '加载中...' : message?.title || '消息详情'}
             </AlertDialogTitle>
+            <AlertDialogDescription>
+              查看消息正文、发布时间、附件和可见范围信息。
+            </AlertDialogDescription>
           </AlertDialogHeader>
 
           {!!error && (
-            <AlertDialogDescription className="text-destructive">
+            <p className="text-sm text-destructive">
               加载消息详情失败，请稍后重试
-            </AlertDialogDescription>
+            </p>
           )}
 
           {!isLoading && message && (

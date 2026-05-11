@@ -5,6 +5,7 @@ import {
   AlertDialog,
   AlertDialogCancel,
   AlertDialogContent,
+  AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
@@ -95,6 +96,9 @@ export function InstructionDetailDialog({
                 <AlertDialogTitle className="text-2xl">
                   {instruction?.title || '指令详情'}
                 </AlertDialogTitle>
+                <AlertDialogDescription>
+                  查看指令内容、提交信息和最终批改结果。
+                </AlertDialogDescription>
               </div>
               {canReview && instruction && (
                 <Button onClick={() => setReviewDialogOpen(true)}>
