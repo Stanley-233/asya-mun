@@ -157,7 +157,7 @@ export default function Page() {
       return
     }
 
-    toast.success('登录成功，请先确认 AGPL 授权与使用说明后进入系统', {
+    toast.success('登录成功，请先确认授权与使用说明后进入系统', {
       closeOnClick: false,
       draggable: false,
     })

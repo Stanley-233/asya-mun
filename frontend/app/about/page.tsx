@@ -98,7 +98,7 @@ export default function AboutPage() {
               </div>
               <div className="rounded-lg bg-muted/50 p-4">
                 <p className="mb-1 text-xs text-muted-foreground">许可证</p>
-                <p className="text-sm font-medium">AGPL-3.0-or-later</p>
+                <p className="text-sm font-medium">PolyForm Shield 1.0.0</p>
               </div>
               <div className="rounded-lg bg-muted/50 p-4">
                 <p className="mb-1 text-xs text-muted-foreground">技术栈</p>
