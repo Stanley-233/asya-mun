@@ -20,6 +20,11 @@ jobs:
       contents: write
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
       - name: Download release metadata
         env:
           GH_TOKEN: ${{ github.token }}
@@ -32,11 +37,6 @@ jobs:
             --dir release-metadata
 
           test -s release-metadata/release-metadata.env
-
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Load release metadata
         id: meta
