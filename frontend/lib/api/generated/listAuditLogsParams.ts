@@ -12,6 +12,9 @@ export type ListAuditLogsParams = {
   actorName?: string;
   actionType?: ListAuditLogsActionType;
   success?: boolean;
+  ip?: string;
+  eventTimeFrom?: string;
+  eventTimeTo?: string;
   current?: number;
   pageNum?: number;
   pageable: Pageable;

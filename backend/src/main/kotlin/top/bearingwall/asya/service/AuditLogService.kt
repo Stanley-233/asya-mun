@@ -87,7 +87,10 @@ class AuditLogService(
         pageable: Pageable,
         actorName: String?,
         actionType: AuditActionType?,
-        success: Boolean?
+        success: Boolean?,
+        ip: String?,
+        eventTimeFrom: LocalDateTime?,
+        eventTimeTo: LocalDateTime?
     ): Page<AuditLogResponse> {
         val specification = Specification<AuditLog> { root, _, cb ->
             val predicates = mutableListOf<jakarta.persistence.criteria.Predicate>()
@@ -101,11 +104,27 @@ class AuditLogService(
             success?.let {
                 predicates += cb.equal(root.get<Boolean>("success"), it)
             }
+            ip?.trim()?.takeIf { it.isNotEmpty() }?.let { keyword ->
+                predicates += cb.like(root.get("actorIp"), "%${keyword}%")
+            }
+            eventTimeFrom?.let {
+                predicates += cb.greaterThanOrEqualTo(root.get("eventTime"), it)
+            }
+            eventTimeTo?.let {
+                predicates += cb.lessThanOrEqualTo(root.get("eventTime"), it)
+            }
 
             cb.and(*predicates.toTypedArray())
         }
 
         return auditLogRepository.findAll(specification, pageable).map { it.toResponse() }
+    }
+
+    @Transactional(readOnly = true)
+    fun getAuditLogById(id: Long): AuditLogResponse {
+        val entity = auditLogRepository.findById(id)
+            .orElseThrow { NoSuchElementException("审计日志不存在: id=$id") }
+        return entity.toResponse()
     }
 
     private fun persist(

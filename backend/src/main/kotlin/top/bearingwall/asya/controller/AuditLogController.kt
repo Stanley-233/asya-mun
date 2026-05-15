@@ -11,10 +11,12 @@ import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
+import java.time.LocalDateTime
 import top.bearingwall.asya.dto.AuditLogResponse
 import top.bearingwall.asya.dto.BizCode
 import top.bearingwall.asya.dto.Result
@@ -31,13 +33,16 @@ class AuditLogController(
     private val userService: UserService
 ) {
 
-    @Operation(summary = "分页查询审计日志", description = "仅 SYS_ADMIN 可访问，可按操作者、操作类型、成功状态筛选")
+    @Operation(summary = "分页查询审计日志", description = "仅 SYS_ADMIN 可访问，可按操作者、操作类型、成功状态、IP、时间范围筛选")
     @GetMapping
     fun listAuditLogs(
         @RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String,
         @RequestParam(required = false) actorName: String?,
         @RequestParam(required = false) actionType: AuditActionType?,
         @RequestParam(required = false) success: Boolean?,
+        @RequestParam(required = false) ip: String?,
+        @RequestParam(required = false) eventTimeFrom: LocalDateTime?,
+        @RequestParam(required = false) eventTimeTo: LocalDateTime?,
         @RequestParam(required = false) current: Int?,
         @RequestParam(required = false) pageNum: Int?,
         @PageableDefault(sort = ["eventTime", "id"], direction = Sort.Direction.DESC) pageable: Pageable
@@ -56,10 +61,34 @@ class AuditLogController(
                         pageable = effectivePageable,
                         actorName = actorName,
                         actionType = actionType,
-                        success = success
+                        success = success,
+                        ip = ip,
+                        eventTimeFrom = eventTimeFrom,
+                        eventTimeTo = eventTimeTo
                     )
                 )
             )
+        } catch (e: Exception) {
+            ResponseEntity.status(HttpStatus.OK)
+                .body(Result.failure(BizCode.TOKEN_INVALID, e.message ?: "查询失败"))
+        }
+    }
+
+    @Operation(summary = "查询单条审计日志详情", description = "仅 SYS_ADMIN 可访问")
+    @GetMapping("/{id}")
+    fun getAuditLog(
+        @RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String,
+        @PathVariable id: Long
+    ): ResponseEntity<Result<AuditLogResponse>> {
+        return try {
+            val user = userService.getUserFromToken(extractBearer(authorization))
+            if (user.role != UserRole.SYS_ADMIN) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Result.failure(BizCode.PERMISSION_DENIED, "需要管理员权限"))
+            }
+
+            val log = auditLogService.getAuditLogById(id)
+            ResponseEntity.ok(Result.success(log))
         } catch (e: Exception) {
             ResponseEntity.status(HttpStatus.OK)
                 .body(Result.failure(BizCode.TOKEN_INVALID, e.message ?: "查询失败"))

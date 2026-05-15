@@ -187,6 +187,7 @@ function buildNavGroups({
     ? []
     : [
         ...(isSysAdmin ? [{ href: "/admin", label: "系统管理", icon: Settings }] : []),
+        ...(isSysAdmin ? [{ href: "/audit-logs", label: "日志", icon: ClipboardList }] : []),
         { href: "/about", label: "关于", icon: Info },
       ]
 
