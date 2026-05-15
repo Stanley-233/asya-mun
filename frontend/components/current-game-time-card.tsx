@@ -22,19 +22,10 @@ function formatGameTime(date: Date | null): string {
   const minutes = String(date.getMinutes()).padStart(2, '0')
   const seconds = String(date.getSeconds()).padStart(2, '0')
 
-  // ISO 8601到历史年份的转换
-  let era: string
-  let displayYear: number
-  
-  if (year <= 0) {
-    era = 'BC'
-    displayYear = 1 - year  // 0→1, -1→2, -420→421
-  } else {
-    era = 'AD'
-    displayYear = year
-  }
+  const era = year <= 0 ? 'BC ' : ''
+  const displayYear = year <= 0 ? 1 - year : year
 
-  return `${era} ${displayYear}年${month}月${day}日 ${hours}:${minutes}:${seconds}`
+  return `${era}${displayYear}/${month}/${day} ${hours}:${minutes}:${seconds}`
 }
 
 // 格式化时间戳
@@ -42,7 +33,14 @@ function formatTimestamp(timestamp: string | undefined): string {
   if (!timestamp) return '未知'
   try {
     const date = new Date(timestamp)
-    return date.toLocaleString('zh-CN')
+    if (isNaN(date.getTime())) return '未知'
+    const y = date.getFullYear()
+    const m = String(date.getMonth() + 1).padStart(2, '0')
+    const d = String(date.getDate()).padStart(2, '0')
+    const h = String(date.getHours()).padStart(2, '0')
+    const min = String(date.getMinutes()).padStart(2, '0')
+    const s = String(date.getSeconds()).padStart(2, '0')
+    return `${y}/${m}/${d} ${h}:${min}:${s}`
   } catch {
     return '未知'
   }

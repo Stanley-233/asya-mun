@@ -141,6 +141,23 @@ function parseDateTimeLocalToISO(dateTimeLocal: string): string {
   return date.toISOString()
 }
 
+function gameISOStringToDateTimeLocal(isoStr: string): string {
+  if (!isoStr) return ''
+  const match = isoStr.match(/^(-?\d+)-(\d{2})-(\d{2})T(\d{2}):(\d{2})/)
+  if (!match) return ''
+  const [, yearStr, month, day, hour, minute] = match
+  const year = parseInt(yearStr, 10)
+  if (year <= 0) return ''
+  return `${yearStr.padStart(4, '0')}-${month}-${day}T${hour}:${minute}`
+}
+
+function detectBcGameTime(isoStr: string): boolean {
+  if (!isoStr) return false
+  const match = isoStr.match(/^(-?\d+)-/)
+  if (!match) return false
+  return parseInt(match[1], 10) <= 0
+}
+
 function createDefaultReceiverConfig(receiverId: string, readableAt = ''): SecretReceiverConfig {
   return {
     receiverId,
@@ -303,12 +320,12 @@ function isAllowedAttachmentFile(file: File): boolean {
 
 // 将友好格式转换为ISO 8601格式
 // "BC 454-12-31 20:20" -> "-0453-12-31T20:20:00"
-// "2024-01-15 10:00" -> "2024-01-15T10:00:00"
+// "2024-01-15 10:00" or "2024-01-15T10:00" -> "2024-01-15T10:00:00"
 function parseGameTimeToISO(gameTimeStr: string): string {
   if (!gameTimeStr) return ''
   
   // 匹配 BC 格式: "BC 454-12-31 20:20"
-  const bcMatch = gameTimeStr.match(/^BC\s+(\d+)-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})$/)
+  const bcMatch = gameTimeStr.match(/^BC\s+(\d+)-(\d{2})-(\d{2})[\sT](\d{2}):(\d{2})/)
   if (bcMatch) {
     const [, year, month, day, hour, minute] = bcMatch
     const isoYear = -(parseInt(year, 10) - 1) // BC 454 -> -453
@@ -316,15 +333,19 @@ function parseGameTimeToISO(gameTimeStr: string): string {
     return `-${yearStr}-${month}-${day}T${hour}:${minute}:00`
   }
   
-  // 匹配普通格式: "2024-01-15 10:00"
-  const adMatch = gameTimeStr.match(/^(\d+)-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})$/)
+  // 匹配普通格式: "2024-01-15 10:00" or "2024-01-15T10:00" or "2024-01-15T10:00:00"
+  const adMatch = gameTimeStr.match(/^(\d+)-(\d{2})-(\d{2})[\sT](\d{2}):(\d{2})(?::(\d{2}))?/)
   if (adMatch) {
-    const [, year, month, day, hour, minute] = adMatch
-    return `${year.padStart(4, '0')}-${month}-${day}T${hour}:${minute}:00`
+    const [, year, month, day, hour, minute, second] = adMatch
+    return `${year.padStart(4, '0')}-${month}-${day}T${hour}:${minute}:${second || '00'}`
   }
   
-  // 如果已经是ISO格式，直接返回
-  return gameTimeStr
+  // 已经是ISO格式（含负数年份如-0453），直接返回
+  if (/^-?\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(gameTimeStr)) {
+    return gameTimeStr
+  }
+  
+  return ''
 }
 
 export function MessageEditDialog({
@@ -371,6 +392,7 @@ export function MessageEditDialog({
   const [selectedGroupConfigs, setSelectedGroupConfigs] = useState<GroupReceiverConfig[]>([])
   const [attachments, setAttachments] = useState<AttachmentItem[]>([])
   const currentGameTimeRef = useRef(currentGameTime)
+  const [isBcGameTime, setIsBcGameTime] = useState(false)
   const [isUploadingAttachments, setIsUploadingAttachments] = useState(false)
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false)
   const [attachmentToRemove, setAttachmentToRemove] = useState<AttachmentItem | null>(null)
@@ -513,6 +535,8 @@ export function MessageEditDialog({
         publishGameTime: fullMessage.publishGameTime || '',
         isSecret: getMessageIsSecret(fullMessage),
       })
+      const isBc = detectBcGameTime(fullMessage.publishGameTime || '')
+      setIsBcGameTime(isBc)
       setSelectedGroupConfigs([])
 
       const initialAttachments = normalizeAttachmentItems(fullMessage)
@@ -564,6 +588,7 @@ export function MessageEditDialog({
         publishGameTime: currentGameTimeRef.current || '',
         isSecret: false,
       })
+      setIsBcGameTime(detectBcGameTime(currentGameTimeRef.current || ''))
       setSecretReceivers([])
       setReceiverSearchKeyword('')
       setSelectedGroupConfigs([])
@@ -597,6 +622,7 @@ export function MessageEditDialog({
       publishGameTime: currentGameTime || '',
       isSecret: false,
     })
+    setIsBcGameTime(detectBcGameTime(currentGameTime || ''))
     setSecretReceivers([])
     setReceiverSearchKeyword('')
     setSelectedGroupConfigs([])
@@ -748,8 +774,12 @@ export function MessageEditDialog({
       return
     }
 
-    if (!formData.publishGameTime.trim()) {
-      toast.warning('请输入发布会议次元时间')
+    const gameTimeISO = parseGameTimeToISO(
+      formData.publishGameTime.trim() || currentGameTime || ''
+    )
+
+    if (!gameTimeISO) {
+      toast.warning('无法确定会议次元时间，请手动输入')
       return
     }
 
@@ -809,7 +839,7 @@ export function MessageEditDialog({
         brief: formData.brief || undefined,
         msgType: formData.msgType,
         publishRealTime: formData.publishRealTime || undefined,
-        publishGameTime: parseGameTimeToISO(formData.publishGameTime),
+        publishGameTime: gameTimeISO,
         isSecret: formData.isSecret,
         receiverIds: formData.isSecret
           ? resolvedReceivers.map((receiver) => ({
@@ -828,7 +858,7 @@ export function MessageEditDialog({
         brief: formData.brief || undefined,
         msgType: formData.msgType,
         publishRealTime: formData.publishRealTime || undefined,
-        publishGameTime: parseGameTimeToISO(formData.publishGameTime),
+        publishGameTime: gameTimeISO,
         isSecret: formData.isSecret,
         receiverIds: formData.isSecret
           ? resolvedReceivers.map((receiver) => ({
@@ -926,16 +956,42 @@ export function MessageEditDialog({
             <div className="space-y-4">
               {/* Conference Dimensional Time */}
               <div className="space-y-2">
-                <Label htmlFor="publishGameTime">发布会议次元时间 *</Label>
-                <Input
-                  id="publishGameTime"
-                  value={formData.publishGameTime}
-                  onChange={(e) =>
-                    setFormData({ ...formData, publishGameTime: e.target.value })
-                  }
-                  placeholder="例如: 2024-01-15 10:00"
-                  required
-                />
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="publishGameTime">发布会议次元时间 *</Label>
+                  <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isBcGameTime}
+                      onChange={(e) => {
+                        const bc = e.target.checked
+                        setIsBcGameTime(bc)
+                        setFormData({ ...formData, publishGameTime: '' })
+                      }}
+                      className="w-3.5 h-3.5 rounded border-gray-300"
+                    />
+                    公元前模式
+                  </label>
+                </div>
+                {isBcGameTime ? (
+                  <Input
+                    id="publishGameTime"
+                    value={formData.publishGameTime}
+                    onChange={(e) =>
+                      setFormData({ ...formData, publishGameTime: e.target.value })
+                    }
+                    placeholder="BC 454-12-31 20:20"
+                  />
+                ) : (
+                  <Input
+                    id="publishGameTime"
+                    type="datetime-local"
+                    value={gameISOStringToDateTimeLocal(formData.publishGameTime)}
+                    onChange={(e) =>
+                      setFormData({ ...formData, publishGameTime: e.target.value })
+                    }
+                  />
+                )}
+                <p className="text-xs text-muted-foreground">留空则使用当前会议次元时间</p>
               </div>
 
               {/* Real Time */}

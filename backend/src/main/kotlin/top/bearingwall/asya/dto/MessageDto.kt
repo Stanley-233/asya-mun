@@ -100,6 +100,9 @@ data class MessageResponse(
     @Schema(description = "发送者名称")
     val senderName: String?,
 
+    @Schema(description = "发送者显示名称")
+    val senderDisplayName: String?,
+
     @Schema(description = "标题")
     val title: String?,
 

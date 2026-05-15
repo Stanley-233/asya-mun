@@ -208,6 +208,7 @@ class MessageService(
         conferenceId = this.conference?.uuid.toString(),
         senderId = this.sender?.uuid.toString(),
         senderName = this.sender?.name,
+        senderDisplayName = this.sender?.displayName,
         title = this.title,
         brief = this.brief,
         content = if (omitContent) null else this.content,

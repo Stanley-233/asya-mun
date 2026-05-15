@@ -17,7 +17,6 @@ import { Edit2, Trash2 } from 'lucide-react'
 
 interface MessageCardProps {
   message: MessageResponse
-  senderDisplayName?: string
   onEdit?: (message: MessageResponse) => void
   onDelete?: (message: MessageResponse) => void
   onClick?: (message: MessageResponse) => void
@@ -42,44 +41,39 @@ const MSG_TYPE_VARIANTS = {
   NonNullable<ComponentProps<typeof Badge>['variant']>
 >
 
-// 格式化游戏时间为人类可读格式
 function formatGameTime(isoString: string): string {
   if (!isoString) return '未知'
-  
   try {
-    // 匹配ISO格式: -0453-12-31T20:52:00 或 2024-01-15T10:00:00
-    const match = isoString.match(/^(-?\d+)-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})$/)
+    const match = isoString.match(/^(-?\d+)-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/)
     if (!match) return isoString
-    
-    const [, yearStr, month, day, hour, minute] = match
+    const [, yearStr, month, day, hour, minute, second] = match
     const year = parseInt(yearStr, 10)
-    
-    let displayYear: number
-    let era = ''
-    
-    if (year <= 0) {
-      era = 'BC '
-      displayYear = 1 - year  // 0→1, -1→2, -453→454
-    } else {
-      displayYear = year
-    }
-    
-    return `${era}${displayYear}年${month}月${day}日 ${hour}:${minute}`
+    const era = year <= 0 ? 'BC ' : ''
+    const displayYear = year <= 0 ? 1 - year : year
+    return `${era}${displayYear}/${month}/${day} ${hour}:${minute}:${second}`
   } catch {
     return isoString
   }
 }
 
-function getSenderDisplayName(message: MessageResponse, senderDisplayName?: string): string {
-  const displayName = senderDisplayName?.trim()
-  if (displayName) return displayName
-  const fallbackDisplayName = (message as MessageResponse & { senderDisplayName?: string }).senderDisplayName?.trim()
-  if (fallbackDisplayName) return fallbackDisplayName
-  const senderName = message.senderName?.trim()
-  return senderName || '未知'
+function formatRealTime(isoString: string): string {
+  if (!isoString) return '未知'
+  const d = new Date(isoString)
+  if (isNaN(d.getTime())) return isoString
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  const h = String(d.getHours()).padStart(2, '0')
+  const min = String(d.getMinutes()).padStart(2, '0')
+  const s = String(d.getSeconds()).padStart(2, '0')
+  return `${y}/${m}/${day} ${h}:${min}:${s}`
 }
 
-export function MessageCard({ message, senderDisplayName, onEdit, onDelete, onClick }: MessageCardProps) {
+function getSenderDisplayName(message: MessageResponse): string {
+  return message.senderDisplayName?.trim() || message.senderName?.trim() || '未知'
+}
+
+export function MessageCard({ message, onEdit, onDelete, onClick }: MessageCardProps) {
   const { canManageConference } = useAuth()
 
   return (
@@ -137,11 +131,11 @@ export function MessageCard({ message, senderDisplayName, onEdit, onDelete, onCl
         </p>
         <div className="flex flex-col gap-1 text-xs text-muted-foreground">
           <div className="flex justify-between">
-            <span>发布者: {getSenderDisplayName(message, senderDisplayName)}</span>
+            <span>发布者: {getSenderDisplayName(message)}</span>
             <span>会议次元时间: {formatGameTime(message.publishGameTime)}</span>
           </div>
           <div className="text-right">
-            现实时间: {new Date(message.publishRealTime).toLocaleString('zh-CN')}
+            现实时间: {formatRealTime(message.publishRealTime)}
           </div>
         </div>
       </CardContent>

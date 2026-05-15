@@ -14,11 +14,9 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { useGetOne, useGetReceivers } from '@/lib/api/hooks/message'
 import { download, getOne1 } from '@/lib/api/hooks/attachment'
-import { useGetUsers } from '@/lib/api/hooks/conference'
 import type {
   MessageReceiverVisibilityResponse,
   MessageResponse,
-  UserInfoResponse,
 } from '@/lib/api/generated'
 import { Separator } from '@/components/ui/separator'
 import { useAuth } from '@/lib/contexts/auth-context'
@@ -64,36 +62,22 @@ function formatGameTime(isoString: string): string {
   if (!isoString) return '未知'
 
   try {
-    // 匹配ISO格式: -0453-12-31T20:52:00 或 2024-01-15T10:00:00
-    const match = isoString.match(/^(-?\d+)-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})$/)
+    const match = isoString.match(/^(-?\d+)-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/)
     if (!match) return isoString
 
-    const [, yearStr, month, day, hour, minute] = match
+    const [, yearStr, month, day, hour, minute, second] = match
     const year = parseInt(yearStr, 10)
+    const era = year <= 0 ? 'BC ' : ''
+    const displayYear = year <= 0 ? 1 - year : year
 
-    let displayYear: number
-    let era = ''
-
-    if (year <= 0) {
-      era = 'BC '
-      displayYear = 1 - year // 0→1, -1→2, -453→454
-    } else {
-      displayYear = year
-    }
-
-    return `${era}${displayYear}年${month}月${day}日 ${hour}:${minute}`
+    return `${era}${displayYear}/${month}/${day} ${hour}:${minute}:${second}`
   } catch {
     return isoString
   }
 }
 
-function getSenderDisplayName(message: MessageResponse, senderDisplayName?: string): string {
-  const displayName = senderDisplayName?.trim()
-  if (displayName) return displayName
-  const fallbackDisplayName = (message as MessageResponse & { senderDisplayName?: string }).senderDisplayName?.trim()
-  if (fallbackDisplayName) return fallbackDisplayName
-  const senderName = message.senderName?.trim()
-  return senderName || '未知'
+function getSenderDisplayName(message: MessageResponse): string {
+  return message.senderDisplayName?.trim() || message.senderName?.trim() || '未知'
 }
 
 function decodeMojibakeFilename(value: string): string {
@@ -131,10 +115,29 @@ function formatFileSize(size?: number): string {
   return `${(size / 1024 / 1024).toFixed(2)} MB`
 }
 
+function formatRealTime(isoString: string): string {
+  if (!isoString) return '未知'
+  const d = new Date(isoString)
+  if (isNaN(d.getTime())) return isoString
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  const h = String(d.getHours()).padStart(2, '0')
+  const min = String(d.getMinutes()).padStart(2, '0')
+  const s = String(d.getSeconds()).padStart(2, '0')
+  return `${y}/${m}/${day} ${h}:${min}:${s}`
+}
+
 function formatReadableAt(isoString: string): string {
   const date = new Date(isoString)
   if (Number.isNaN(date.getTime())) return isoString || '未知'
-  return date.toLocaleString('zh-CN')
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  const h = String(date.getHours()).padStart(2, '0')
+  const min = String(date.getMinutes()).padStart(2, '0')
+  const s = String(date.getSeconds()).padStart(2, '0')
+  return `${y}/${m}/${d} ${h}:${min}:${s}`
 }
 
 function getFilenameFromHeaders(headers: unknown, fallback: string): string {
@@ -190,7 +193,7 @@ export function MessageDetailDialog({
   open,
   onOpenChange,
 }: MessageDetailDialogProps) {
-  const { isAuthenticated, canManageConference } = useAuth()
+  const { canManageConference } = useAuth()
   const [downloadingUuid, setDownloadingUuid] = useState<string | null>(null)
   const [confirmDownloadUuid, setConfirmDownloadUuid] = useState<string | null>(null)
   const [previewingUuid, setPreviewingUuid] = useState<string | null>(null)
@@ -208,25 +211,8 @@ export function MessageDetailDialog({
     },
   })
 
-  const { data: usersData } = useGetUsers({
-    query: {
-      enabled: isAuthenticated && open,
-    },
-  })
-
-  // 解析响应数据
   const message = parseApiPayload<MessageResponse>(data)
-  const users = parseApiPayload<UserInfoResponse[]>(usersData) || []
   const receiverVisibilityList = parseApiPayload<MessageReceiverVisibilityResponse[]>(receiversData) || []
-
-  const senderDisplayNameMap = users.reduce<Record<string, string>>((acc, user) => {
-    const displayName = user.displayName?.trim()
-    const label = displayName || user.name || ''
-    if (user.uuid && label) {
-      acc[user.uuid] = label
-    }
-    return acc
-  }, {})
 
   const attachmentUuids = useMemo(() => message?.attachmentUuids || [], [message?.attachmentUuids])
 
@@ -467,10 +453,7 @@ export function MessageDetailDialog({
                   <div>
                     <span className="text-muted-foreground">发布者: </span>
                     <span className="font-medium">
-                      {getSenderDisplayName(
-                        message,
-                        message.senderId ? senderDisplayNameMap[message.senderId] : undefined
-                      )}
+                      {getSenderDisplayName(message)}
                     </span>
                   </div>
                   <div>
@@ -480,7 +463,7 @@ export function MessageDetailDialog({
                 </div>
                 <div>
                   <span className="text-muted-foreground">现实时间: </span>
-                  <span>{new Date(message.publishRealTime).toLocaleString('zh-CN')}</span>
+                  <span>{formatRealTime(message.publishRealTime)}</span>
                 </div>
               </div>
 

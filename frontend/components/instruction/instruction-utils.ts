@@ -54,22 +54,28 @@ export function formatInstructionRealTime(value?: string) {
   if (!value) return '未知'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleString('zh-CN')
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  const h = String(date.getHours()).padStart(2, '0')
+  const min = String(date.getMinutes()).padStart(2, '0')
+  const s = String(date.getSeconds()).padStart(2, '0')
+  return `${y}/${m}/${d} ${h}:${min}:${s}`
 }
 
 export function formatInstructionGameTime(value?: string) {
   if (!value) return '未知'
 
   try {
-    const match = value.match(/^(-?\d+)-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})$/)
+    const match = value.match(/^(-?\d+)-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/)
     if (!match) return value
 
-    const [, yearStr, month, day, hour, minute] = match
+    const [, yearStr, month, day, hour, minute, second] = match
     const year = Number.parseInt(yearStr, 10)
-    const isBc = year <= 0
-    const displayYear = isBc ? 1 - year : year
+    const era = year <= 0 ? 'BC ' : ''
+    const displayYear = year <= 0 ? 1 - year : year
 
-    return `${isBc ? 'BC ' : ''}${displayYear}年${month}月${day}日 ${hour}:${minute}`
+    return `${era}${displayYear}/${month}/${day} ${hour}:${minute}:${second}`
   } catch {
     return value
   }

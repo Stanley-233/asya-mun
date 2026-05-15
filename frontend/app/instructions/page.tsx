@@ -193,20 +193,16 @@ export default function InstructionsPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>全局指令提交开关</CardTitle>
-            <CardDescription>可查看当前暂停状态；DH / SYS_ADMIN 可切换暂停与恢复</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="rounded-lg border bg-muted/20 p-3 text-sm">
-              <span className="text-muted-foreground">当前状态: </span>
-              {isSubmissionPaused ? '已暂停提交' : '允许提交'}
+        <Card className="py-0">
+          <CardContent className="flex items-center justify-between py-1.5 px-4">
+            <div className="flex items-center gap-2 text-sm">
+              <span className="font-medium">代表指令提交权限</span>
+              <span className={isSubmissionPaused ? 'text-destructive' : 'text-green-600'}>
+                {isSubmissionPaused ? '已暂停' : '允许提交'}
+              </span>
             </div>
-            {!canToggleSubmissionSwitch && (
-              <p className="text-sm text-muted-foreground">仅 DH 与系统管理员可切换开关</p>
-            )}
             <Button
+              size="sm"
               onClick={handleToggleSubmissionSwitch}
               disabled={!canToggleSubmissionSwitch || setSubmissionSwitchMutation.isPending}
               variant={isSubmissionPaused ? 'default' : 'outline'}

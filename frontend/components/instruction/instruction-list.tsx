@@ -15,6 +15,7 @@ import { ChevronLeft, ChevronRight, FileText } from 'lucide-react'
 import {
   INSTRUCTION_STATUS_CLASSNAMES,
   formatInstructionRealTime,
+  formatInstructionGameTime,
   INSTRUCTION_STATUS_LABELS,
   INSTRUCTION_STATUS_VARIANTS,
   INSTRUCTION_TYPE_LABELS,
@@ -119,9 +120,10 @@ export function InstructionList({
                       )}
                     </div>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    {formatInstructionRealTime(instruction.submitRealTime)}
-                  </p>
+                  <div className="flex flex-col items-end gap-0.5 text-xs text-muted-foreground">
+                    <span>会议: {formatInstructionGameTime(instruction.submitGameTime)}</span>
+                    <span>现实: {formatInstructionRealTime(instruction.submitRealTime)}</span>
+                  </div>
                 </div>
                 <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">
                   {instruction.content}

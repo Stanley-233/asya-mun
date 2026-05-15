@@ -19,6 +19,8 @@ export interface MessageResponse {
   senderId?: string;
   /** 发送者名称 */
   senderName?: string;
+  /** 发送者显示名称 */
+  senderDisplayName?: string;
   /** 标题 */
   title?: string;
   /** 摘要 */
