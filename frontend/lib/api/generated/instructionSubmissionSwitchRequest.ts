@@ -7,7 +7,7 @@
  */
 
 /**
- * 设置全局指令提交暂停开关请求
+ * 设置会议指令提交暂停开关请求
  */
 export interface InstructionSubmissionSwitchRequest {
   /** true 表示暂停提交，false 表示恢复提交 */

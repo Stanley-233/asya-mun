@@ -6,12 +6,12 @@
  * OpenAPI spec version: @appVersion@
  */
 import type { DelegateAttrConfigResponse } from "./delegateAttrConfigResponse";
-import type { Pagenull } from "./pagenull";
+import type { PageObject } from "./pageObject";
 
 /**
  * 属性记录分页聚合响应
  */
 export interface DelegateAttrRecordPageResponse {
   configs: DelegateAttrConfigResponse[];
-  records: Pagenull;
+  records: PageObject;
 }

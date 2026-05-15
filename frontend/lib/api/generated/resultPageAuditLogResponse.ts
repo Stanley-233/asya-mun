@@ -10,7 +10,7 @@ import type { PageObject } from "./pageObject";
 /**
  * 统一接口返回结构
  */
-export interface ResultPageInstructionResponse {
+export interface ResultPageAuditLogResponse {
   /** 状态码 */
   code: number;
   /** 提示信息 */

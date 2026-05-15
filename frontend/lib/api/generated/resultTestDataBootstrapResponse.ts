@@ -5,15 +5,15 @@
  * API documentation for Asya Backend application
  * OpenAPI spec version: @appVersion@
  */
-import type { PageObject } from "./pageObject";
+import type { TestDataBootstrapResponse } from "./testDataBootstrapResponse";
 
 /**
  * 统一接口返回结构
  */
-export interface ResultPageInstructionResponse {
+export interface ResultTestDataBootstrapResponse {
   /** 状态码 */
   code: number;
   /** 提示信息 */
   message: string;
-  data?: PageObject;
+  data?: TestDataBootstrapResponse;
 }

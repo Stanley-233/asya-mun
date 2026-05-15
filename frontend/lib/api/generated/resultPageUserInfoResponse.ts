@@ -5,7 +5,7 @@
  * API documentation for Asya Backend application
  * OpenAPI spec version: @appVersion@
  */
-import type { Pagenull } from "./pagenull";
+import type { PageObject } from "./pageObject";
 
 /**
  * 统一接口返回结构
@@ -15,5 +15,5 @@ export interface ResultPageUserInfoResponse {
   code: number;
   /** 提示信息 */
   message: string;
-  data?: Pagenull;
+  data?: PageObject;
 }

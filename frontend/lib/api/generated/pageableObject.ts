@@ -5,11 +5,11 @@
  * API documentation for Asya Backend application
  * OpenAPI spec version: @appVersion@
  */
-import type { Sortnull } from "./sortnull";
+import type { SortObject } from "./sortObject";
 
-export interface Pageablenull {
+export interface PageableObject {
   offset?: number;
-  sort?: Sortnull;
+  sort?: SortObject;
   unpaged?: boolean;
   paged?: boolean;
   pageNumber?: number;

@@ -6,19 +6,19 @@
  * OpenAPI spec version: @appVersion@
  */
 import type { DelegateAttrRecordResponse } from "./delegateAttrRecordResponse";
-import type { Pageablenull } from "./pageablenull";
-import type { Sortnull } from "./sortnull";
+import type { PageableObject } from "./pageableObject";
+import type { SortObject } from "./sortObject";
 
-export interface Pagenull {
-  totalElements?: number;
+export interface PageObject {
   totalPages?: number;
+  totalElements?: number;
   first?: boolean;
   last?: boolean;
   size?: number;
   content?: DelegateAttrRecordResponse[];
   number?: number;
-  sort?: Sortnull;
+  sort?: SortObject;
+  pageable?: PageableObject;
   numberOfElements?: number;
-  pageable?: Pageablenull;
   empty?: boolean;
 }

@@ -6,8 +6,4 @@
  * OpenAPI spec version: @appVersion@
  */
 
-export interface Sortnull {
-  empty?: boolean;
-  unsorted?: boolean;
-  sorted?: boolean;
-}
+export type DownloadAnnouncementImage200 = { [key: string]: unknown };

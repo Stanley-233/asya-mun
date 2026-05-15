@@ -19,4 +19,6 @@ export interface ConferenceResponse {
   description: string;
   /** 会议状态 */
   status: ConferenceResponseStatus;
+  /** 指令提交是否暂停 */
+  instructionSubmissionPaused: boolean;
 }
