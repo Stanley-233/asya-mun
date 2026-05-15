@@ -1,8 +1,11 @@
 import { apiRequester } from '../client'
+import { normalizePagePayload, type NormalizedPage } from '../core/page'
+import { withQuery } from '../core/query'
 import type {
   ConferenceAssignRequest,
   ConferenceRequest,
   ConferenceResponse,
+  Pageable,
   UserInfoResponse,
 } from '../generated'
 
@@ -16,6 +19,14 @@ export async function getMine() {
 export async function update2(data: ConferenceRequest) {
   return apiRequester.requestProtected<void>({
     path: '/api/conference',
+    method: 'PUT',
+    body: data,
+  })
+}
+
+export async function updateConferenceByUuid(uuid: string, data: ConferenceRequest) {
+  return apiRequester.requestProtected<void>({
+    path: `/api/conference/${uuid}`,
     method: 'PUT',
     body: data,
   })
@@ -50,3 +61,17 @@ export async function listAll2() {
     method: 'GET',
   })
 }
+
+export interface ListConferenceParams {
+  pageable: Pageable
+}
+
+export async function listConferencePage(params: ListConferenceParams) {
+  const response = await apiRequester.requestProtected<unknown>({
+    path: withQuery('/api/conference/page', { ...params }),
+    method: 'GET',
+  })
+  return normalizePagePayload<ConferenceResponse>(response)
+}
+
+export type { NormalizedPage }

@@ -5,9 +5,8 @@
  * API documentation for Asya Backend application
  * OpenAPI spec version: @appVersion@
  */
+import type { Pageable } from "./pageable";
 
-export interface SortObject {
-  empty?: boolean;
-  sorted?: boolean;
-  unsorted?: boolean;
-}
+export type ListPageParams = {
+  pageable: Pageable;
+};

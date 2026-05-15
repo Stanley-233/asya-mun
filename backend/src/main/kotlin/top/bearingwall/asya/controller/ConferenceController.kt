@@ -2,6 +2,10 @@ package top.bearingwall.asya.controller
 
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
+import org.springframework.data.domain.Sort
+import org.springframework.data.web.PageableDefault
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -101,6 +105,45 @@ class ConferenceController(
         return try {
             val requester = userService.getUserFromToken(extractBearer(authorization))
             val resp = conferenceService.listAll(requester)
+            ResponseEntity.ok(Result.success(resp))
+        } catch (e: IllegalArgumentException) {
+            ResponseEntity.status(HttpStatus.OK).body(Result.failure(BizCode.PARAM_ERROR, e.message ?: "参数错误"))
+        } catch (e: IllegalStateException) {
+            ResponseEntity.status(HttpStatus.OK).body(Result.failure(BizCode.PARAM_ERROR, e.message ?: "状态错误"))
+        } catch (e: Exception) {
+            ResponseEntity.status(HttpStatus.OK).body(Result.failure(BizCode.TOKEN_INVALID, e.message ?: "Token解析失败"))
+        }
+    }
+
+    @Operation(summary = "分页查询会议", description = "仅 SYS_ADMIN 可用")
+    @GetMapping("/page")
+    fun listPage(
+        @RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String,
+        @PageableDefault(sort = ["name"], direction = Sort.Direction.ASC) pageable: Pageable
+    ): ResponseEntity<Result<Page<ConferenceResponse>>> {
+        return try {
+            val requester = userService.getUserFromToken(extractBearer(authorization))
+            val resp = conferenceService.listPage(requester, pageable)
+            ResponseEntity.ok(Result.success(resp))
+        } catch (e: IllegalArgumentException) {
+            ResponseEntity.status(HttpStatus.OK).body(Result.failure(BizCode.PARAM_ERROR, e.message ?: "参数错误"))
+        } catch (e: IllegalStateException) {
+            ResponseEntity.status(HttpStatus.OK).body(Result.failure(BizCode.PARAM_ERROR, e.message ?: "状态错误"))
+        } catch (e: Exception) {
+            ResponseEntity.status(HttpStatus.OK).body(Result.failure(BizCode.TOKEN_INVALID, e.message ?: "Token解析失败"))
+        }
+    }
+
+    @Operation(summary = "管理员更新指定会议", description = "仅 SYS_ADMIN 可用")
+    @PutMapping("/{uuid}")
+    fun updateByUuid(
+        @PathVariable uuid: UUID,
+        @RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String,
+        @RequestBody req: ConferenceRequest
+    ): ResponseEntity<Result<ConferenceResponse>> {
+        return try {
+            val requester = userService.getUserFromToken(extractBearer(authorization))
+            val resp = conferenceService.updateConferenceByUuid(requester, uuid, req)
             ResponseEntity.ok(Result.success(resp))
         } catch (e: IllegalArgumentException) {
             ResponseEntity.status(HttpStatus.OK).body(Result.failure(BizCode.PARAM_ERROR, e.message ?: "参数错误"))

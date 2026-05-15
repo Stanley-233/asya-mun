@@ -19,7 +19,7 @@ import {
 import { useAuth } from "@/lib/contexts/auth-context"
 import { buildLoginRedirect } from '@/lib/auth/return-to'
 import { useListAll1, useUpdateUser, useDeleteUser, useGetRegistrationSwitch, useSetRegistrationSwitch, useResetPassword, useBatchRegister } from "@/lib/api/hooks/user"
-import { useCreate, useListAll2, useAssignUser } from "@/lib/api/hooks/conference"
+import { useCreate, useListAll2, useListConferencePage, useAssignUser, useUpdateConferenceByUuid } from "@/lib/api/hooks/conference"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,10 +30,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import type { UserInfoResponse, UserUpdateRequestRole, ConferenceRequestStatus, BatchRegisterUserItem } from "@/lib/api/generated"
+import type { UserInfoResponse, UserUpdateRequestRole, ConferenceRequestStatus, BatchRegisterUserItem, ConferenceResponse } from "@/lib/api/generated"
 import type { ListUsersParams } from "@/lib/api/hooks/user"
 import { getListAll1QueryKey } from "@/lib/api/hooks/user"
-import { getListAll2QueryKey } from "@/lib/api/hooks/conference"
+import { getListAll2QueryKey, getListConferencePageQueryKey } from "@/lib/api/hooks/conference"
 
 const roleLabels: Record<string, string> = {
   'SYS_ADMIN': '系统管理员',
@@ -58,6 +58,7 @@ const statusOptions = [
 const UNASSIGNED_CONFERENCE_VALUE = '__UNASSIGNED__'
 const ALL_FILTER_VALUE = '__ALL__'
 const USER_PAGE_SIZE = 10
+const CONFERENCE_PAGE_SIZE = 10
 
 type UserEditFormValue = {
   name: string
@@ -138,6 +139,18 @@ export default function AdminPage() {
   const queryClient = useQueryClient()
   const { isLoading: authLoading, isSysAdmin, isAuthenticated } = useAuth()
   const { data: conferencesData, refetch: refetchConferences } = useListAll2()
+
+  const [conferencePage, setConferencePage] = useState(0)
+
+  const conferencePageParams = useMemo(() => ({
+    pageable: {
+      page: conferencePage,
+      size: CONFERENCE_PAGE_SIZE,
+      sort: ['name,asc'],
+    },
+  }), [conferencePage])
+
+  const { data: conferencePageData, isLoading: conferencePageLoading } = useListConferencePage(conferencePageParams)
   const { mutateAsync: updateUserAsync, isPending: isUpdating } = useUpdateUser()
   const { mutate: deleteUser, isPending: isDeleting } = useDeleteUser()
   const { data: registrationSwitchData, isLoading: registrationSwitchLoading, refetch: refetchRegistrationSwitch } = useGetRegistrationSwitch()
@@ -146,10 +159,13 @@ export default function AdminPage() {
   const { mutate: batchRegister, isPending: isBatchRegistering } = useBatchRegister()
   const { mutate: createConference, isPending: isCreating } = useCreate()
   const { mutateAsync: assignUserAsync, isPending: isAssigning } = useAssignUser()
+  const { mutateAsync: updateConferenceByUuidAsync, isPending: isUpdatingConference } = useUpdateConferenceByUuid()
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<Record<string, UserEditFormValue>>({})
   const [showCreateConference, setShowCreateConference] = useState(false)
+  const [editingConferenceId, setEditingConferenceId] = useState<string | null>(null)
+  const [conferenceEditForm, setConferenceEditForm] = useState({ name: '', description: '', status: '' as string })
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [userToDelete, setUserToDelete] = useState<UserInfoResponse | null>(null)
   const [conferenceForm, setConferenceForm] = useState({
@@ -208,6 +224,13 @@ export default function AdminPage() {
     () => conferencesData ?? [],
     [conferencesData]
   )
+
+  const conferenceList = useMemo(
+    () => conferencePageData?.content ?? [],
+    [conferencePageData]
+  )
+  const totalConferencePages = conferencePageData?.totalPages ?? 0
+  const totalConferenceElements = conferencePageData?.totalElements ?? 0
 
   const registrationAllowed = useMemo(
     () => registrationSwitchData ?? null,
@@ -413,6 +436,7 @@ export default function AdminPage() {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: getListAll1QueryKey(userListParams) }),
       queryClient.invalidateQueries({ queryKey: getListAll2QueryKey() }),
+      queryClient.invalidateQueries({ queryKey: getListConferencePageQueryKey(conferencePageParams) }),
       refetchUsers(),
       refetchConferences(),
     ])
@@ -578,6 +602,45 @@ export default function AdminPage() {
       description: '',
       status: 'PREPARING'
     })
+  }
+
+  const handleConferenceEditStart = (conf: ConferenceResponse) => {
+    setEditingConferenceId(conf.uuid)
+    setConferenceEditForm({
+      name: conf.name,
+      description: conf.description,
+      status: conf.status,
+    })
+  }
+
+  const handleConferenceEditCancel = () => {
+    setEditingConferenceId(null)
+  }
+
+  const handleConferenceEditFieldChange = (field: string, value: string) => {
+    setConferenceEditForm(prev => ({ ...prev, [field]: value }))
+  }
+
+  const handleConferenceEditSave = async (uuid: string) => {
+    if (!conferenceEditForm.name.trim()) {
+      toast.error('会议名称不能为空')
+      return
+    }
+    try {
+      await updateConferenceByUuidAsync({
+        uuid,
+        data: {
+          name: conferenceEditForm.name,
+          description: conferenceEditForm.description,
+          status: conferenceEditForm.status as ConferenceRequestStatus,
+        },
+      })
+      setEditingConferenceId(null)
+      toast.success('会议更新成功')
+      await refreshAdminData()
+    } catch {
+      toast.error('更新失败，请重试')
+    }
   }
 
   const handleDeleteUser = (user: UserInfoResponse) => {
@@ -766,13 +829,13 @@ export default function AdminPage() {
             </CardHeader>
           </Card>
 
-          {/* 新建会议卡片 */}
-          <Card>
+          {/* 会议管理 */}
+          <Card className="xl:col-span-2">
             <CardHeader>
               <div className="flex justify-between items-center">
                 <div>
                   <CardTitle>会议管理</CardTitle>
-                  <CardDescription>创建新的会议</CardDescription>
+                  <CardDescription>查看和管理所有会议</CardDescription>
                 </div>
                 {!showCreateConference && (
                   <Button onClick={() => setShowCreateConference(true)}>
@@ -840,6 +903,122 @@ export default function AdminPage() {
                 </form>
               </CardContent>
             )}
+            <CardContent>
+              {conferencePageLoading ? (
+                <div className="flex justify-center items-center min-h-32">
+                  <p className="text-muted-foreground">加载会议列表中...</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="rounded-lg border">
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full text-sm">
+                        <thead className="bg-muted/50 text-muted-foreground">
+                          <tr>
+                            <th className="py-3 px-4 text-left font-medium">会议名称</th>
+                            <th className="py-3 px-4 text-left font-medium">会议描述</th>
+                            <th className="py-3 px-4 text-left font-medium">会议状态</th>
+                            <th className="py-3 px-4 text-right font-medium">操作</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                          {conferenceList.length === 0 ? (
+                            <tr>
+                              <td colSpan={4} className="px-4 py-10 text-center text-muted-foreground">
+                                暂无会议数据
+                              </td>
+                            </tr>
+                          ) : (
+                            conferenceList.map((conf: ConferenceResponse) => (
+                              <tr key={conf.uuid}>
+                                {editingConferenceId === conf.uuid ? (
+                                  <>
+                                    <td className="py-3 px-4">
+                                      <Input
+                                        value={conferenceEditForm.name}
+                                        onChange={(e) => handleConferenceEditFieldChange('name', e.target.value)}
+                                      />
+                                    </td>
+                                    <td className="py-3 px-4">
+                                      <Input
+                                        value={conferenceEditForm.description}
+                                        onChange={(e) => handleConferenceEditFieldChange('description', e.target.value)}
+                                      />
+                                    </td>
+                                    <td className="py-3 px-4">
+                                      <Select
+                                        value={conferenceEditForm.status}
+                                        onValueChange={(value) => handleConferenceEditFieldChange('status', value)}
+                                      >
+                                        <SelectTrigger>
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {statusOptions.map(option => (
+                                            <SelectItem key={option.value} value={option.value}>
+                                              {option.label}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </td>
+                                    <td className="py-3 px-4">
+                                      <div className="flex justify-end gap-2">
+                                        <Button variant="outline" size="sm" onClick={handleConferenceEditCancel}>
+                                          取消
+                                        </Button>
+                                        <Button size="sm" onClick={() => void handleConferenceEditSave(conf.uuid)} disabled={isUpdatingConference}>
+                                          {isUpdatingConference ? '保存中...' : '保存'}
+                                        </Button>
+                                      </div>
+                                    </td>
+                                  </>
+                                ) : (
+                                  <>
+                                    <td className="py-3 px-4 font-medium">{conf.name}</td>
+                                    <td className="py-3 px-4 text-muted-foreground">{conf.description || '—'}</td>
+                                    <td className="py-3 px-4">
+                                      {statusOptions.find(s => s.value === conf.status)?.label || conf.status}
+                                    </td>
+                                    <td className="py-3 px-4 text-right">
+                                      <Button size="sm" onClick={() => handleConferenceEditStart(conf)}>
+                                        编辑
+                                      </Button>
+                                    </td>
+                                  </>
+                                )}
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-sm text-muted-foreground">
+                      第 {Math.min(conferencePage + 1, Math.max(totalConferencePages, 1))} 页，共 {Math.max(totalConferencePages, 1)} 页，共 {totalConferenceElements} 个会议
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => setConferencePage(prev => Math.max(prev - 1, 0))}
+                        disabled={conferencePage === 0}
+                      >
+                        上一页
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => setConferencePage(prev => Math.min(prev + 1, Math.max(totalConferencePages - 1, 0)))}
+                        disabled={totalConferencePages <= 1 || conferencePage >= totalConferencePages - 1}
+                      >
+                        下一页
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </CardContent>
           </Card>
         </div>
 

@@ -1,5 +1,7 @@
 package top.bearingwall.asya.service
 
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import top.bearingwall.asya.audit.Auditable
@@ -76,6 +78,26 @@ class ConferenceService(
     fun listAll(requester: User): List<ConferenceResponse> {
         require(requester.role == UserRole.SYS_ADMIN) { "Only SYS_ADMIN can list all conferences" }
         return conferenceRepository.findAll().map { it.toResponse() }
+    }
+
+    @Transactional(readOnly = true)
+    fun listPage(requester: User, pageable: Pageable): Page<ConferenceResponse> {
+        require(requester.role == UserRole.SYS_ADMIN) { "Only SYS_ADMIN can list conferences" }
+        return conferenceRepository.findAll(pageable).map { it.toResponse() }
+    }
+
+    @Transactional
+    @Auditable(type = AuditActionType.CONFERENCE_UPDATE, content = "管理员更新会议")
+    fun updateConferenceByUuid(requester: User, conferenceUuid: UUID, req: ConferenceRequest): ConferenceResponse {
+        require(requester.role == UserRole.SYS_ADMIN) { "Only SYS_ADMIN can update conference by uuid" }
+        val conf = conferenceRepository.findById(conferenceUuid).orElseThrow {
+            IllegalStateException("Conference not found: $conferenceUuid")
+        }
+        req.name.let { conf.name = it }
+        req.description.let { conf.description = it }
+        req.status?.let { conf.status = it }
+        val saved = conferenceRepository.save(conf)
+        return saved.toResponse()
     }
 
     @Transactional
