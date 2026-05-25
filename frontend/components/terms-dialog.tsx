@@ -12,6 +12,7 @@ import {
   AlertDialogAction,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { siteLicense, siteLinks } from '@/assets'
 import { FileText } from 'lucide-react'
 
 interface TermsDialogProps {
@@ -22,9 +23,6 @@ interface TermsDialogProps {
   showTrigger?: boolean
   confirmLabel?: string
 }
-
-const REPOSITORY_URL = 'https://www.github.com/Stanley-233/asya-mun'
-const CONTACT_EMAIL = 'acc_stanley@foxmail.com'
 
 export function TermsDialog({
   trigger,
@@ -70,7 +68,7 @@ export function TermsDialog({
           <p className="text-foreground">
             ASYA 是一款面向模拟联合国联动体系的一站式解决方案。其源代码基于
             {' '}
-            <strong>PolyForm Shield License 1.0.0</strong>
+            <strong>{siteLicense.name}</strong>
             {' '}
             授权。
           </p>
@@ -103,7 +101,7 @@ export function TermsDialog({
               <h3 className="font-semibold text-base mb-2 text-foreground">3. 官方服务使用与合规提示</h3>
               <div className="space-y-2 text-muted-foreground leading-relaxed">
                 <p>
-                  由开发者本人部署、维护或直接提供的 ASYA 官方在线服务、测试实例、演示环境及技术支持服务，还适用 README 中的"免责声明与官方服务使用条款"。
+                  由开发者本人部署、维护或直接提供的 ASYA 官方在线服务、测试实例、演示环境及技术支持服务，还适用 README 中的&quot;免责声明与官方服务使用条款&quot;。
                 </p>
                 <p>
                   官方服务严禁恶意攻击、漏洞扫描、DDoS、高频恶意请求、接口穷举、批量爬取、绕过访问控制以及其他破坏系统可用性或数据安全的行为。
@@ -122,13 +120,13 @@ export function TermsDialog({
             <p className="text-xs text-muted-foreground italic">
               竞争性产品授权或官方服务相关问题，可联系开发者：
               {' '}
-              <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
+              <a href={`mailto:${siteLinks.contactEmail}`}>{siteLinks.contactEmail}</a>
             </p>
             <p className="text-xs text-muted-foreground">
               开源仓库：
               {' '}
-              <a href={REPOSITORY_URL} target="_blank" rel="noreferrer">
-                {REPOSITORY_URL}
+              <a href={siteLinks.repository} target="_blank" rel="noreferrer">
+                {siteLinks.repository}
               </a>
             </p>
           </div>

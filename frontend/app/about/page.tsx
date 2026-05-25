@@ -7,8 +7,8 @@ import pkg from '../../package.json'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ExternalLink } from 'lucide-react'
+import { siteAssets, siteBrand, siteLicense, siteLinks } from '@/assets'
 
-const REPOSITORY_URL = 'https://www.github.com/Stanley-233/asya-mun'
 const version = pkg.version
 
 const markdownComponents: Components = {
@@ -57,7 +57,7 @@ export default function AboutPage() {
   const [error, setError] = useState(false)
 
   useEffect(() => {
-    fetch('/VERSION_CHANGELOG.md')
+    fetch(siteAssets.changelog)
       .then((res) => {
         if (!res.ok) throw new Error('Failed to load changelog')
         return res.text()
@@ -79,8 +79,8 @@ export default function AboutPage() {
           <div className="flex items-center gap-4">
             <div className="relative flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-primary/20 bg-white p-2 shadow-[0_10px_24px_rgba(184,132,52,0.12)]">
               <Image
-                src="/asya-logo.png"
-                alt="ASYA 标志"
+                src={siteAssets.logo.src}
+                alt={siteAssets.logo.alt}
                 fill
                 sizes="80px"
                 className="object-contain p-1"
@@ -88,7 +88,7 @@ export default function AboutPage() {
               />
             </div>
             <div>
-              <h1 className="mb-2 text-3xl font-bold">ASYA：非对称联动推演自动化系统</h1>
+              <h1 className="mb-2 text-3xl font-bold">{siteBrand.fullNameWithColon}</h1>
               <p className="text-muted-foreground">项目信息与版本变更记录</p>
             </div>
           </div>
@@ -98,7 +98,7 @@ export default function AboutPage() {
           <CardHeader>
             <CardTitle>项目信息</CardTitle>
             <CardDescription>
-              Asymmetric SYnergy Automation System
+              {siteBrand.fullNameEn}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -113,7 +113,7 @@ export default function AboutPage() {
               </div>
               <div className="rounded-lg bg-muted/50 p-4">
                 <p className="mb-1 text-xs text-muted-foreground">许可证</p>
-                <p className="text-sm font-medium">PolyForm Shield 1.0.0</p>
+                <p className="text-sm font-medium">{siteLicense.name}</p>
               </div>
               <div className="rounded-lg bg-muted/50 p-4">
                 <p className="mb-1 text-xs text-muted-foreground">技术栈</p>
@@ -122,7 +122,7 @@ export default function AboutPage() {
               <div className="rounded-lg bg-muted/50 p-4">
                 <p className="mb-1 text-xs text-muted-foreground">开源仓库</p>
                 <a
-                  href={REPOSITORY_URL}
+                  href={siteLinks.repository}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex items-center gap-1 text-sm font-medium text-primary underline underline-offset-4 hover:text-primary/80"

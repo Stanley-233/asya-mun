@@ -2,11 +2,12 @@
 
 import Image from 'next/image'
 import { useEffect, useState } from 'react'
-import { AlertCircle, ArrowRight, BookOpenCheck, LoaderCircle, Network, ShieldCheck } from 'lucide-react'
+import { AlertCircle, ArrowRight, LoaderCircle, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { TermsDialog } from '@/components/terms-dialog'
+import { authSystemNotes, siteAssets, siteBrand } from '@/assets'
 // import { ApiExample } from '@/lib/api/example-usage'
 import { useAuth } from '@/lib/contexts/auth-context'
 import { getSafeReturnTo, RETURN_TO_STORAGE_KEY } from '@/lib/auth/return-to'
@@ -38,24 +39,6 @@ function isBackendUnavailable(error: unknown) {
 
 const LICENSE_ACKNOWLEDGED_KEY = 'asya-license-acknowledged'
 const DEFAULT_AUTH_REDIRECT = '/progress'
-
-const systemNotes = [
-  {
-    title: '联动推演',
-    description: '以更清晰的节奏组织议程、角色和事件流，让推演链路保持连贯。',
-    icon: BookOpenCheck,
-  },
-  {
-    title: '流程协同',
-    description: '把指令分发、状态反馈和非对称消息整理成统一节拍。',
-    icon: Network,
-  },
-  {
-    title: '信息整合',
-    description: '集中呈现关键状态与互动信号，帮助主持团队快速响应。',
-    icon: ShieldCheck,
-  },
-]
 
 export default function Page() {
   const { isAuthenticated, isLoading: authLoading } = useAuth()
@@ -285,8 +268,8 @@ export default function Page() {
             <div className="mb-5 flex items-center gap-4">
               <div className="relative flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-primary/20 bg-white/90 p-2 shadow-[0_10px_30px_rgba(184,132,52,0.16)]">
                 <Image
-                  src="/asya-logo.png"
-                  alt="ASYA 标志"
+                  src={siteAssets.logo.src}
+                  alt={siteAssets.logo.alt}
                   fill
                   sizes="80px"
                   className="object-contain p-1"
@@ -294,25 +277,29 @@ export default function Page() {
                 />
               </div>
               <div>
-                <p className="text-xs font-bold tracking-[0.28em] text-primary/75 uppercase">ASYA SYSTEM</p>
-                <p className="mt-1 text-sm text-muted-foreground">Asymmetric SYnergy Automation System</p>
-                <p className="mt-1 text-sm text-muted-foreground">非对称联动推演自动化系统</p>
+                <p className="text-xs font-bold tracking-[0.28em] text-primary/75 uppercase">{siteBrand.systemLabel}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{siteBrand.fullNameEn}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{siteBrand.fullNameZh}</p>
               </div>
             </div>
             <h1 className="mt-4 bg-gradient-to-b from-primary via-[color:rgba(184,132,52,0.9)] to-[color:rgba(111,78,27,0.78)] bg-clip-text text-4xl font-black tracking-tight text-transparent drop-shadow-[0_18px_48px_rgba(155,109,35,0.14)] sm:text-5xl">
-              ASYA
+              {siteBrand.name}
             </h1>
             <h1 className="mt-4 bg-gradient-to-b from-primary via-[color:rgba(184,132,52,0.9)] to-[color:rgba(111,78,27,0.78)] bg-clip-text text-4xl font-black tracking-tight text-transparent drop-shadow-[0_18px_48px_rgba(155,109,35,0.14)] sm:text-4xl">
-              非对称联动推演自动化系统
+              {siteBrand.fullNameZh}
             </h1>
             <div className="mt-4 space-y-2">
               <p className="text-sm font-medium tracking-[0.12em] text-foreground/88 uppercase sm:text-base">
-                <span className="font-bold text-foreground">A</span>symmetric{' '}
-                <span className="font-bold text-foreground">SY</span>nergy{' '}
-                <span className="font-bold text-foreground">A</span>utomation System
+                {siteBrand.acronymSegments.map(({ emphasis, text }, index) => (
+                  <span key={`${emphasis}-${text}`}>
+                    {index > 0 ? ' ' : null}
+                    <span className="font-bold text-foreground">{emphasis}</span>
+                    {text}
+                  </span>
+                ))}
               </p>
               <p className="max-w-2xl text-sm leading-7 text-muted-foreground">
-                模拟联合国联动体系的一站式解决方案，连接会议节奏、学团代表交互、信息流转。
+                {siteBrand.summary}
               </p>
             </div>
           </div>
@@ -343,7 +330,7 @@ export default function Page() {
           </div> */}
 
           <div className="mt-6 divide-y divide-border/70">
-            {systemNotes.map(({ title, description, icon: Icon }) => (
+            {authSystemNotes.map(({ title, description, icon: Icon }) => (
               <div key={title} className="flex gap-3 py-4 first:pt-0 last:pb-0">
                 <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary shadow-[0_0_24px_rgba(184,132,52,0.12)]">
                   <Icon className="size-4" />

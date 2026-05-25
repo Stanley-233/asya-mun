@@ -28,6 +28,7 @@ import {
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import { useState } from "react"
+import { siteAssets, siteBrand } from "@/assets"
 import { Button } from "@/components/ui/button"
 import {
   Sheet,
@@ -80,8 +81,8 @@ function BrandLogo({ size = "size-12" }: { size?: string }) {
   return (
     <div className={cn("relative shrink-0", size)}>
       <Image
-        src="/asya-logo.png"
-        alt="ASYA 标志"
+        src={siteAssets.logo.src}
+        alt={siteAssets.logo.alt}
         fill
         sizes="56px"
         className="object-contain"
@@ -351,8 +352,8 @@ export function Navbar() {
               <SheetTitle className="flex items-center gap-3">
                 <BrandLogo />
                 <span className="flex flex-col">
-                  <span className="text-xs font-bold uppercase tracking-[0.32em] text-muted-foreground">ASYA SYSTEM</span>
-                  <span className="mt-1 text-2xl font-black tracking-tight text-sidebar-foreground">ASYA 联动系统</span>
+                  <span className="text-xs font-bold uppercase tracking-[0.32em] text-muted-foreground">{siteBrand.systemLabel}</span>
+                  <span className="mt-1 text-2xl font-black tracking-tight text-sidebar-foreground">{siteBrand.appLabel}</span>
                 </span>
               </SheetTitle>
             </SheetHeader>
@@ -373,8 +374,8 @@ export function Navbar() {
         <Link href="/progress" className="flex items-center gap-2.5">
           <BrandLogo size="size-11" />
           <span className="flex flex-col">
-            <span className="text-[0.65rem] font-bold uppercase tracking-[0.26em] text-muted-foreground">ASYA</span>
-            <span className="text-base font-black leading-5 text-sidebar-foreground">ASYA 系统</span>
+            <span className="text-[0.65rem] font-bold uppercase tracking-[0.26em] text-muted-foreground">{siteBrand.name}</span>
+            <span className="text-base font-black leading-5 text-sidebar-foreground">{siteBrand.appLabel}</span>
           </span>
         </Link>
         <div className="size-8" aria-hidden="true" />
@@ -390,8 +391,8 @@ export function Navbar() {
           <Link href="/progress" className={cn("flex min-w-0 items-center gap-3", collapsed && "sr-only")}>
             <BrandLogo />
             <div className="min-w-0">
-              <p className="text-xs font-bold uppercase tracking-[0.32em] text-muted-foreground">ASYA SYSTEM</p>
-              <p className="mt-1 text-2xl font-black tracking-tight text-sidebar-foreground">ASYA 系统</p>
+              <p className="text-xs font-bold uppercase tracking-[0.32em] text-muted-foreground">{siteBrand.systemLabel}</p>
+              <p className="mt-1 text-2xl font-black tracking-tight text-sidebar-foreground">{siteBrand.appLabel}</p>
             </div>
           </Link>
           {collapsed && (

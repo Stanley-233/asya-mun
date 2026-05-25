@@ -4,19 +4,13 @@ import { QueryProvider } from "@/lib/api/query-provider";
 import { AuthProvider } from "@/lib/contexts/auth-context";
 import { LayoutContent } from "@/components/layout-content";
 import { ToastProvider } from "@/components/ui/toast-provider";
+import { siteBrand, siteMetadataIcons } from "@/assets";
 import 'react-toastify/dist/ReactToastify.css';
 
 export const metadata: Metadata = {
-  title: "ASYA - 模联联动系统",
-  description: "模拟联合国非对称联动自动化系统",
-  icons: {
-    icon: [
-      { url: "/icon.png", type: "image/png" },
-      { url: "/asya-logo.png", type: "image/png" },
-    ],
-    shortcut: "/icon.png",
-    apple: "/asya-logo.png",
-  },
+  title: siteBrand.fullNameWithDash,
+  description: siteBrand.fullNameZh,
+  icons: siteMetadataIcons,
 };
 
 export default function RootLayout({
