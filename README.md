@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="./docs/images/asya-logo.png" alt="ASYA Logo" width="220" />
+</p>
+
 # ASYA: 非对称联动自动化系统
 
 **非对称联动自动化系统**（**ASYA System**，Asymmetric SYnergy Automation System）是一款模拟联合国联动体系一站式解决方案。
@@ -51,4 +55,3 @@ ASYA_IMAGE=stanleyzh/asya-mun:v0.9.2 sudo docker compose up -d
 ## 官方服务免责声明与使用条款
 
 访问或使用由开发者提供的 [ASYA 官方在线服务](https://mun.bearingwall.top) 前，你应当知悉并遵守 [ASYA 官方在线服务免责声明与使用条款](./docs/official-eula.md) 所载的所有条款。
-

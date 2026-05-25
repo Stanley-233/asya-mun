@@ -9,6 +9,14 @@ import 'react-toastify/dist/ReactToastify.css';
 export const metadata: Metadata = {
   title: "ASYA - 模联联动系统",
   description: "模拟联合国非对称联动自动化系统",
+  icons: {
+    icon: [
+      { url: "/icon.png", type: "image/png" },
+      { url: "/asya-logo.png", type: "image/png" },
+    ],
+    shortcut: "/icon.png",
+    apple: "/asya-logo.png",
+  },
 };
 
 export default function RootLayout({

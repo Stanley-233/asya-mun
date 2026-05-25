@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
@@ -73,6 +74,21 @@ function getRoleLabel(role?: string | null, isAuthenticated?: boolean) {
 
 function getDisplayName(user?: { displayName?: string | null; name?: string | null } | null) {
   return user?.displayName?.trim() || user?.name || "访客"
+}
+
+function BrandLogo({ size = "size-12" }: { size?: string }) {
+  return (
+    <div className={cn("relative shrink-0", size)}>
+      <Image
+        src="/asya-logo.png"
+        alt="ASYA 标志"
+        fill
+        sizes="56px"
+        className="object-contain"
+        priority
+      />
+    </div>
+  )
 }
 
 function UserPanel({
@@ -332,9 +348,12 @@ export function Navbar() {
           </SheetTrigger>
           <SheetContent side="left" className="flex w-[300px] flex-col border-sidebar-border bg-sidebar p-0 sm:w-[340px]">
             <SheetHeader className="border-b border-sidebar-border px-5 py-5 text-left">
-              <SheetTitle className="flex flex-col">
-                <span className="text-xs font-bold uppercase tracking-[0.32em] text-muted-foreground">ASYA SYSTEM</span>
-                <span className="mt-1 text-2xl font-black tracking-tight text-sidebar-foreground">ASYA 联动系统</span>
+              <SheetTitle className="flex items-center gap-3">
+                <BrandLogo />
+                <span className="flex flex-col">
+                  <span className="text-xs font-bold uppercase tracking-[0.32em] text-muted-foreground">ASYA SYSTEM</span>
+                  <span className="mt-1 text-2xl font-black tracking-tight text-sidebar-foreground">ASYA 联动系统</span>
+                </span>
               </SheetTitle>
             </SheetHeader>
             <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-4">
@@ -351,9 +370,12 @@ export function Navbar() {
             </div>
           </SheetContent>
         </Sheet>
-        <Link href="/progress" className="flex flex-col items-center">
-          <span className="text-[0.65rem] font-bold uppercase tracking-[0.26em] text-muted-foreground">ASYA</span>
-          <span className="text-base font-black leading-5 text-sidebar-foreground">ASYA 系统</span>
+        <Link href="/progress" className="flex items-center gap-2.5">
+          <BrandLogo size="size-11" />
+          <span className="flex flex-col">
+            <span className="text-[0.65rem] font-bold uppercase tracking-[0.26em] text-muted-foreground">ASYA</span>
+            <span className="text-base font-black leading-5 text-sidebar-foreground">ASYA 系统</span>
+          </span>
         </Link>
         <div className="size-8" aria-hidden="true" />
       </header>
@@ -365,9 +387,12 @@ export function Navbar() {
         )}
       >
         <div className={cn("flex h-22 items-start justify-between border-b border-sidebar-border px-5 py-5 transition-all duration-300 ease-out", collapsed && "items-center justify-center px-3")}>
-          <Link href="/progress" className={cn("min-w-0", collapsed && "sr-only")}>
-            <p className="text-xs font-bold uppercase tracking-[0.32em] text-muted-foreground">ASYA SYSTEM</p>
-            <p className="mt-1 text-2xl font-black tracking-tight text-sidebar-foreground">ASYA 系统</p>
+          <Link href="/progress" className={cn("flex min-w-0 items-center gap-3", collapsed && "sr-only")}>
+            <BrandLogo />
+            <div className="min-w-0">
+              <p className="text-xs font-bold uppercase tracking-[0.32em] text-muted-foreground">ASYA SYSTEM</p>
+              <p className="mt-1 text-2xl font-black tracking-tight text-sidebar-foreground">ASYA 系统</p>
+            </div>
           </Link>
           {collapsed && (
             <button

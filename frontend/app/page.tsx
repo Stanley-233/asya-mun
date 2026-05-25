@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useEffect, useState } from 'react'
 import { AlertCircle, ArrowRight, BookOpenCheck, LoaderCircle, Network, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -281,7 +282,23 @@ export default function Page() {
       <div className="relative mx-auto grid min-h-[calc(100vh-4rem)] max-w-6xl items-center gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.78fr)]">
         <section className="asya-panel relative rounded-xl border border-primary/20 bg-card/68 p-6 shadow-[0_18px_56px_rgba(142,99,30,0.11)] backdrop-blur-xl sm:p-7 lg:p-8">
           <div className="lg:pr-[19rem]">
-            <p className="text-xs font-bold tracking-[0.28em] text-primary/75 uppercase">ASYA SYSTEM</p>
+            <div className="mb-5 flex items-center gap-4">
+              <div className="relative flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-primary/20 bg-white/90 p-2 shadow-[0_10px_30px_rgba(184,132,52,0.16)]">
+                <Image
+                  src="/asya-logo.png"
+                  alt="ASYA 标志"
+                  fill
+                  sizes="80px"
+                  className="object-contain p-1"
+                  priority
+                />
+              </div>
+              <div>
+                <p className="text-xs font-bold tracking-[0.28em] text-primary/75 uppercase">ASYA SYSTEM</p>
+                <p className="mt-1 text-sm text-muted-foreground">Asymmetric SYnergy Automation System</p>
+                <p className="mt-1 text-sm text-muted-foreground">非对称联动推演自动化系统</p>
+              </div>
+            </div>
             <h1 className="mt-4 bg-gradient-to-b from-primary via-[color:rgba(184,132,52,0.9)] to-[color:rgba(111,78,27,0.78)] bg-clip-text text-4xl font-black tracking-tight text-transparent drop-shadow-[0_18px_48px_rgba(155,109,35,0.14)] sm:text-5xl">
               ASYA
             </h1>

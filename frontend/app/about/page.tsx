@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useEffect, useState } from 'react'
 import Markdown, { type Components } from 'react-markdown'
 import pkg from '../../package.json'
@@ -74,14 +75,28 @@ export default function AboutPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="space-y-6">
-        <div>
-          <h1 className="mb-2 text-3xl font-bold">关于</h1>
-          <p className="mb-6 text-muted-foreground">项目信息与版本变更记录</p>
+        <div className="flex flex-col gap-4 rounded-2xl border border-primary/15 bg-card/70 p-5 shadow-[0_12px_32px_rgba(184,132,52,0.08)] sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-4">
+            <div className="relative flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-primary/20 bg-white p-2 shadow-[0_10px_24px_rgba(184,132,52,0.12)]">
+              <Image
+                src="/asya-logo.png"
+                alt="ASYA 标志"
+                fill
+                sizes="80px"
+                className="object-contain p-1"
+                priority
+              />
+            </div>
+            <div>
+              <h1 className="mb-2 text-3xl font-bold">ASYA：非对称联动推演自动化系统</h1>
+              <p className="text-muted-foreground">项目信息与版本变更记录</p>
+            </div>
+          </div>
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle>ASYA - 非对称联动推演自动化系统</CardTitle>
+            <CardTitle>项目信息</CardTitle>
             <CardDescription>
               Asymmetric SYnergy Automation System
             </CardDescription>
