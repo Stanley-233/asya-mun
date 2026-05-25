@@ -1,6 +1,7 @@
 package top.bearingwall.asya.service
 
 import org.springframework.data.domain.Page
+import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.domain.Specification
 import org.springframework.stereotype.Service
@@ -59,12 +60,18 @@ class InstructionService(
     fun getMyInstructions(
         submitterUuid: UUID,
         pageable: Pageable,
-        status: InstructionStatus? = null
+        status: InstructionStatus? = null,
+        keyword: String? = null
     ): Page<InstructionResponse> {
         getUser(submitterUuid)
         var spec = bySubmitter(submitterUuid)
         status?.let { spec = spec.and(hasStatus(it)) }
-        return instructionRepository.findAll(spec, pageable).map { it.toResponse() }
+        val normalizedKeyword = keyword?.trim()?.takeIf { it.isNotEmpty() }
+        return if (normalizedKeyword == null) {
+            instructionRepository.findAll(spec, pageable).map { it.toResponse() }
+        } else {
+            filterInstructionPageByKeyword(spec, pageable, normalizedKeyword)
+        }
     }
 
     @Transactional(readOnly = true)
@@ -89,7 +96,8 @@ class InstructionService(
         status: InstructionStatus?,
         instructionType: InstructionType?,
         userGroupId: Long?,
-        submitterUuids: List<UUID>?
+        submitterUuids: List<UUID>?,
+        keyword: String?
     ): Page<InstructionResponse> {
         val requester = getUser(requesterUuid)
         requireManagementRole(requester)
@@ -101,8 +109,13 @@ class InstructionService(
         instructionType?.let { spec = spec.and(hasInstructionType(it)) }
         userGroupId?.let { spec = spec.and(inUserGroup(it)) }
         normalizedSubmitterUuids?.let { spec = spec.and(submitterIn(it)) }
+        val normalizedKeyword = keyword?.trim()?.takeIf { it.isNotEmpty() }
 
-        return instructionRepository.findAll(spec, pageable).map { it.toResponse() }
+        return if (normalizedKeyword == null) {
+            instructionRepository.findAll(spec, pageable).map { it.toResponse() }
+        } else {
+            filterInstructionPageByKeyword(spec, pageable, normalizedKeyword)
+        }
     }
 
     @Transactional
@@ -187,6 +200,27 @@ class InstructionService(
             )
             cb.exists(subquery)
         }
+    }
+
+    private fun filterInstructionPageByKeyword(
+        spec: Specification<Instruction>,
+        pageable: Pageable,
+        keyword: String
+    ): Page<InstructionResponse> {
+        val filtered = instructionRepository.findAll(spec, pageable.sort)
+            .filter { it.matchesKeyword(keyword) }
+        return toPage(filtered.map { it.toResponse() }, pageable)
+    }
+
+    private fun Instruction.matchesKeyword(keyword: String): Boolean {
+        val normalizedKeyword = keyword.lowercase()
+        return title.lowercase().contains(normalizedKeyword) || content.lowercase().contains(normalizedKeyword)
+    }
+
+    private fun <T : Any> toPage(items: List<T>, pageable: Pageable): Page<T> {
+        val offset = pageable.offset.toInt().coerceAtMost(items.size)
+        val endIndex = (offset + pageable.pageSize).coerceAtMost(items.size)
+        return PageImpl(items.subList(offset, endIndex).toList(), pageable, items.size.toLong())
     }
 
     private fun ensureSameConference(user: User, instruction: Instruction) {

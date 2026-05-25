@@ -157,7 +157,7 @@ export default function DirectiveAsymsgPage() {
     // 将表单值复制到查询参数
     setSenderId(formSenderId)
     setReceiverId(formReceiverId)
-    setKeyword(formKeyword)
+    setKeyword(formKeyword.trim())
     setCurrentPage(0)
   }
   
@@ -296,11 +296,11 @@ export default function DirectiveAsymsgPage() {
                 
                 {/* 关键词筛选 */}
                 <div>
-                  <Label htmlFor="keyword">标题关键词</Label>
+                  <Label htmlFor="keyword">标题 / 内容关键词</Label>
                   <Input
                     id="keyword"
                     type="text"
-                    placeholder="搜索标题..."
+                    placeholder="搜索标题或内容..."
                     value={formKeyword}
                     onChange={(e) => setFormKeyword(e.target.value)}
                     onKeyDown={(e) => {

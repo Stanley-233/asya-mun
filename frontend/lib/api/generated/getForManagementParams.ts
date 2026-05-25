@@ -14,6 +14,7 @@ export type GetForManagementParams = {
   instructionType?: GetForManagementInstructionType;
   userGroupId?: number;
   submitterUuids?: string[];
+  keyword?: string;
   current?: number;
   pageNum?: number;
   pageable: Pageable;

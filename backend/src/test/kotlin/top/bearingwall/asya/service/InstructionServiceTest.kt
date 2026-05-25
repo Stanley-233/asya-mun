@@ -46,7 +46,7 @@ class InstructionServiceTest : PostgresIntegrationTest() {
                 submitter = groupedDelegate,
                 title = "Matched",
                 instructionType = InstructionType.DIPLOMACY,
-                content = "Keep this one",
+                content = "Keep KEYWORD this one",
                 submitRealTime = LocalDateTime.of(2026, 5, 10, 10, 0),
                 submitGameTime = LocalDateTime.of(1939, 9, 1, 8, 0),
                 status = InstructionStatus.SUBMITTED
@@ -78,7 +78,7 @@ class InstructionServiceTest : PostgresIntegrationTest() {
         )
 
         val response = get(
-            "/api/instructions/manage?status=SUBMITTED&instructionType=DIPLOMACY&userGroupId=${group.id}&submitterUuids=${groupedDelegate.uuid}&current=1",
+            "/api/instructions/manage?status=SUBMITTED&instructionType=DIPLOMACY&userGroupId=${group.id}&submitterUuids=${groupedDelegate.uuid}&keyword=keyword&current=1",
             bearerHeadersFor(manager)
         )
 
@@ -92,7 +92,37 @@ class InstructionServiceTest : PostgresIntegrationTest() {
     }
 
     @Test
-    fun `my instruction query keeps enum status filtering against real postgres`() {
+    fun `management query ignores blank keyword against real postgres`() {
+        val conference = saveConference(name = "Asia MUN")
+        val manager = saveUser("dm", UserRole.DM, conference)
+        val delegate = saveUser("delegate-blank", UserRole.DELEGATE, conference)
+
+        instructionRepository.save(
+            Instruction(
+                conference = conference,
+                submitter = delegate,
+                title = "Blank Keyword",
+                instructionType = InstructionType.INTERNAL,
+                content = "still returned",
+                submitRealTime = LocalDateTime.of(2026, 5, 10, 10, 0),
+                submitGameTime = LocalDateTime.of(1939, 9, 1, 8, 0),
+                status = InstructionStatus.SUBMITTED
+            )
+        )
+
+        val response = get(
+            "/api/instructions/manage?keyword=%20%20%20&current=1",
+            bearerHeadersFor(manager)
+        )
+
+        assertEquals(HttpStatus.OK.value(), response.statusCode())
+        val body = readJson(response.body())
+        assertEquals(200, body["code"].asInt())
+        assertEquals(1, body["data"]["content"].size())
+    }
+
+    @Test
+    fun `my instruction query keeps enum status filtering and keyword search against real postgres`() {
         val conference = saveConference(name = "Asia MUN")
         val delegate = saveUser("delegate-c", UserRole.DELEGATE, conference)
 
@@ -100,7 +130,7 @@ class InstructionServiceTest : PostgresIntegrationTest() {
             Instruction(
                 conference = conference,
                 submitter = delegate,
-                title = "Reviewed",
+                title = "Reviewed Keyword",
                 instructionType = InstructionType.MILITARY,
                 content = "keep",
                 submitRealTime = LocalDateTime.of(2026, 5, 10, 9, 30),
@@ -122,7 +152,7 @@ class InstructionServiceTest : PostgresIntegrationTest() {
         )
 
         val response = get(
-            "/api/instructions/my?status=FEEDBACKED&current=1",
+            "/api/instructions/my?status=FEEDBACKED&keyword=reviewed&current=1",
             bearerHeadersFor(delegate)
         )
 
@@ -131,7 +161,7 @@ class InstructionServiceTest : PostgresIntegrationTest() {
         assertEquals(200, body["code"].asInt())
         val content = body["data"]["content"]
         assertEquals(1, content.size())
-        assertEquals("Reviewed", content[0]["title"].asText())
+        assertEquals("Reviewed Keyword", content[0]["title"].asText())
         assertEquals(InstructionStatus.FEEDBACKED.name, content[0]["status"].asText())
     }
 

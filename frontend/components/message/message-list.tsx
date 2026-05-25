@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -14,7 +15,7 @@ import { useAuth } from '@/lib/contexts/auth-context'
 import { useGetAll } from '@/lib/api/hooks/message'
 import type { MessageResponse } from '@/lib/api/generated'
 import { MessageCard } from './message-card'
-import { Plus, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, ChevronLeft, ChevronRight, X } from 'lucide-react'
 
 const PAGE_SIZE_OPTIONS = ['5', '10', '15', '20']
 
@@ -34,9 +35,17 @@ export function MessageList({
   const { canManageConference } = useAuth()
   const [currentPage, setCurrentPage] = useState(0)
   const [pageSize, setPageSize] = useState(10)
+  const [keyword, setKeyword] = useState('')
+  const [formKeyword, setFormKeyword] = useState('')
+
+  const handleSearch = () => {
+    setKeyword(formKeyword.trim())
+    setCurrentPage(0)
+  }
 
   const { data, isLoading, error } = useGetAll(
     {
+      keyword: keyword.trim() || undefined,
       pageable: {
         page: currentPage,
         size: pageSize,
@@ -71,6 +80,38 @@ export function MessageList({
             创建消息
           </Button>
         )}
+      </div>
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+        <div className="flex-1 space-y-2">
+          <Label htmlFor="message-keyword">标题 / 内容关键词</Label>
+          <Input
+            id="message-keyword"
+            value={formKeyword}
+            onChange={(event) => setFormKeyword(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                handleSearch()
+              }
+            }}
+            placeholder="输入关键词搜索标题或内容"
+          />
+        </div>
+        <Button onClick={handleSearch}>
+          查询
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => {
+            setKeyword('')
+            setFormKeyword('')
+            setCurrentPage(0)
+          }}
+          disabled={!keyword && !formKeyword}
+        >
+          <X />
+          清空
+        </Button>
       </div>
 
       {/* Loading State */}

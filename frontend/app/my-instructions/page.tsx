@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useAuth } from '@/lib/contexts/auth-context'
@@ -37,11 +38,14 @@ export default function MyInstructionsPage() {
   const [instructionCurrentPage, setInstructionCurrentPage] = useState(0)
   const [instructionPageSize, setInstructionPageSize] = useState(10)
   const [instructionStatusFilter, setInstructionStatusFilter] = useState<GetMyInstructionsStatus | undefined>(undefined)
+  const [instructionKeyword, setInstructionKeyword] = useState('')
+  const [instructionFormKeyword, setInstructionFormKeyword] = useState('')
 
   const { data: myInstructionsData, isLoading: myInstructionsLoading, error: myInstructionsError, refetch: refetchMyInstructions } =
     useGetMyInstructions(
       {
         status: instructionStatusFilter,
+        keyword: instructionKeyword.trim() || undefined,
         pageable: {
           page: instructionCurrentPage,
           size: instructionPageSize,
@@ -84,6 +88,11 @@ export default function MyInstructionsPage() {
   const handleInstructionClick = (instruction: InstructionResponse) => {
     setSelectedInstructionUuid(instruction.uuid)
     setInstructionDetailOpen(true)
+  }
+
+  const handleInstructionSearch = () => {
+    setInstructionKeyword(instructionFormKeyword.trim())
+    setInstructionCurrentPage(0)
   }
 
   if (isLoading) {
@@ -132,10 +141,28 @@ export default function MyInstructionsPage() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-2 sm:min-w-72">
+                <Label>标题 / 内容关键词</Label>
+                <Input
+                  value={instructionFormKeyword}
+                  onChange={(event) => setInstructionFormKeyword(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      handleInstructionSearch()
+                    }
+                  }}
+                  placeholder="输入关键词搜索标题或内容"
+                />
+              </div>
+              <Button onClick={handleInstructionSearch}>
+                查询
+              </Button>
               <Button
                 variant="outline"
                 onClick={() => {
                   setInstructionStatusFilter(undefined)
+                  setInstructionKeyword('')
+                  setInstructionFormKeyword('')
                   setInstructionCurrentPage(0)
                 }}
               >

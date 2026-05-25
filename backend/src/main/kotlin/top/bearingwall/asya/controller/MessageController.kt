@@ -68,6 +68,7 @@ class MessageController(
     @GetMapping
     fun getAll(
         @RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String,
+        @RequestParam(required = false) keyword: String?,
         @PageableDefault(sort = ["publishRealTime"], direction = Sort.Direction.DESC) pageable: Pageable
     ): ResponseEntity<Result<Page<MessageResponse>>> {
         return try {
@@ -75,14 +76,14 @@ class MessageController(
             val conference = user.conference ?: // Return empty page if user not associated with any conference
             // Alternatively could throw error. Returning empty page is safer for generic UIs.
             return ResponseEntity.ok(Result.success(Page.empty()))
-            val page = messageService.getMessagesForConference(conference.uuid!!, pageable)
+            val page = messageService.getMessagesForConference(conference.uuid!!, pageable, keyword)
             ResponseEntity.ok(Result.success(page))
         } catch (e: Exception) {
             handleException(e)
         }
     }
 
-    @Operation(summary = "查询用户关联会议的所有非对称消息", description = "DH、DM、SYS_ADMIN 可查询自己关联的conference下的所有非对称消息（is_secret为true）。可按senderId, receiverId, 标题keyword筛选")
+    @Operation(summary = "查询用户关联会议的所有非对称消息", description = "DH、DM、SYS_ADMIN 可查询自己关联的conference下的所有非对称消息（is_secret为true）。可按senderId, receiverId, 标题或内容 keyword 筛选")
     @GetMapping("/secret/conference")
     fun getAllSecretInConference(
         @RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String,
@@ -118,11 +119,12 @@ class MessageController(
     @GetMapping("/secret")
     fun getSecretMessages(
         @RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String,
+        @RequestParam(required = false) keyword: String?,
         @PageableDefault(sort = ["publishRealTime"], direction = Sort.Direction.DESC) pageable: Pageable
     ): ResponseEntity<Result<Page<MessageResponse>>> {
          return try {
             val user = userService.getUserFromToken(extractBearer(authorization))
-            val page = messageService.getSecretMessagesForUser(user.uuid!!, pageable)
+            val page = messageService.getSecretMessagesForUser(user.uuid!!, pageable, keyword)
             ResponseEntity.ok(Result.success(page))
         } catch (e: Exception) {
            handleException(e)

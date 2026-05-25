@@ -8,5 +8,6 @@
 import type { Pageable } from "./pageable";
 
 export type GetSecretMessagesParams = {
+  keyword?: string;
   pageable: Pageable;
 };

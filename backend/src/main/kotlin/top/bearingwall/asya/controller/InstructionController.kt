@@ -56,6 +56,7 @@ class InstructionController(
     fun getMyInstructions(
         @RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String,
         @RequestParam(required = false) status: InstructionStatus?,
+        @RequestParam(required = false) keyword: String?,
         @RequestParam(required = false) current: Int?,
         @RequestParam(required = false) pageNum: Int?,
         @PageableDefault(sort = ["submitRealTime", "uuid"], direction = Sort.Direction.DESC) pageable: Pageable
@@ -63,7 +64,7 @@ class InstructionController(
         return try {
             val user = userService.getUserFromToken(extractBearer(authorization))
             val effectivePageable = resolvePageable(pageable, current, pageNum)
-            ResponseEntity.ok(Result.success(instructionService.getMyInstructions(user.uuid!!, effectivePageable, status)))
+            ResponseEntity.ok(Result.success(instructionService.getMyInstructions(user.uuid!!, effectivePageable, status, keyword)))
         } catch (e: Exception) {
             handleException(e)
         }
@@ -91,6 +92,7 @@ class InstructionController(
         @RequestParam(required = false) instructionType: InstructionType?,
         @RequestParam(required = false) userGroupId: Long?,
         @RequestParam(required = false) submitterUuids: List<UUID>?,
+        @RequestParam(required = false) keyword: String?,
         @RequestParam(required = false) current: Int?,
         @RequestParam(required = false) pageNum: Int?,
         @PageableDefault(sort = ["submitRealTime", "uuid"], direction = Sort.Direction.DESC) pageable: Pageable
@@ -106,7 +108,8 @@ class InstructionController(
                         status = status,
                         instructionType = instructionType,
                         userGroupId = userGroupId,
-                        submitterUuids = submitterUuids
+                        submitterUuids = submitterUuids,
+                        keyword = keyword
                     )
                 )
             )

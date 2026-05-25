@@ -10,6 +10,7 @@ import type { Pageable } from "./pageable";
 
 export type GetMyInstructionsParams = {
   status?: GetMyInstructionsStatus;
+  keyword?: string;
   current?: number;
   pageNum?: number;
   pageable: Pageable;

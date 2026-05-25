@@ -8,5 +8,6 @@
 import type { Pageable } from "./pageable";
 
 export type GetAllParams = {
+  keyword?: string;
   pageable: Pageable;
 };

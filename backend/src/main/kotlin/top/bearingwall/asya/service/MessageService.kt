@@ -1,6 +1,7 @@
 package top.bearingwall.asya.service
 
 import org.springframework.data.domain.Page
+import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.domain.Specification
 import org.springframework.stereotype.Service
@@ -130,9 +131,15 @@ class MessageService(
     }
 
     @Transactional(readOnly = true)
-    fun getMessagesForConference(conferenceId: UUID, pageable: Pageable): Page<MessageResponse> {
-        return messageRepository.findPublicMessagesByConference(conferenceId, pageable).map {
-            it.toResponse(omitContent = true)
+    fun getMessagesForConference(conferenceId: UUID, pageable: Pageable, keyword: String? = null): Page<MessageResponse> {
+        var spec = byConference(conferenceId).and(isPublic())
+        val normalizedKeyword = keyword?.trim()?.takeIf { it.isNotEmpty() }
+        return if (normalizedKeyword == null) {
+            messageRepository.findAll(spec, pageable).map {
+                it.toResponse(omitContent = true)
+            }
+        } else {
+            filterMessagePageByKeyword(spec, pageable, normalizedKeyword)
         }
     }
 
@@ -147,17 +154,27 @@ class MessageService(
         var spec = byConference(conferenceUuid).and(isSecret())
         senderId?.let { spec = spec.and(hasSender(it)) }
         receiverId?.let { spec = spec.and(hasReceiver(it)) }
-        keyword?.trim()?.takeIf { it.isNotEmpty() }?.let { spec = spec.and(titleContains(it)) }
+        val normalizedKeyword = keyword?.trim()?.takeIf { it.isNotEmpty() }
 
-        return messageRepository.findAll(spec, pageable).map {
-            it.toResponse(omitContent = true)
+        return if (normalizedKeyword == null) {
+            messageRepository.findAll(spec, pageable).map {
+                it.toResponse(omitContent = true)
+            }
+        } else {
+            filterMessagePageByKeyword(spec, pageable, normalizedKeyword)
         }
     }
 
     @Transactional(readOnly = true)
-    fun getSecretMessagesForUser(userUuid: UUID, pageable: Pageable): Page<MessageResponse> {
-        return messageRepository.findSecretMessagesForUser(userUuid, LocalDateTime.now(), pageable).map {
-            it.toResponse(omitContent = true)
+    fun getSecretMessagesForUser(userUuid: UUID, pageable: Pageable, keyword: String? = null): Page<MessageResponse> {
+        var spec = isSecret().and(hasReadableReceiver(userUuid, LocalDateTime.now()))
+        val normalizedKeyword = keyword?.trim()?.takeIf { it.isNotEmpty() }
+        return if (normalizedKeyword == null) {
+            messageRepository.findAll(spec, pageable).map {
+                it.toResponse(omitContent = true)
+            }
+        } else {
+            filterMessagePageByKeyword(spec, pageable, normalizedKeyword)
         }
     }
 
@@ -232,6 +249,12 @@ class MessageService(
         }
     }
 
+    private fun isPublic(): Specification<Message> {
+        return Specification { root, _, cb ->
+            cb.isFalse(root.get("isSecret"))
+        }
+    }
+
     private fun hasSender(senderUuid: UUID): Specification<Message> {
         return Specification { root, _, cb ->
             cb.equal(root.get<top.bearingwall.asya.model.User>("sender").get<UUID>("uuid"), senderUuid)
@@ -246,10 +269,37 @@ class MessageService(
         }
     }
 
-    private fun titleContains(keyword: String): Specification<Message> {
-        return Specification { root, _, cb ->
-            cb.like(cb.lower(root.get("title")), "%${keyword.lowercase()}%")
+    private fun hasReadableReceiver(receiverUuid: UUID, readableAt: LocalDateTime): Specification<Message> {
+        return Specification { root, query, cb ->
+            query.distinct(true)
+            val receiverJoin = root.join<Message, top.bearingwall.asya.model.MessageReceiver>("receiverMappings")
+            cb.and(
+                cb.equal(receiverJoin.get<top.bearingwall.asya.model.User>("receiver").get<UUID>("uuid"), receiverUuid),
+                cb.lessThanOrEqualTo(receiverJoin.get("readableAt"), readableAt)
+            )
         }
+    }
+
+    private fun filterMessagePageByKeyword(
+        spec: Specification<Message>,
+        pageable: Pageable,
+        keyword: String
+    ): Page<MessageResponse> {
+        val filtered = messageRepository.findAll(spec, pageable.sort)
+            .filter { it.matchesKeyword(keyword) }
+        return toPage(filtered.map { it.toResponse(omitContent = true) }, pageable)
+    }
+
+    private fun Message.matchesKeyword(keyword: String): Boolean {
+        val normalizedKeyword = keyword.lowercase()
+        return (title?.lowercase()?.contains(normalizedKeyword) == true)
+            || (content?.lowercase()?.contains(normalizedKeyword) == true)
+    }
+
+    private fun <T : Any> toPage(items: List<T>, pageable: Pageable): Page<T> {
+        val offset = pageable.offset.toInt().coerceAtMost(items.size)
+        val endIndex = (offset + pageable.pageSize).coerceAtMost(items.size)
+        return PageImpl(items.subList(offset, endIndex).toList(), pageable, items.size.toLong())
     }
 
     private fun applyAttachments(message: Message, attachmentUuids: List<String>?) {

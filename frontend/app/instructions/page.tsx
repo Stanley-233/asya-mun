@@ -64,6 +64,8 @@ export default function InstructionsPage() {
   const [typeFilter, setTypeFilter] = useState<GetForManagementInstructionType | undefined>(undefined)
   const [userGroupIdFilter, setUserGroupIdFilter] = useState<number | undefined>(undefined)
   const [submitterUuidsFilter, setSubmitterUuidsFilter] = useState<string[]>([])
+  const [keyword, setKeyword] = useState('')
+  const [formKeyword, setFormKeyword] = useState('')
   const [delegateKeyword, setDelegateKeyword] = useState('')
   const [currentPage, setCurrentPage] = useState(0)
   const [pageSize, setPageSize] = useState(10)
@@ -76,6 +78,7 @@ export default function InstructionsPage() {
       instructionType: typeFilter,
       userGroupId: userGroupIdFilter,
       submitterUuids: submitterUuidsFilter.length > 0 ? submitterUuidsFilter : undefined,
+      keyword: keyword.trim() || undefined,
       pageable: {
         page: currentPage,
         size: pageSize,
@@ -159,6 +162,11 @@ export default function InstructionsPage() {
   const handleInstructionClick = (instruction: InstructionResponse) => {
     setSelectedInstructionUuid(instruction.uuid)
     setDetailOpen(true)
+  }
+
+  const handleKeywordSearch = () => {
+    setKeyword(formKeyword.trim())
+    setCurrentPage(0)
   }
 
   const handleToggleSubmissionSwitch = async () => {
@@ -270,6 +278,20 @@ export default function InstructionsPage() {
               </div>
 
               <div className="space-y-2">
+                <Label>标题 / 内容关键词</Label>
+                <Input
+                  value={formKeyword}
+                  onChange={event => setFormKeyword(event.target.value)}
+                  onKeyDown={event => {
+                    if (event.key === 'Enter') {
+                      handleKeywordSearch()
+                    }
+                  }}
+                  placeholder="输入关键词搜索标题或内容"
+                />
+              </div>
+
+              <div className="space-y-2">
                 <Label>用户组</Label>
                 <Select
                   value={userGroupIdFilter !== undefined ? String(userGroupIdFilter) : ALL_FILTER}
@@ -326,15 +348,20 @@ export default function InstructionsPage() {
                 </div>
               </div>
 
-              <div className="flex items-end">
+              <div className="flex items-end gap-2">
+                <Button className="flex-1" onClick={handleKeywordSearch}>
+                  查询
+                </Button>
                 <Button
                   variant="outline"
-                  className="w-full"
+                  className="flex-1"
                   onClick={() => {
                     setStatusFilter(undefined)
                     setTypeFilter(undefined)
                     setUserGroupIdFilter(undefined)
                     setSubmitterUuidsFilter([])
+                    setKeyword('')
+                    setFormKeyword('')
                     setDelegateKeyword('')
                     setCurrentPage(0)
                   }}
