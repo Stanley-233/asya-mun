@@ -45,6 +45,7 @@ export default function MedievalStrategyPage() {
               <div>
                 <CardTitle>中世纪战略推演</CardTitle>
                 <CardDescription>DLC 扩展内容 - 快捷战斗计算器与战术推演工具</CardDescription>
+                <CardDescription>原用于 RUCMUNC 21st 历史联动委员会 · 1269 亚欧局势联动</CardDescription>
               </div>
             </div>
           </CardHeader>

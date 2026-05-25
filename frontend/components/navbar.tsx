@@ -5,6 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
   Activity,
+  Calculator,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -197,7 +198,10 @@ function buildNavGroups({
   const dlcItems: NavItem[] = isLoading
     ? []
     : isAuthenticated
-      ? [{ href: "/dlc/medieval-strategy", label: "中世纪战略", icon: Swords }]
+      ? [
+          { href: "/dlc/medieval-strategy", label: "中世纪战略", icon: Swords },
+          { href: "/dlc/rppi-calculator", label: "投射能力计算", icon: Calculator },
+        ]
       : []
 
   const systemItems: NavItem[] = isLoading

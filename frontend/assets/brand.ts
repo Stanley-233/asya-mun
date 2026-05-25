@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 export const siteBrand = {
   name: "ASYA",
   systemLabel: "ASYA SYSTEM",
-  appLabel: "ASYA 联动系统",
+  appLabel: "ASYA 系统",
   fullNameZh: "非对称联动推演自动化系统",
   fullNameWithDash: "ASYA - 非对称联动推演自动化系统",
   fullNameWithColon: "ASYA：非对称联动推演自动化系统",
