@@ -20,6 +20,10 @@ RUN --mount=type=cache,target=/root/.gradle,sharing=locked \
 FROM node:24-bookworm-slim AS frontend-builder
 WORKDIR /workspace/frontend
 
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN corepack enable && corepack prepare pnpm@10.23.0 --activate
 RUN pnpm config set store-dir /pnpm/store
 
@@ -45,6 +49,10 @@ RUN pnpm build
 
 FROM node:24-bookworm-slim AS runtime
 WORKDIR /app
+
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && rm -rf /var/lib/apt/lists/*
 
 ENV JAVA_HOME=/opt/java/openjdk
 ENV PATH="${JAVA_HOME}/bin:${PATH}"

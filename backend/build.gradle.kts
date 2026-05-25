@@ -15,6 +15,7 @@ plugins {
 
 group = "top.bearingwall"
 version = appVersion
+extra["tomcat.version"] = "11.0.22"
 
 java {
     toolchain {

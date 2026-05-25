@@ -7,7 +7,7 @@ import type {
   DelegateAttrRecordResponseValues,
   DelegateAttrTypedValueResponse,
   DelegateAttrValueInput,
-  Pagenull,
+  PageObject,
 } from "@/lib/api/generated";
 
 export interface DelegateAttrColumnViewModel {
@@ -80,7 +80,7 @@ export function parseDelegateAttrRecordPage(
 }
 
 export function normalizeDelegateAttrPage(
-  pageLike: Pagenull | Record<string, unknown> | null | undefined,
+  pageLike: PageObject | Record<string, unknown> | null | undefined,
 ): NormalizedPage<DelegateAttrRecordRowViewModel> {
   const source = (pageLike ?? {}) as Record<string, unknown>;
 
