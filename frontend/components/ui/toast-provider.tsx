@@ -11,9 +11,13 @@ export function ToastProvider() {
       newestOnTop
       closeOnClick
       pauseOnFocusLoss
-      draggable
+      draggable={false}
       pauseOnHover
-      theme="colored"
+      closeButton={false}
+      icon={false}
+      className="asya-toast-container"
+      toastClassName="asya-toast"
+      progressClassName="asya-toast-progress"
     />
   )
 }

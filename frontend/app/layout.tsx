@@ -4,6 +4,7 @@ import { QueryProvider } from "@/lib/api/query-provider";
 import { AuthProvider } from "@/lib/contexts/auth-context";
 import { LayoutContent } from "@/components/layout-content";
 import { ToastProvider } from "@/components/ui/toast-provider";
+import { DelegateNotificationController } from "@/components/notifications/delegate-notification-controller";
 import { siteBrand, siteMetadataIcons } from "@/assets";
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -24,6 +25,7 @@ export default function RootLayout({
         <QueryProvider>
           <AuthProvider>
             <LayoutContent>{children}</LayoutContent>
+            <DelegateNotificationController />
             <ToastProvider />
           </AuthProvider>
         </QueryProvider>

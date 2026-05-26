@@ -22,4 +22,29 @@ interface MessageRepository : JpaRepository<Message, UUID>, JpaSpecificationExec
         AND mr.readableAt <= :now
     """)
     fun findSecretMessagesForUser(userUuid: UUID, now: LocalDateTime, pageable: Pageable): Page<Message>
+
+    @Query(
+        """
+        select m
+        from Message m
+        left join fetch m.sender s
+        where m.conference.uuid = :conferenceUuid
+          and m.isSecret = false
+        order by m.publishRealTime asc
+        """
+    )
+    fun findAllPublicMessages(conferenceUuid: UUID): List<Message>
+
+    @Query(
+        """
+        select m
+        from Message m
+        left join fetch m.sender s
+        where m.conference.uuid = :conferenceUuid
+          and m.isSecret = false
+          and m.publishRealTime > :after
+        order by m.publishRealTime asc
+        """
+    )
+    fun findAllPublicMessagesPublishedAfter(conferenceUuid: UUID, after: LocalDateTime): List<Message>
 }

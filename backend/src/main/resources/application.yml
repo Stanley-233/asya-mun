@@ -21,7 +21,7 @@ spring:
 
 logging:
   level:
-    root: WARN
+    root: INFO
 
 springdoc:
   api-docs:

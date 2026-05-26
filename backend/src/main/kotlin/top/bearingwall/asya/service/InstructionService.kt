@@ -26,7 +26,8 @@ class InstructionService(
     private val instructionRepository: InstructionRepository,
     private val userRepository: UserRepository,
     private val timeService: TimeService,
-    private val conferenceService: ConferenceService
+    private val conferenceService: ConferenceService,
+    private val notificationService: NotificationService,
 ) {
 
     @Transactional
@@ -137,7 +138,11 @@ class InstructionService(
         instruction.reviewedRealTime = reviewRealTime
         instruction.reviewedGameTime = reviewGameTime
 
-        return instructionRepository.save(instruction).toResponse()
+        val persisted = instructionRepository.save(instruction)
+        if (persisted.status == InstructionStatus.FEEDBACKED) {
+            notificationService.notifyInstructionFeedback(persisted)
+        }
+        return persisted.toResponse()
     }
 
     private fun getUser(uuid: UUID): User {

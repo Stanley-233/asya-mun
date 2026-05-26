@@ -23,7 +23,8 @@ import java.util.UUID
 class MessageService(
     private val messageRepository: MessageRepository,
     private val userRepository: UserRepository,
-    private val attachmentRepository: AttachmentRepository
+    private val attachmentRepository: AttachmentRepository,
+    private val notificationService: NotificationService,
 ) {
 
     @Transactional
@@ -77,7 +78,9 @@ class MessageService(
 
         val saved = messageRepository.save(message)
         applyAttachments(saved, request.attachmentUuids)
-        return messageRepository.save(saved).toResponse()
+        val persisted = messageRepository.save(saved)
+        publishNotificationForCreate(persisted)
+        return persisted.toResponse()
     }
 
     @Transactional
@@ -86,6 +89,7 @@ class MessageService(
         val message = messageRepository.findById(uuid).orElseThrow {
             IllegalArgumentException("Message not found: $uuid")
         }
+        val wasSecret = message.isSecret
 
         request.title?.let { message.title = it }
         request.content?.let { message.content = it }
@@ -127,7 +131,9 @@ class MessageService(
         }
         applyAttachments(message, request.attachmentUuids)
 
-        return messageRepository.save(message).toResponse()
+        val persisted = messageRepository.save(message)
+        publishNotificationForUpdate(persisted, wasSecret)
+        return persisted.toResponse()
     }
 
     @Transactional(readOnly = true)
@@ -352,5 +358,31 @@ class MessageService(
             throw IllegalArgumentException("Message not found: $uuid")
         }
         messageRepository.deleteById(uuid)
+    }
+
+    private fun publishNotificationForCreate(message: Message) {
+        if (message.isSecret) {
+            notifyReadableSecretReceivers(message)
+            return
+        }
+        notificationService.notifyPublicMessage(message)
+    }
+
+    private fun publishNotificationForUpdate(message: Message, wasSecret: Boolean) {
+        if (!message.isSecret && wasSecret) {
+            notificationService.notifyPublicMessage(message)
+            return
+        }
+
+        if (message.isSecret) {
+            notifyReadableSecretReceivers(message)
+        }
+    }
+
+    private fun notifyReadableSecretReceivers(message: Message) {
+        val now = LocalDateTime.now()
+        message.receiverMappings
+            .filter { !it.readableAt.isAfter(now) }
+            .forEach(notificationService::notifySecretMessage)
     }
 }

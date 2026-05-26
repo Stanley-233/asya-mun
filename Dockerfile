@@ -79,5 +79,6 @@ COPY scripts/start-container.sh /app/start-container.sh
 RUN chmod +x /app/start-container.sh
 
 EXPOSE 3000
+EXPOSE 8080
 
 CMD ["sh", "/app/start-container.sh"]
