@@ -80,7 +80,7 @@ export function InstructionReviewDialog({
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="max-w-lg">
+      <AlertDialogContent className="!max-w-2xl max-h-[calc(100vh-2rem)] overflow-y-auto">
         <AlertDialogHeader className="items-start text-left">
           <AlertDialogTitle>批改指令</AlertDialogTitle>
           <AlertDialogDescription>
@@ -113,6 +113,7 @@ export function InstructionReviewDialog({
               onChange={event => setReviewComment(event.target.value)}
               placeholder="请输入评语"
               rows={6}
+              className="[field-sizing:fixed] break-all"
             />
           </div>
         </div>
