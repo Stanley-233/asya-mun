@@ -29,6 +29,12 @@ data class UserResponse(
     val token: String
 )
 
+@Schema(description = "刷新 access token 的响应")
+data class TokenRefreshResponse(
+    @Schema(description = "新的 access token", example = "eyJhbGciOiJIUzI1NiJ9...")
+    val token: String
+)
+
 @Schema(description = "批量注册用户请求")
 data class BatchRegisterUserItem(
     @Schema(description = "用户昵称", example = "Asya")

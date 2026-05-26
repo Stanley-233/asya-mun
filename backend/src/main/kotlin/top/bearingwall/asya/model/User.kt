@@ -26,6 +26,9 @@ class User(
     @Column(nullable = false, columnDefinition = "userrole")
     var role: UserRole,
 
+    @Column(name = "auth_version", nullable = false)
+    var authVersion: Int = 0,
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "conference_id")
     var conference: Conference? = null,

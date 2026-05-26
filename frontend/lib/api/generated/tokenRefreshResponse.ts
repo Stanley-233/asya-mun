@@ -6,8 +6,10 @@
  * OpenAPI spec version: @appVersion@
  */
 
-export interface SortObject {
-  empty?: boolean;
-  sorted?: boolean;
-  unsorted?: boolean;
+/**
+ * 刷新 access token 的响应
+ */
+export interface TokenRefreshResponse {
+  /** 新的 access token */
+  token: string;
 }

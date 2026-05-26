@@ -1,6 +1,7 @@
 package top.bearingwall.asya.service
 
 import jakarta.persistence.criteria.JoinType
+import io.jsonwebtoken.JwtException
 import org.slf4j.LoggerFactory
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
@@ -15,12 +16,14 @@ import top.bearingwall.asya.dto.UserInfoResponse
 import top.bearingwall.asya.dto.UserUpdateRequest
 import top.bearingwall.asya.dto.BatchRegisterRequest
 import top.bearingwall.asya.dto.BatchRegisterResponse
+import top.bearingwall.asya.dto.TokenRefreshResponse
 import top.bearingwall.asya.model.User
 import top.bearingwall.asya.model.UserRole
 import top.bearingwall.asya.model.AuditActionType
 import top.bearingwall.asya.repository.UserRepository
 import top.bearingwall.asya.repository.ConferenceRepository
 import top.bearingwall.asya.util.JwtUtil
+import top.bearingwall.asya.util.TokenType
 import java.util.UUID
 
 @Service
@@ -41,7 +44,7 @@ class UserService(
 
     @Transactional
     @Auditable(type = AuditActionType.USER_REGISTER, content = "用户注册")
-    fun registerUser(request: UserRegistrationRequest): UserResponse {
+    fun registerUser(request: UserRegistrationRequest): AuthenticatedUserResponse {
         log.info("Registering user, name={}, role={}", request.name, request.role)
 
         if (!isRegistrationAvailable()) {
@@ -70,23 +73,11 @@ class UserService(
 
         log.info("User registered successfully, uuid={}, name={}", savedUser.uuid, savedUser.name)
 
-        val userId = savedUser.uuid ?: throw IllegalStateException("User id missing after save")
-        val token = JwtUtil.generateToken(
-            subject = userId.toString(),
-            claims = mapOf("name" to savedUser.name, "role" to savedUser.role.name)
-        )
-
-        return UserResponse(
-            uuid = userId.toString(),
-            name = savedUser.name,
-            displayName = savedUser.displayName,
-            role = savedUser.role,
-            token = token
-        )
+        return issueAuthenticatedUserResponse(savedUser)
     }
 
     @Auditable(type = AuditActionType.USER_LOGIN, content = "用户登录")
-    fun loginUser(request: UserRegistrationRequest): UserResponse {
+    fun loginUser(request: UserRegistrationRequest): AuthenticatedUserResponse {
         log.info("Logging in user, name={}", request.name)
 
         val user = userRepository.findByName(request.name)
@@ -96,20 +87,18 @@ class UserService(
             throw IllegalArgumentException("用户密码不正确")
         }
 
-        val userId = user.uuid ?: throw IllegalStateException("User id missing")
-        val token = JwtUtil.generateToken(
-            subject = userId.toString(),
-            claims = mapOf("name" to user.name, "role" to user.role.name)
-        )
-
         log.info("User logged in successfully, uuid={}, name={}", user.uuid, user.name)
 
-        return UserResponse(
-            uuid = userId.toString(),
-            name = user.name,
-            displayName = user.displayName,
-            role = user.role,
-            token = token
+        return issueAuthenticatedUserResponse(user)
+    }
+
+    @Transactional(readOnly = true)
+    fun refreshAccessToken(refreshToken: String): TokenRefreshResult {
+        val user = getUserFromToken(refreshToken, TokenType.REFRESH)
+        val tokens = issueTokens(user)
+        return TokenRefreshResult(
+            response = TokenRefreshResponse(token = tokens.accessToken),
+            refreshToken = tokens.refreshToken
         )
     }
 
@@ -169,22 +158,14 @@ class UserService(
     // 通过 token 获取当前登录用户信息
     @Transactional(readOnly = true)
     fun getCurrentUserInfo(token: String): UserInfoResponse {
-        val parsed = JwtUtil.parseToken(token)
-        val userId = UUID.fromString(parsed.subject)
-        val user = userRepository.findById(userId).orElseThrow {
-            IllegalStateException("User not found by token subject")
-        }
+        val user = getUserFromToken(token)
         return toUserInfoResponse(user)
     }
 
     @Transactional
     @Auditable(type = AuditActionType.USER_UPDATE, content = "更新用户信息")
     fun updateUser(targetUuid: UUID, token: String, request: UserUpdateRequest): UserInfoResponse {
-        val parsed = JwtUtil.parseToken(token)
-        val requesterId = UUID.fromString(parsed.subject)
-        val requester = userRepository.findById(requesterId).orElseThrow {
-            IllegalStateException("Requester not found")
-        }
+        val requester = getUserFromToken(token)
         val target = userRepository.findById(targetUuid).orElseThrow {
             IllegalStateException("Target user not found")
         }
@@ -208,6 +189,7 @@ class UserService(
                 "BCryptPasswordEncoder returned null hash"
             }
             target.password = hashed
+            target.authVersion += 1
         }
         request.role?.let { newRole ->
             // 非管理员不能改角色除非是改自己的且不是提升特权，这里简单限制：只有管理员能改角色
@@ -220,12 +202,18 @@ class UserService(
     }
 
     @Transactional(readOnly = true)
-    fun getUserFromToken(token: String): User {
+    fun getUserFromToken(token: String, expectedType: TokenType = TokenType.ACCESS): User {
         val parsed = JwtUtil.parseToken(token)
+        JwtUtil.requireTokenType(parsed, expectedType)
+        val tokenVersion = JwtUtil.getAuthVersion(parsed)
         val userId = UUID.fromString(parsed.subject)
-        return userRepository.findById(userId).orElseThrow {
+        val user = userRepository.findById(userId).orElseThrow {
             IllegalStateException("User not found by token subject")
         }
+        if (user.authVersion != tokenVersion) {
+            throw JwtException("Token已失效，请重新登录")
+        }
+        return user
     }
 
     @Transactional
@@ -238,6 +226,7 @@ class UserService(
             "BCryptPasswordEncoder returned null hash"
         }
         user.password = hashed
+        user.authVersion += 1
         userRepository.save(user)
     }
 
@@ -288,4 +277,50 @@ class UserService(
             conferenceName = user.conference?.name
         )
     }
+
+    private fun issueAuthenticatedUserResponse(user: User): AuthenticatedUserResponse {
+        val tokens = issueTokens(user)
+        return AuthenticatedUserResponse(
+            response = UserResponse(
+                uuid = user.uuid?.toString() ?: throw IllegalStateException("User id missing"),
+                name = user.name,
+                displayName = user.displayName,
+                role = user.role,
+                token = tokens.accessToken
+            ),
+            refreshToken = tokens.refreshToken
+        )
+    }
+
+    private fun issueTokens(user: User): AuthTokenPair {
+        val userId = user.uuid?.toString() ?: throw IllegalStateException("User id missing")
+        val accessToken = JwtUtil.generateAccessToken(
+            subject = userId,
+            claims = mapOf("name" to user.name, "role" to user.role.name),
+            authVersion = user.authVersion
+        )
+        val refreshToken = JwtUtil.generateRefreshToken(
+            subject = userId,
+            authVersion = user.authVersion
+        )
+        return AuthTokenPair(
+            accessToken = accessToken,
+            refreshToken = refreshToken
+        )
+    }
 }
+
+data class AuthenticatedUserResponse(
+    val response: UserResponse,
+    val refreshToken: String
+)
+
+data class TokenRefreshResult(
+    val response: TokenRefreshResponse,
+    val refreshToken: String
+)
+
+private data class AuthTokenPair(
+    val accessToken: String,
+    val refreshToken: String
+)

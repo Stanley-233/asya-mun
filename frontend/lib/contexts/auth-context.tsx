@@ -1,7 +1,12 @@
 'use client'
 
 import React, { createContext, useContext, useMemo, useSyncExternalStore } from 'react'
-import { useGetCurrentUser } from '@/lib/api/hooks/user'
+import { clearClientAuth } from '@/lib/api/client'
+import { logoutSession, useGetCurrentUser } from '@/lib/api/hooks/user'
+import {
+  hasStoredAccessToken,
+  TOKEN_STORAGE_EVENT,
+} from '@/lib/auth/token-storage'
 import type { UserInfoResponse } from '@/lib/api/generated'
 
 export interface AuthContextType {
@@ -15,8 +20,6 @@ export interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-const TOKEN_STORAGE_EVENT = 'auth-token-change'
-
 function subscribeToTokenChange(onStoreChange: () => void) {
   window.addEventListener('storage', onStoreChange)
   window.addEventListener(TOKEN_STORAGE_EVENT, onStoreChange)
@@ -28,7 +31,7 @@ function subscribeToTokenChange(onStoreChange: () => void) {
 }
 
 function getTokenSnapshot() {
-  return !!localStorage.getItem('token')
+  return hasStoredAccessToken()
 }
 
 function getServerTokenSnapshot() {
@@ -74,11 +77,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [currentUserData, error, hasToken])
 
   const logout = () => {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('token')
-      window.dispatchEvent(new Event(TOKEN_STORAGE_EVENT))
-      window.location.href = '/'
-    }
+    void logoutSession().catch(() => undefined).finally(() => {
+      clearClientAuth({ redirect: true })
+    })
   }
 
   const value: AuthContextType = {

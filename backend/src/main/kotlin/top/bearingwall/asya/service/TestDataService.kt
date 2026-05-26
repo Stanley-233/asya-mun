@@ -129,9 +129,10 @@ class TestDataService(
                 displayName = user.displayName,
                 role = user.role,
                 password = defaultPassword,
-                token = JwtUtil.generateToken(
+                token = JwtUtil.generateAccessToken(
                     subject = user.uuid?.toString() ?: error("User id missing"),
-                    claims = mapOf("name" to user.name, "role" to user.role.name)
+                    claims = mapOf("name" to user.name, "role" to user.role.name),
+                    authVersion = user.authVersion
                 )
             )
         }

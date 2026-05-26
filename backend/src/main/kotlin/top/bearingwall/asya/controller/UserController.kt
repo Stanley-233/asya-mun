@@ -3,6 +3,7 @@ package top.bearingwall.asya.controller
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import io.jsonwebtoken.JwtException
+import jakarta.servlet.http.HttpServletRequest
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Pageable
@@ -10,7 +11,9 @@ import org.springframework.data.domain.Sort
 import org.springframework.data.web.PageableDefault
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
+import org.springframework.http.ResponseCookie
 import org.springframework.http.ResponseEntity
+import org.springframework.web.bind.annotation.CookieValue
 import org.springframework.web.bind.annotation.*
 import top.bearingwall.asya.dto.BizCode
 import top.bearingwall.asya.dto.Result
@@ -20,10 +23,12 @@ import top.bearingwall.asya.dto.UserInfoResponse
 import top.bearingwall.asya.dto.UserUpdateRequest
 import top.bearingwall.asya.dto.BatchRegisterRequest
 import top.bearingwall.asya.dto.BatchRegisterResponse
+import top.bearingwall.asya.dto.TokenRefreshResponse
 import top.bearingwall.asya.model.UserRole
 import top.bearingwall.asya.service.SystemConfigService
 import top.bearingwall.asya.service.UserService
 import java.util.UUID
+import java.time.Duration
 
 @RestController
 @RequestMapping("/api/users")
@@ -32,19 +37,26 @@ class UserController(
     private val userService: UserService,
     private val systemConfigService: SystemConfigService
 ) {
+    companion object {
+        private const val REFRESH_COOKIE_NAME = "asya_refresh_token"
+        private val REFRESH_COOKIE_MAX_AGE: Duration = Duration.ofDays(30)
+    }
+
     @Operation(
         summary = "用户注册",
         description = "创建新用户。密码会使用 BCrypt 进行加密后存储。"
     )
     @PostMapping("/register")
     fun register(
+        requestContext: HttpServletRequest,
         @RequestBody request: UserRegistrationRequest
     ): ResponseEntity<Result<UserResponse>> {
         return try {
             val response = userService.registerUser(request)
             ResponseEntity.status(HttpStatus.CREATED)
-                .header(HttpHeaders.AUTHORIZATION, "Bearer ${'$'}{response.token}")
-                .body(Result.success(response))
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${response.response.token}")
+                .header(HttpHeaders.SET_COOKIE, buildRefreshCookie(response.refreshToken, requestContext).toString())
+                .body(Result.success(response.response))
         } catch (e: IllegalArgumentException) {
             ResponseEntity.status(HttpStatus.OK)
                 .body(Result.failure(BizCode.USER_EXISTS, e.message ?: BizCode.USER_EXISTS.message))
@@ -62,13 +74,15 @@ class UserController(
     )
     @PostMapping("/login")
     fun login(
+        requestContext: HttpServletRequest,
         @RequestBody request: UserRegistrationRequest
     ): ResponseEntity<Result<UserResponse>> {
         return try {
             val response = userService.loginUser(request)
             ResponseEntity.status(HttpStatus.OK)
-                .header(HttpHeaders.AUTHORIZATION, "Bearer ${'$'}{response.token}")
-                .body(Result.success(response))
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${response.response.token}")
+                .header(HttpHeaders.SET_COOKIE, buildRefreshCookie(response.refreshToken, requestContext).toString())
+                .body(Result.success(response.response))
         } catch (_: IllegalStateException) {
             ResponseEntity.status(HttpStatus.OK)
                 .body(Result.failure(BizCode.USER_NOT_FOUND, "系统中还没有该用户，请先完成注册"))
@@ -80,6 +94,40 @@ class UserController(
         }
     }
 
+    @Operation(summary = "刷新 access token", description = "使用 HttpOnly refresh token cookie 换取新的 access token，并轮换 refresh token")
+    @PostMapping("/refresh")
+    fun refresh(
+        requestContext: HttpServletRequest,
+        @CookieValue(name = REFRESH_COOKIE_NAME, required = false) refreshToken: String?
+    ): ResponseEntity<Result<TokenRefreshResponse>> {
+        return try {
+            if (refreshToken.isNullOrBlank()) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Result.failure(BizCode.TOKEN_INVALID, "Refresh token 不存在"))
+            }
+
+            val response = userService.refreshAccessToken(refreshToken)
+            ResponseEntity.ok()
+                .header(HttpHeaders.AUTHORIZATION, "Bearer ${response.response.token}")
+                .header(HttpHeaders.SET_COOKIE, buildRefreshCookie(response.refreshToken, requestContext).toString())
+                .body(Result.success(response.response))
+        } catch (e: Exception) {
+            ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .header(HttpHeaders.SET_COOKIE, clearRefreshCookie(requestContext).toString())
+                .body(Result.failure(BizCode.TOKEN_INVALID, e.message ?: "Refresh token 无效"))
+        }
+    }
+
+    @Operation(summary = "退出登录", description = "清除 refresh token cookie")
+    @PostMapping("/logout")
+    fun logout(
+        requestContext: HttpServletRequest
+    ): ResponseEntity<Result<Unit>> {
+        return ResponseEntity.ok()
+            .header(HttpHeaders.SET_COOKIE, clearRefreshCookie(requestContext).toString())
+            .body(Result.success(Unit))
+    }
+
     @Operation(summary = "批量注册用户", description = "仅 SYS_ADMIN 可访问，批量注册代表并关联到会议")
     @PostMapping("/batch")
     fun batchRegister(
@@ -87,9 +135,8 @@ class UserController(
         @RequestBody request: BatchRegisterRequest
     ): ResponseEntity<Result<BatchRegisterResponse>> {
         return try {
-            val token = extractBearer(authorization)
-            val parsed = top.bearingwall.asya.util.JwtUtil.parseToken(token)
-            val requesterUuid = UUID.fromString(parsed.subject)
+            val requester = userService.getUserFromToken(extractBearer(authorization))
+            val requesterUuid = requester.uuid ?: throw IllegalStateException("Requester id missing")
             val response = userService.batchRegister(requesterUuid, request)
             ResponseEntity.ok(Result.success(response))
         } catch (e: SecurityException) {
@@ -184,10 +231,8 @@ class UserController(
         @RequestBody body: Map<String, String>
     ): ResponseEntity<Result<Unit>> {
         return try {
-            val token = extractBearer(authorization)
-            val parsed = top.bearingwall.asya.util.JwtUtil.parseToken(token)
-            val role = parsed.claims["role"]?.toString()
-            if (role != UserRole.SYS_ADMIN.name) {
+            val requester = userService.getUserFromToken(extractBearer(authorization))
+            if (requester.role != UserRole.SYS_ADMIN) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Result.failure(BizCode.PERMISSION_DENIED, "需要管理员权限"))
             }
@@ -212,11 +257,8 @@ class UserController(
         @RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String
     ): ResponseEntity<Result<Unit>> {
         return try {
-            val token = extractBearer(authorization)
-            // 简单校验角色：从 token 中解析角色
-            val parsed = top.bearingwall.asya.util.JwtUtil.parseToken(token)
-            val role = parsed.claims["role"]?.toString()
-            if (role != UserRole.SYS_ADMIN.name) {
+            val requester = userService.getUserFromToken(extractBearer(authorization))
+            if (requester.role != UserRole.SYS_ADMIN) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Result.failure(BizCode.PERMISSION_DENIED, "需要管理员权限"))
             }
@@ -235,11 +277,8 @@ class UserController(
         @RequestParam allowed: Boolean
     ): ResponseEntity<Result<Boolean>> {
         return try {
-            val token = extractBearer(authorization)
-            // 简单校验角色：从 token 中解析角色
-            val parsed = top.bearingwall.asya.util.JwtUtil.parseToken(token)
-            val role = parsed.claims["role"]?.toString()
-            if (role != UserRole.SYS_ADMIN.name) {
+            val requester = userService.getUserFromToken(extractBearer(authorization))
+            if (requester.role != UserRole.SYS_ADMIN) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Result.failure(BizCode.PERMISSION_DENIED, "需要管理员权限"))
             }
@@ -274,6 +313,30 @@ class UserController(
         val oneBasedPage = current ?: pageNum ?: return pageable
         val zeroBasedPage = (oneBasedPage - 1).coerceAtLeast(0)
         return PageRequest.of(zeroBasedPage, pageable.pageSize, pageable.sort)
+    }
+
+    private fun buildRefreshCookie(refreshToken: String, request: HttpServletRequest): ResponseCookie {
+        return ResponseCookie.from(REFRESH_COOKIE_NAME, refreshToken)
+            .httpOnly(true)
+            .secure(isSecureRequest(request))
+            .sameSite("Lax")
+            .path("/api/users")
+            .maxAge(REFRESH_COOKIE_MAX_AGE)
+            .build()
+    }
+
+    private fun clearRefreshCookie(request: HttpServletRequest): ResponseCookie {
+        return ResponseCookie.from(REFRESH_COOKIE_NAME, "")
+            .httpOnly(true)
+            .secure(isSecureRequest(request))
+            .sameSite("Lax")
+            .path("/api/users")
+            .maxAge(Duration.ZERO)
+            .build()
+    }
+
+    private fun isSecureRequest(request: HttpServletRequest): Boolean {
+        return request.isSecure || request.getHeader("X-Forwarded-Proto")?.equals("https", ignoreCase = true) == true
     }
 
     private fun <T> handleException(e: Exception): ResponseEntity<Result<T>> {

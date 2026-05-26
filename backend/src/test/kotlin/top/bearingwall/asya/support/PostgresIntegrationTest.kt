@@ -109,12 +109,26 @@ abstract class PostgresIntegrationTest {
     protected fun bearerHeadersFor(user: User): HttpHeaders {
         val headers = HttpHeaders()
         headers.setBearerAuth(
-            JwtUtil.generateToken(
+            JwtUtil.generateAccessToken(
                 subject = user.uuid.toString(),
-                claims = mapOf("name" to user.name, "role" to user.role.name)
+                claims = mapOf("name" to user.name, "role" to user.role.name),
+                authVersion = user.authVersion
             )
         )
         return headers
+    }
+
+    protected fun cookieHeaders(cookie: String): HttpHeaders {
+        val headers = HttpHeaders()
+        headers.add(HttpHeaders.COOKIE, cookie)
+        return headers
+    }
+
+    protected fun extractCookie(response: HttpResponse<String>, cookieName: String): String {
+        val setCookie = response.headers().allValues("set-cookie")
+            .firstOrNull { it.startsWith("$cookieName=") }
+            ?: throw IllegalStateException("Cookie $cookieName not found in response")
+        return setCookie.substringBefore(';')
     }
 
     protected fun putConfig(key: String, value: String, description: String? = null) {

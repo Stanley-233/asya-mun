@@ -11,6 +11,7 @@ import { authSystemNotes, siteAssets, siteBrand } from '@/assets'
 // import { ApiExample } from '@/lib/api/example-usage'
 import { useAuth } from '@/lib/contexts/auth-context'
 import { getSafeReturnTo, RETURN_TO_STORAGE_KEY } from '@/lib/auth/return-to'
+import { setStoredAccessToken } from '@/lib/auth/token-storage'
 import { login, register, useGetRegistrationSwitch } from '@/lib/api/hooks/user'
 import { UserRegistrationRequestRole } from '@/lib/api/generated'
 import { toast } from 'react-toastify'
@@ -184,7 +185,7 @@ export default function Page() {
       const token = response?.token
 
       if (token) {
-        localStorage.setItem('token', token)
+        setStoredAccessToken(token)
         localStorage.setItem('user', JSON.stringify(response))
         handleAuthSuccess('登录成功，正在进入工作台...')
       } else {
@@ -217,23 +218,18 @@ export default function Page() {
 
     setLoading(true)
     try {
-      await register({
+      const registerResponse = await register({
         name: registerForm.name,
         displayName: registerForm.displayName?.trim() || undefined,
         password: registerForm.password,
         role: registerForm.role,
       })
 
-      const loginResponse = await login({
-        name: registerForm.name,
-        password: registerForm.password,
-        role: registerForm.role,
-      })
-      const token = loginResponse?.token
+      const token = registerResponse?.token
 
       if (token) {
-        localStorage.setItem('token', token)
-        localStorage.setItem('user', JSON.stringify(loginResponse))
+        setStoredAccessToken(token)
+        localStorage.setItem('user', JSON.stringify(registerResponse))
         setRegisterForm({ name: '', displayName: '', password: '', confirmPassword: '', role: 'DM' })
         handleAuthSuccess('注册成功，正在进入工作台...')
       } else {

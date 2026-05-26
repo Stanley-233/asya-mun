@@ -14,8 +14,8 @@ import top.bearingwall.asya.dto.UserGroupResponse
 import top.bearingwall.asya.model.UserGroup
 import top.bearingwall.asya.model.UserRole
 import top.bearingwall.asya.repository.UserGroupRepository
+import top.bearingwall.asya.service.UserService
 import top.bearingwall.asya.service.UserGroupService
-import top.bearingwall.asya.util.JwtUtil
 import java.util.UUID
 
 @RestController
@@ -23,7 +23,8 @@ import java.util.UUID
 @Tag(name = "用户组管理")
 class UserGroupController(
     private val userGroupRepository: UserGroupRepository,
-    private val userGroupService: UserGroupService
+    private val userGroupService: UserGroupService,
+    private val userService: UserService
 ) {
 
     private val allowedWriteRoles = setOf(UserRole.DH.name, UserRole.DM.name, UserRole.SYS_ADMIN.name)
@@ -33,8 +34,7 @@ class UserGroupController(
         val prefix = "Bearer "
         if (!authorization.startsWith(prefix)) throw IllegalArgumentException("Authorization header 格式错误")
         val token = authorization.removePrefix(prefix).trim()
-        val parsed = JwtUtil.parseToken(token)
-        return parsed.claims["role"]?.toString() ?: ""
+        return userService.getUserFromToken(token).role.name
     }
 
     /** 验证调用方具有写/删权限（DH / DM / SYS_ADMIN） */

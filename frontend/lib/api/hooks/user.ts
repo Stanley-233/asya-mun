@@ -7,7 +7,9 @@ import {
   getRegistrationSwitch,
   listAll1,
   register,
+  logoutSession,
   resetPassword,
+  refreshSession,
   setRegistrationSwitch,
   updateUser,
   type ListUsersParams,
@@ -108,5 +110,5 @@ export function useDeleteUser<TError = unknown, TContext = unknown>(
   })
 }
 
-export { login, register }
+export { login, logoutSession, refreshSession, register }
 export type { ListUsersParams }

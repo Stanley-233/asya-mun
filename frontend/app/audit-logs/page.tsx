@@ -84,10 +84,10 @@ const EMPTY_FILTERS: FilterFormValue = {
 
 function formatEventTime(iso: string) {
   try {
-    const d = new Date(iso)
-    if (Number.isNaN(d.getTime())) return iso
-    const pad = (n: number) => String(n).padStart(2, '0')
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+    const match = iso.match(/^(\d{4,})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/)
+    if (!match) return iso
+    const [, year, month, day, hour, minute, second = '00'] = match
+    return `${year}-${month}-${day} ${hour}:${minute}:${second}`
   } catch {
     return iso
   }
@@ -95,8 +95,10 @@ function formatEventTime(iso: string) {
 
 function toIsoOrUndefined(localDatetime: string): string | undefined {
   if (!localDatetime) return undefined
-  const d = new Date(localDatetime)
-  return Number.isNaN(d.getTime()) ? undefined : d.toISOString()
+  const match = localDatetime.match(/^(\d{4,})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/)
+  if (!match) return undefined
+  const [, year, month, day, hour, minute] = match
+  return `${year}-${month}-${day}T${hour}:${minute}:00`
 }
 
 export default function AuditLogsPage() {

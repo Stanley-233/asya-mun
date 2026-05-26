@@ -6,6 +6,7 @@ import type {
   Pageable,
   SetRegistrationSwitchParams,
   ResetPasswordBody,
+  TokenRefreshResponse,
   UserInfoResponse,
   UserInfoResponseRole,
   UserRegistrationRequest,
@@ -63,6 +64,20 @@ export async function login(data: UserRegistrationRequest) {
     path: '/api/users/login',
     method: 'POST',
     body: data,
+  })
+}
+
+export async function refreshSession() {
+  return apiRequester.requestPublic<TokenRefreshResponse>({
+    path: '/api/users/refresh',
+    method: 'POST',
+  })
+}
+
+export async function logoutSession() {
+  return apiRequester.requestProtected<void>({
+    path: '/api/users/logout',
+    method: 'POST',
   })
 }
 
