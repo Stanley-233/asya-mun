@@ -51,6 +51,7 @@ FROM node:24-bookworm-slim AS runtime
 WORKDIR /app
 
 RUN apt-get update \
+    && apt-get install -y --no-install-recommends nginx-light \
     && apt-get upgrade -y \
     && rm -rf /var/lib/apt/lists/*
 
@@ -61,6 +62,8 @@ ENV NEXT_PUBLIC_API_BASE_URL=
 ENV NEXT_PROXY_API_TO_BACKEND=true
 ENV PORT=3000
 ENV SERVER_PORT=8080
+ENV SERVER_ADDRESS=127.0.0.1
+ENV FRONTEND_INTERNAL_PORT=3001
 
 COPY --from=backend-builder /opt/java/openjdk /opt/java/openjdk
 COPY --from=backend-builder /workspace/backend/build/libs/*.jar /app/backend/
@@ -74,11 +77,11 @@ RUN set -eux; \
 COPY --from=frontend-builder /workspace/frontend/.next/standalone /app/frontend
 COPY --from=frontend-builder /workspace/frontend/.next/static /app/frontend/.next/static
 COPY --from=frontend-builder /workspace/frontend/public /app/frontend/public
+COPY nginx/default.conf /etc/nginx/conf.d/default.conf
 COPY scripts/start-container.sh /app/start-container.sh
 
 RUN chmod +x /app/start-container.sh
 
 EXPOSE 3000
-EXPOSE 8080
 
 CMD ["sh", "/app/start-container.sh"]

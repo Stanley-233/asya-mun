@@ -21,18 +21,69 @@
 sudo docker compose up -d
 ```
 
-默认项目会启动在 ``3000`` 端口，后端服务与 websocket 提醒会占用 ``8080`` 端口，请确保这两个端口未被占用，或修改 ``docker-compose.yml`` 配置
-
 其中：
+- 3000 用于浏览器统一访问；
+- /api 会在容器内转发到后端接口；
+- /ws 会在容器内转发到后端 WebSocket 服务；
+- 8080 仅用于容器内部后端服务，不再暴露到宿主机或公网。
 
-- ``3000`` 用于前端页面访问；
-- ``8080`` 用于容器内后端接口与代表端 websocket 提醒连接。
+Docker 部署默认采用单入口模式：
+- 浏览器统一访问 3000；
+- 前端页面、后端 API 与 WebSocket 都通过同一个入口访问；
+- 宿主机和公网只需要暴露 3000，不需要暴露 8080。
 
 如果你想指定某个版本，或者改用你自己的镜像地址，可以在执行前覆盖 `ASYA_IMAGE`，例如：
 
 ```bash
-ASYA_IMAGE=stanleyzh/asya-mun:v0.9.2 sudo docker compose up -d
+ASYA_IMAGE=stanleyzh/asya-mun:v0.13.0 sudo docker compose up -d
 ```
+
+## 反向代理配置说明
+
+如果你希望通过域名访问 ASYA，例如：
+
+https://mun.example.com
+
+可以在最外层使用 Nginx、Caddy、Traefik 等反向代理，将请求转发到宿主机的 3000 端口。
+
+需要注意的是，ASYA 使用 WebSocket 提供实时通知和代表端提醒能力。因此，**反向代理必须正确支持 WebSocket Upgrade**，否则可能出现页面可以正常打开，但**代表端提醒或后续电子投票等实时功能无法连接**的情况。
+
+以 Nginx 为例：
+
+```Nginx
+server {
+    server_name mun.example.com;
+
+    client_max_body_size 0;
+
+    location /ws {
+        proxy_pass http://127.0.0.1:3000;
+
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+如果你已经使用 Certbot 配置了 HTTPS，只需要在现有 server 块中补充 /ws 的反向代理配置即可。
 
 ## 许可证
 

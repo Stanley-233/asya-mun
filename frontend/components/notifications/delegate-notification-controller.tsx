@@ -29,11 +29,12 @@ function buildWebSocketUrl(baseUrl?: string) {
     }
 
     if (typeof window === 'undefined') {
-      return 'http://127.0.0.1:8080'
+      return 'http://127.0.0.1:3000'
     }
 
     const { hostname, origin, protocol } = window.location
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1'
+    if (process.env.NODE_ENV !== 'production' && isLocalHost) {
       return `${protocol}//${hostname}:8080`
     }
 

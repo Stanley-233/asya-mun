@@ -117,11 +117,11 @@ jobs:
               '- 源码压缩包可直接使用 GitHub 自带的 `Source code (zip)` 和 `Source code (tar.gz)` 下载。',
               '- 部署前先拉取最新已发布镜像：',
               '  ```bash',
-              '  sudo docker compose -f docker-compose.release.yml pull',
+              '  sudo docker compose -f docker-compose.yml pull',
               '  ```',
               '- 然后使用 DockerHub 上的镜像启动服务：',
               '  ```bash',
-              '  sudo docker compose -f docker-compose.release.yml up -d',
+              '  sudo docker compose -f docker-compose.yml up -d',
               '  ```',
             ].join('\n');
 

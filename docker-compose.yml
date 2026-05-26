@@ -13,10 +13,10 @@ services:
       NEXT_PUBLIC_API_BASE_URL: ""
       NEXT_PROXY_API_TO_BACKEND: "true"
       SERVER_PORT: "8080"
+      SERVER_ADDRESS: "127.0.0.1"
       PORT: "3000"
     ports:
       - "3000:3000"
-      - "8080:8080"
 
   db:
     image: postgres:16-alpine
