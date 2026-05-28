@@ -1,7 +1,9 @@
 package top.bearingwall.asya.service
 
+import jakarta.persistence.criteria.JoinType
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
+import org.springframework.data.jpa.domain.Specification
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import top.bearingwall.asya.audit.Auditable
@@ -63,6 +65,47 @@ class ConferenceService(
         val user = userRepository.findById(requester.uuid!!).orElseThrow { IllegalStateException("User not found") }
         val conf = user.conference ?: throw IllegalStateException("Requester not associated with any conference")
         return conf.users.map { u ->
+            UserInfoResponse(
+                uuid = u.uuid?.toString() ?: "",
+                name = u.name,
+                displayName = u.displayName,
+                role = u.role,
+                conferenceUuid = u.conference?.uuid?.toString(),
+                conferenceName = u.conference?.name
+            )
+        }
+    }
+
+    @Transactional(readOnly = true)
+    fun getConferenceDelegates(
+        requester: User,
+        pageable: Pageable,
+        name: String?,
+        displayName: String?
+    ): Page<UserInfoResponse> {
+        val user = userRepository.findById(requester.uuid!!).orElseThrow { IllegalStateException("User not found") }
+        val conf = user.conference ?: throw IllegalStateException("Requester not associated with any conference")
+        val conferenceUuid = conf.uuid!!
+
+        val specification = Specification<User> { root, _, cb ->
+            val predicates = mutableListOf<jakarta.persistence.criteria.Predicate>()
+
+            val conference = root.join<User, Any>("conference", JoinType.LEFT)
+            predicates += cb.equal(conference.get<UUID>("uuid"), conferenceUuid)
+            predicates += cb.equal(root.get<UserRole>("role"), UserRole.DELEGATE)
+
+            name?.trim()?.takeIf { it.isNotEmpty() }?.let { keyword ->
+                predicates += cb.like(cb.lower(root.get("name")), "%${keyword.lowercase()}%")
+            }
+
+            displayName?.trim()?.takeIf { it.isNotEmpty() }?.let { keyword ->
+                predicates += cb.like(cb.lower(root.get("displayName")), "%${keyword.lowercase()}%")
+            }
+
+            cb.and(*predicates.toTypedArray())
+        }
+
+        return userRepository.findAll(specification, pageable).map { u ->
             UserInfoResponse(
                 uuid = u.uuid?.toString() ?: "",
                 name = u.name,

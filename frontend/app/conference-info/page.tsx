@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
+import { toast } from 'react-toastify'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -24,7 +25,8 @@ import { buildLoginRedirect } from '@/lib/auth/return-to'
 import {
   useGetMine,
   useUpdate2,
-  useGetUsers
+  useGetUsers,
+  useGetDelegates
 } from "@/lib/api/hooks/conference"
 import {
   useGetAllUserGroups,
@@ -33,12 +35,15 @@ import {
   useDeleteUserGroup,
   useSetGroupMembers
 } from "@/lib/api/hooks/user-group"
+import { useBatchRegister, useResetPassword } from "@/lib/api/hooks/user"
 import type {
   ConferenceResponse,
   ConferenceRequestStatus,
   UserInfoResponse,
-  UserGroupResponse
+  UserGroupResponse,
+  BatchRegisterUserItem
 } from "@/lib/api/generated"
+import type { ListDelegatesParams } from "@/lib/api/apis/conference.api"
 import { parseApiPayload } from '@/lib/api/response-utils'
 
 const statusLabels = {
@@ -72,7 +77,7 @@ export default function ConferenceInfoPage() {
   const canManageConference = user?.role === 'DM' || user?.role === 'DH' || user?.role === 'SYS_ADMIN'
 
   const { data: conferenceData, isLoading: conferenceLoading } = useGetMine()
-  const { data: usersData, isLoading: usersLoading, error: usersError } = useGetUsers({
+  const { data: usersData } = useGetUsers({
     query: {
       enabled: isAuthenticated && canManageConference,
     }
@@ -86,6 +91,9 @@ export default function ConferenceInfoPage() {
   const { mutate: updateGroup, isPending: isUpdatingGroup } = useUpdateUserGroup()
   const { mutate: deleteGroup, isPending: isDeletingGroup } = useDeleteUserGroup()
   const { mutate: setMembers, isPending: isSettingMembers } = useSetGroupMembers()
+
+  const { mutate: batchRegister, isPending: isBatchRegistering } = useBatchRegister()
+  const { mutate: resetPassword, isPending: isResettingPassword } = useResetPassword()
 
   const [isEditing, setIsEditing] = useState(false)
   const [formData, setFormData] = useState({
@@ -115,6 +123,41 @@ export default function ConferenceInfoPage() {
     () => parseApiPayload<UserGroupResponse[]>(groupsData) ?? [],
     [groupsData],
   )
+
+  const canManageDelegates = user?.role === 'DH' || user?.role === 'SYS_ADMIN'
+
+  const [delegateNameFilter, setDelegateNameFilter] = useState('')
+  const [appliedDelegateNameFilter, setAppliedDelegateNameFilter] = useState('')
+  const [delegatePage, setDelegatePage] = useState(0)
+  const DELEGATE_PAGE_SIZE = 10
+
+  const delegateParams = useMemo<ListDelegatesParams>(() => ({
+    name: appliedDelegateNameFilter.trim() || undefined,
+    pageable: {
+      page: delegatePage,
+      size: DELEGATE_PAGE_SIZE,
+      sort: ['name,asc'],
+    },
+  }), [appliedDelegateNameFilter, delegatePage])
+
+  const { data: delegatesData, isLoading: delegatesLoading, refetch: refetchDelegates } = useGetDelegates(delegateParams, {
+    query: { enabled: isAuthenticated && canManageDelegates && !!conference }
+  })
+
+  const delegates = useMemo(() => delegatesData?.content ?? [], [delegatesData])
+  const totalDelegatePages = delegatesData?.totalPages ?? 0
+  const totalDelegateElements = delegatesData?.totalElements ?? 0
+
+  const [batchDialogOpen, setBatchDialogOpen] = useState(false)
+  const [batchUsers, setBatchUsers] = useState<BatchRegisterUserItem[]>([])
+  const [batchCsvError, setBatchCsvError] = useState<string | null>(null)
+
+  const [resetDialogOpen, setResetDialogOpen] = useState(false)
+  const [userToReset, setUserToReset] = useState<UserInfoResponse | null>(null)
+  const [resetForm, setResetForm] = useState({ password: '', confirmPassword: '' })
+
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false)
+  const [detailUser, setDetailUser] = useState<UserInfoResponse | null>(null)
 
   const filteredUsers = useMemo(() => {
     const keyword = memberKeyword.trim().toLowerCase()
@@ -200,6 +243,161 @@ export default function ConferenceInfoPage() {
     setSelectedUuids([])
   }
 
+  const parseCsvLine = (line: string) => {
+    const result: string[] = []
+    let current = ''
+    let inQuotes = false
+    for (let i = 0; i < line.length; i += 1) {
+      const char = line[i]
+      if (char === '"') {
+        if (inQuotes && line[i + 1] === '"') { current += '"'; i += 1 }
+        else { inQuotes = !inQuotes }
+        continue
+      }
+      if (char === ',' && !inQuotes) { result.push(current); current = ''; continue }
+      current += char
+    }
+    result.push(current)
+    return result.map(item => item.trim())
+  }
+
+  const parseCsvContent = (text: string): BatchRegisterUserItem[] => {
+    const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+    const lines = normalized.split('\n').map(line => line.trim()).filter(Boolean)
+    if (lines.length === 0) return []
+    const rows = lines.map(parseCsvLine)
+    const header = rows[0].map(item => item.toLowerCase())
+    const hasHeader = header.includes('name') && header.includes('password')
+    const dataRows = hasHeader ? rows.slice(1) : rows
+    const nameIndex = hasHeader ? header.indexOf('name') : 0
+    const displayNameIndex = hasHeader ? header.indexOf('displayname') : 1
+    const passwordIndex = hasHeader ? header.indexOf('password') : 2
+    return dataRows
+      .filter(row => row.some(cell => cell.trim().length > 0))
+      .map(row => ({
+        name: row[nameIndex]?.trim() || '',
+        displayName: row[displayNameIndex]?.trim() || '',
+        password: row[passwordIndex]?.trim() || '',
+      }))
+  }
+
+  const handleBatchCsvUpload = async (file?: File) => {
+    if (!file) return
+    setBatchCsvError(null)
+    try {
+      const text = await file.text()
+      const parsedUsers = parseCsvContent(text)
+      if (parsedUsers.length === 0) {
+        setBatchCsvError('未解析到有效的用户数据')
+        return
+      }
+      setBatchUsers(parsedUsers)
+    } catch {
+      setBatchCsvError('读取 CSV 失败，请检查文件格式')
+    }
+  }
+
+  const handleAddBatchUser = () => {
+    setBatchUsers(prev => ([...prev, { name: '', displayName: '', password: '' }]))
+  }
+
+  const handleRemoveBatchUser = (index: number) => {
+    setBatchUsers(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const handleBatchUserChange = (index: number, field: keyof BatchRegisterUserItem, value: string) => {
+    setBatchUsers(prev => prev.map((item, i) => (
+      i === index ? { ...item, [field]: value } : item
+    )))
+  }
+
+  const handleOpenBatchDialog = () => {
+    setBatchDialogOpen(true)
+    setBatchCsvError(null)
+  }
+
+  const handleCloseBatchDialog = () => {
+    setBatchDialogOpen(false)
+    setBatchUsers([])
+    setBatchCsvError(null)
+  }
+
+  const handleConfirmBatchRegister = () => {
+    if (!conference) {
+      toast.error('当前未关联会议')
+      return
+    }
+    if (batchUsers.length === 0) {
+      toast.error('请添加至少一位代表')
+      return
+    }
+    const sanitizedUsers = batchUsers.map(u => ({
+      name: u.name.trim(),
+      displayName: u.displayName?.trim() || '',
+      password: u.password.trim(),
+    }))
+    const hasInvalid = sanitizedUsers.some(u => !u.name || !u.password)
+    if (hasInvalid) {
+      toast.error('用户昵称和密码不能为空')
+      return
+    }
+    batchRegister(
+      { data: { conferenceId: conference.uuid, users: sanitizedUsers } },
+      {
+        onSuccess: () => {
+          toast.success(`批量注册成功（${sanitizedUsers.length} 人）`)
+          handleCloseBatchDialog()
+          void refetchDelegates()
+        },
+        onError: () => { toast.error('批量注册失败，请重试') },
+      }
+    )
+  }
+
+  const handleResetPasswordStart = (targetUser: UserInfoResponse) => {
+    setUserToReset(targetUser)
+    setResetForm({ password: '', confirmPassword: '' })
+    setResetDialogOpen(true)
+  }
+
+  const handleDetailStart = (targetUser: UserInfoResponse) => {
+    setDetailUser(targetUser)
+    setDetailDialogOpen(true)
+  }
+
+  const detailUserGroups = useMemo(() => {
+    if (!detailUser) return []
+    return groups.filter(g => g.userUuids.includes(detailUser.uuid))
+  }, [detailUser, groups])
+
+  const handleConfirmResetPassword = () => {
+    if (!userToReset) return
+    if (!resetForm.password || !resetForm.confirmPassword) {
+      toast.error('请填写新密码并确认')
+      return
+    }
+    if (resetForm.password !== resetForm.confirmPassword) {
+      toast.error('两次输入的密码不一致')
+      return
+    }
+    if (resetForm.password.length < 6) {
+      toast.error('密码长度不少于 6 个字符')
+      return
+    }
+    resetPassword(
+      { uuid: userToReset.uuid, data: { password: resetForm.password } },
+      {
+        onSuccess: () => {
+          toast.success('密码重置成功')
+          setResetDialogOpen(false)
+          setUserToReset(null)
+          setResetForm({ password: '', confirmPassword: '' })
+        },
+        onError: () => { toast.error('重置失败，请重试') },
+      }
+    )
+  }
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
@@ -283,14 +481,36 @@ export default function ConferenceInfoPage() {
                 <CardTitle>会议信息</CardTitle>
                 <CardDescription>查看和编辑当前会议信息</CardDescription>
               </div>
-              {!isEditing && conference && (
+              {conference && (
                 <Button onClick={handleEdit}>编辑</Button>
               )}
             </div>
           </CardHeader>
           <CardContent>
+            {!conference ? (
+              <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
+                <p className="text-sm text-yellow-900">当前没有关联会议</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-xs text-muted-foreground">会议名称</Label>
+                  <p className="text-sm font-medium">{conference.name}</p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* 编辑会议信息弹窗 */}
+        <Dialog open={isEditing} onOpenChange={(open) => { if (!open) handleCancel() }}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>编辑会议信息</DialogTitle>
+              <DialogDescription>修改会议名称、描述和状态</DialogDescription>
+            </DialogHeader>
             {message && (
-              <div className={`mb-6 p-4 rounded-lg ${
+              <div className={`p-3 rounded-lg text-sm ${
                 message.type === 'success'
                   ? 'bg-green-50 text-green-900 border border-green-200'
                   : 'bg-red-50 text-red-900 border border-red-200'
@@ -298,215 +518,272 @@ export default function ConferenceInfoPage() {
                 {message.text}
               </div>
             )}
-
-            {!conference ? (
-              <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
-                <p className="text-sm text-yellow-900">当前没有关联会议</p>
-              </div>
-            ) : isEditing ? (
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <Label htmlFor="name">会议名称</Label>
-                  <Input
-                    id="name"
-                    name="name"
-                    type="text"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    placeholder="输入会议名称"
-                    className="mt-2"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="description">会议描述</Label>
-                  <Textarea
-                    id="description"
-                    name="description"
-                    value={formData.description}
-                    onChange={handleInputChange}
-                    placeholder="输入会议描述"
-                    className="mt-2"
-                    rows={4}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="status">会议状态</Label>
-                  <select
-                    id="status"
-                    value={formData.status}
-                    onChange={(e) => handleStatusChange(e.target.value)}
-                    className="flex h-8 w-full items-center justify-between rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 mt-2"
-                  >
-                    {statusOptions.map(option => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex gap-3">
-                  <Button type="submit" disabled={isUpdating}>
-                    {isUpdating ? '保存中...' : '保存修改'}
-                  </Button>
-                  <Button type="button" variant="outline" onClick={handleCancel}>取消</Button>
-                </div>
-              </form>
-            ) : (
-              <div className="space-y-4">
-                <div>
-                  <Label className="text-xs text-muted-foreground">会议名称</Label>
-                  <p className="text-sm font-medium">{conference.name}</p>
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">会议描述</Label>
-                  <p className="text-sm">{conference.description}</p>
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">会议状态</Label>
-                  <p className="text-sm">
-                    {statusLabels[conference.status as keyof typeof statusLabels] || conference.status}
-                  </p>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* 用户列表 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>会议用户</CardTitle>
-            <CardDescription>参与当前会议的所有用户及其所属用户组</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {!conference ? (
-              <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
-                <p className="text-sm text-yellow-900">请先创建或关联会议</p>
-              </div>
-            ) : usersLoading ? (
-              <p className="text-sm text-muted-foreground">加载中...</p>
-            ) : usersError ? (
-              <div className="bg-red-50 border border-red-200 p-4 rounded-lg">
-                <p className="text-sm text-red-900 font-semibold mb-2">加载用户失败</p>
-                <p className="text-xs text-red-800">
-                  {String(usersError).includes('no session')
-                    ? '后端数据库会话错误，请联系管理员检查后端服务配置'
-                    : String(usersError)}
-                </p>
-              </div>
-            ) : users.length === 0 ? (
-              <p className="text-sm text-muted-foreground">当前会议暂无关联用户</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b text-muted-foreground">
-                      <th className="text-left py-2 pr-4 font-medium">用户名</th>
-                      <th className="text-left py-2 pr-4 font-medium">角色</th>
-                      <th className="text-left py-2 font-medium">所属用户组</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {users.map((u) => {
-                      const userGroups = groups.filter(g => g.userUuids.includes(u.uuid))
-                      return (
-                        <tr key={u.uuid} className="border-b last:border-0">
-                          <td className="py-2 pr-4">
-                            <p className="font-medium">{getUserLabel(u)}</p>
-                          </td>
-                          <td className="py-2 pr-4 text-muted-foreground">
-                            {roleLabels[u.role as keyof typeof roleLabels] || u.role}
-                          </td>
-                          <td className="py-2">
-                            <div className="flex flex-wrap gap-1">
-                              {userGroups.length === 0
-                                ? <span className="text-muted-foreground text-xs">未分组</span>
-                                : userGroups.map(g => (
-                                    <Badge key={g.id} variant="secondary" className="text-xs">{g.groupName}</Badge>
-                                  ))
-                              }
-                            </div>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* 用户组管理 */}
-        <Card>
-          <CardHeader>
-            <div className="flex justify-between items-center">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <CardTitle>用户组管理</CardTitle>
-                <CardDescription>创建和管理用户分组</CardDescription>
-              </div>
-              <Button size="sm" onClick={openCreateGroupForm}>新建用户组</Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {groupsLoading ? (
-              <p className="text-sm text-muted-foreground">加载中...</p>
-            ) : groupsError ? (
-              <div className="bg-red-50 border border-red-200 p-3 rounded-lg">
-                <p className="text-sm text-red-900 font-semibold">加载用户组失败，请查看控制台日志</p>
-              </div>
-            ) : (<>
-            {showGroupForm && (
-              <div className="flex gap-2 items-center p-3 bg-muted/50 rounded-lg">
+                <Label htmlFor="edit-name">会议名称</Label>
                 <Input
-                  value={groupNameInput}
-                  onChange={e => setGroupNameInput(e.target.value)}
-                  placeholder="输入用户组名称"
-                  className="flex-1"
-                  onKeyDown={e => e.key === 'Enter' && handleSaveGroup()}
+                  id="edit-name"
+                  name="name"
+                  type="text"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  placeholder="输入会议名称"
+                  className="mt-2"
                 />
-                <Button
-                  size="sm"
-                  onClick={handleSaveGroup}
-                  disabled={isCreatingGroup || isUpdatingGroup || !groupNameInput.trim()}
-                >
-                  {isCreatingGroup || isUpdatingGroup ? '保存中...' : '保存'}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => { setShowGroupForm(false); setEditingGroup(null) }}>
-                  取消
-                </Button>
               </div>
-            )}
+              <div>
+                <Label htmlFor="edit-description">会议描述</Label>
+                <Textarea
+                  id="edit-description"
+                  name="description"
+                  value={formData.description}
+                  onChange={handleInputChange}
+                  placeholder="输入会议描述"
+                  className="mt-2"
+                  rows={4}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-status">会议状态</Label>
+                <select
+                  id="edit-status"
+                  value={formData.status}
+                  onChange={(e) => handleStatusChange(e.target.value)}
+                  className="flex h-9 w-full items-center justify-between rounded-lg border border-input bg-transparent px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 mt-2"
+                >
+                  {statusOptions.map(option => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={handleCancel}>取消</Button>
+                <Button type="submit" disabled={isUpdating}>
+                  {isUpdating ? '保存中...' : '保存修改'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
 
-            {groups.length === 0 && !showGroupForm ? (
-              <p className="text-sm text-muted-foreground">暂无用户组，点击「新建用户组」创建</p>
-            ) : (
-              groups.map(group => (
-                <div key={group.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-sm">{group.groupName}</p>
-                    <p className="text-xs text-muted-foreground">{group.userUuids.length} 名成员</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => openMemberManagement(group)}>
-                      管理成员
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => openEditGroupForm(group)}>
-                      编辑
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-destructive hover:text-destructive"
-                      onClick={() => setDeletingGroupId(group.id)}
-                    >
-                      删除
-                    </Button>
-                  </div>
+        {/* 用户组管理 + 代表管理 左右并排 */}
+        <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
+          {/* 用户组管理 */}
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle>用户组管理</CardTitle>
+                  <CardDescription>创建和管理用户分组</CardDescription>
                 </div>
-              ))
-            )}
-            </>)}
-          </CardContent>
-        </Card>
+                <Button size="sm" onClick={openCreateGroupForm}>新建用户组</Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {groupsLoading ? (
+                <p className="text-sm text-muted-foreground">加载中...</p>
+              ) : groupsError ? (
+                <div className="bg-red-50 border border-red-200 p-3 rounded-lg">
+                  <p className="text-sm text-red-900 font-semibold">加载用户组失败，请查看控制台日志</p>
+                </div>
+              ) : (<>
+              {showGroupForm && (
+                <div className="flex gap-2 items-center p-3 bg-muted/50 rounded-lg">
+                  <Input
+                    value={groupNameInput}
+                    onChange={e => setGroupNameInput(e.target.value)}
+                    placeholder="输入用户组名称"
+                    className="flex-1"
+                    onKeyDown={e => e.key === 'Enter' && handleSaveGroup()}
+                  />
+                  <Button
+                    size="sm"
+                    onClick={handleSaveGroup}
+                    disabled={isCreatingGroup || isUpdatingGroup || !groupNameInput.trim()}
+                  >
+                    {isCreatingGroup || isUpdatingGroup ? '保存中...' : '保存'}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => { setShowGroupForm(false); setEditingGroup(null) }}>
+                    取消
+                  </Button>
+                </div>
+              )}
+
+              {groups.length === 0 && !showGroupForm ? (
+                <p className="text-sm text-muted-foreground">暂无用户组，点击「新建用户组」创建</p>
+              ) : (
+                groups.map(group => (
+                  <div key={group.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                    <div>
+                      <p className="font-medium text-sm">{group.groupName}</p>
+                      <p className="text-xs text-muted-foreground">{group.userUuids.length} 名成员</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => openMemberManagement(group)}>
+                        管理成员
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => openEditGroupForm(group)}>
+                        编辑
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => setDeletingGroupId(group.id)}
+                      >
+                        删除
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+              </>)}
+            </CardContent>
+          </Card>
+
+          {/* 代表管理 */}
+          {canManageConference && conference && (
+            <Card>
+              <CardHeader>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <CardTitle>代表管理</CardTitle>
+                    <CardDescription>查看、批量注册和管理当前会议的代表</CardDescription>
+                  </div>
+                  {canManageDelegates && (
+                    <Button
+                      variant="outline"
+                      onClick={handleOpenBatchDialog}
+                    >
+                      批量注册
+                    </Button>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                {delegatesLoading ? (
+                  <p className="text-sm text-muted-foreground">加载中...</p>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="rounded-lg border">
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full text-sm">
+                          <thead className="bg-muted/50 text-muted-foreground">
+                            <tr>
+                              <th className="py-3 px-4 text-left font-medium">
+                                <div className="min-w-40 space-y-2">
+                                  <div>用户昵称</div>
+                                  <Input
+                                    value={delegateNameFilter}
+                                    onChange={(e) => setDelegateNameFilter(e.target.value)}
+                                    placeholder="全部"
+                                    className="h-9 bg-background"
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') {
+                                        setDelegatePage(0)
+                                        setAppliedDelegateNameFilter(delegateNameFilter)
+                                      }
+                                    }}
+                                  />
+                                </div>
+                              </th>
+                              <th className="py-3 px-4 text-left font-medium">显示名称</th>
+                              <th className="py-3 px-4 text-right font-medium">
+                                <div className="flex flex-col items-end gap-2">
+                                  <div>操作</div>
+                                  <div className="flex gap-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        setDelegateNameFilter('')
+                                        setDelegatePage(0)
+                                        setAppliedDelegateNameFilter('')
+                                      }}
+                                    >
+                                      重置
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      onClick={() => {
+                                        setDelegatePage(0)
+                                        setAppliedDelegateNameFilter(delegateNameFilter)
+                                      }}
+                                    >
+                                      查询
+                                    </Button>
+                                  </div>
+                                </div>
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y">
+                            {delegates.length === 0 ? (
+                              <tr>
+                                <td colSpan={3} className="px-4 py-10 text-center text-muted-foreground">
+                                  暂无代表数据
+                                </td>
+                              </tr>
+                            ) : (
+                              delegates.map((d) => (
+                                <tr key={d.uuid}>
+                                  <td className="py-3 px-4 font-medium">{d.name}</td>
+                                  <td className="py-3 px-4">{d.displayName || '—'}</td>
+                                  <td className="py-3 px-4 text-right">
+                                    <div className="flex justify-end gap-2">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleDetailStart(d)}
+                                      >
+                                        详情
+                                      </Button>
+                                      {canManageDelegates && (
+                                        <Button
+                                          variant="secondary"
+                                          size="sm"
+                                          onClick={() => handleResetPasswordStart(d)}
+                                        >
+                                          重置密码
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <p className="text-sm text-muted-foreground">
+                        第 {Math.min(delegatePage + 1, Math.max(totalDelegatePages, 1))} 页，共 {Math.max(totalDelegatePages, 1)} 页，共 {totalDelegateElements} 位代表
+                      </p>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => setDelegatePage(prev => Math.max(prev - 1, 0))}
+                          disabled={delegatePage === 0}
+                        >
+                          上一页
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => setDelegatePage(prev => Math.min(prev + 1, Math.max(totalDelegatePages - 1, 0)))}
+                          disabled={totalDelegatePages <= 1 || delegatePage >= totalDelegatePages - 1}
+                        >
+                          下一页
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </div>
 
         {/* 删除确认 */}
         <AlertDialog open={deletingGroupId !== null} onOpenChange={open => !open && setDeletingGroupId(null)}>
@@ -586,6 +863,206 @@ export default function ConferenceInfoPage() {
                 取消
               </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* 批量注册代表弹窗 */}
+        <AlertDialog
+          open={batchDialogOpen}
+          onOpenChange={(open) => {
+            if (open) { setBatchDialogOpen(true) } else { handleCloseBatchDialog() }
+          }}
+        >
+          <AlertDialogContent className="!max-w-5xl !max-h-[90vh] overflow-hidden">
+            <AlertDialogHeader>
+              <AlertDialogTitle>批量注册代表</AlertDialogTitle>
+              <AlertDialogDescription>
+                从 CSV 导入或手动填写代表信息，将注册到当前会议「{conference?.name}」。
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+
+            <div className="space-y-4 py-2 max-h-[70vh] overflow-auto px-1 -mx-1">
+              <div>
+                <Label htmlFor="batch-csv">导入 CSV</Label>
+                <Input
+                  id="batch-csv"
+                  type="file"
+                  accept=".csv,text/csv"
+                  onChange={(e) => handleBatchCsvUpload(e.target.files?.[0])}
+                  className="mt-2"
+                />
+                <p className="text-xs text-muted-foreground mt-2">CSV 列：name, displayName, password（可带表头）</p>
+                {batchCsvError && (
+                  <p className="text-xs text-red-600 mt-1">{batchCsvError}</p>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={handleAddBatchUser}>
+                  添加一行
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setBatchUsers([])}
+                  disabled={batchUsers.length === 0}
+                >
+                  清空
+                </Button>
+                <span className="text-xs text-muted-foreground">共 {batchUsers.length} 人</span>
+              </div>
+
+              <div className="overflow-x-auto rounded-lg border">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-muted/50 text-muted-foreground">
+                    <tr>
+                      <th className="!py-3 !px-4 text-left font-medium">用户昵称</th>
+                      <th className="!py-3 !px-4 text-left font-medium">显示名称</th>
+                      <th className="!py-3 !px-4 text-left font-medium">密码</th>
+                      <th className="!py-3 !px-4 text-right font-medium">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {batchUsers.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="!py-4 !px-4 text-center text-muted-foreground">
+                          暂无数据，可手动添加或从 CSV 导入
+                        </td>
+                      </tr>
+                    ) : (
+                      batchUsers.map((u, index) => (
+                        <tr key={`batch-user-${index}`}>
+                          <td className="!py-3 !px-4">
+                            <Input
+                              type="text"
+                              value={u.name}
+                              onChange={(e) => handleBatchUserChange(index, 'name', e.target.value)}
+                              placeholder="delegate1"
+                            />
+                          </td>
+                          <td className="!py-3 !px-4">
+                            <Input
+                              type="text"
+                              value={u.displayName || ''}
+                              onChange={(e) => handleBatchUserChange(index, 'displayName', e.target.value)}
+                              placeholder="显示名称（可选）"
+                            />
+                          </td>
+                          <td className="!py-3 !px-4">
+                            <Input
+                              type="text"
+                              value={u.password}
+                              onChange={(e) => handleBatchUserChange(index, 'password', e.target.value)}
+                              placeholder="至少 6 位"
+                            />
+                          </td>
+                          <td className="!py-3 !px-4 text-right">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRemoveBatchUser(index)}
+                            >
+                              移除
+                            </Button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={handleCloseBatchDialog}>取消</AlertDialogCancel>
+              <Button onClick={handleConfirmBatchRegister} disabled={isBatchRegistering}>
+                {isBatchRegistering ? '提交中...' : '确认批量注册'}
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* 重置密码弹窗 */}
+        <AlertDialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>重置用户密码</AlertDialogTitle>
+              <AlertDialogDescription>
+                为用户「{userToReset?.displayName || userToReset?.name}」设置新密码。
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label htmlFor="reset-password">新密码</Label>
+                <Input
+                  id="reset-password"
+                  type="password"
+                  value={resetForm.password}
+                  onChange={(e) => setResetForm(prev => ({ ...prev, password: e.target.value }))}
+                  placeholder="请输入新密码"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="reset-confirm-password">确认新密码</Label>
+                <Input
+                  id="reset-confirm-password"
+                  type="password"
+                  value={resetForm.confirmPassword}
+                  onChange={(e) => setResetForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                  placeholder="再次输入新密码"
+                />
+              </div>
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel>取消</AlertDialogCancel>
+              <AlertDialogAction onClick={handleConfirmResetPassword} disabled={isResettingPassword}>
+                {isResettingPassword ? '重置中...' : '确认重置'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* 代表详情弹窗 */}
+        <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>代表详情</DialogTitle>
+              <DialogDescription>
+                {detailUser?.displayName || detailUser?.name} 的基本信息
+              </DialogDescription>
+            </DialogHeader>
+            {detailUser && (
+              <div className="space-y-5">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">用户昵称</span>
+                    <p className="font-medium mt-1">{detailUser.name}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">显示名称</span>
+                    <p className="font-medium mt-1">{detailUser.displayName || '—'}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">角色</span>
+                    <p className="font-medium mt-1">{roleLabels[detailUser.role] || detailUser.role}</p>
+                  </div>
+                </div>
+                <div>
+                  <span className="text-sm text-muted-foreground">所属用户组</span>
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {detailUserGroups.length === 0 ? (
+                      <span className="text-xs text-muted-foreground">未分组</span>
+                    ) : (
+                      detailUserGroups.map(g => (
+                        <Badge key={g.id} variant="secondary" className="text-xs">{g.groupName}</Badge>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </DialogContent>
         </Dialog>
       </div>

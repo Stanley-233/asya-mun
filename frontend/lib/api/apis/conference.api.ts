@@ -9,6 +9,16 @@ import type {
   UserInfoResponse,
 } from '../generated'
 
+export interface ListConferenceParams {
+  pageable: Pageable
+}
+
+export interface ListDelegatesParams {
+  name?: string
+  displayName?: string
+  pageable: Pageable
+}
+
 export async function getMine() {
   return apiRequester.requestProtected<ConferenceResponse>({
     path: '/api/conference',
@@ -62,16 +72,20 @@ export async function listAll2() {
   })
 }
 
-export interface ListConferenceParams {
-  pageable: Pageable
-}
-
 export async function listConferencePage(params: ListConferenceParams) {
   const response = await apiRequester.requestProtected<unknown>({
     path: withQuery('/api/conference/page', { ...params }),
     method: 'GET',
   })
   return normalizePagePayload<ConferenceResponse>(response)
+}
+
+export async function getDelegates(params: ListDelegatesParams) {
+  const response = await apiRequester.requestProtected<unknown>({
+    path: withQuery('/api/conference/delegates', { ...params }),
+    method: 'GET',
+  })
+  return normalizePagePayload<UserInfoResponse>(response)
 }
 
 export type { NormalizedPage }

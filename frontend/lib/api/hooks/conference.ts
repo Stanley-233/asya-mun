@@ -1,23 +1,25 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { assignUser, create, getMine, getUsers, listAll2, listConferencePage, update2, updateConferenceByUuid } from '../apis/conference.api'
+import { assignUser, create, getDelegates, getMine, getUsers, listAll2, listConferencePage, update2, updateConferenceByUuid } from '../apis/conference.api'
 import type {
   ConferenceAssignRequest,
   ConferenceRequest,
   ConferenceResponse,
   UserInfoResponse,
 } from '../generated'
-import type { ListConferenceParams, NormalizedPage } from '../apis/conference.api'
+import type { ListConferenceParams, ListDelegatesParams, NormalizedPage } from '../apis/conference.api'
 import type { MutationHookOptions, QueryHookOptions } from './shared'
 
 export const conferenceKeys = {
   mine: () => ['/api/conference'] as const,
   users: () => ['/api/conference/users'] as const,
+  delegates: (params: ListDelegatesParams) => ['/api/conference/delegates', params] as const,
   listAll: () => ['/api/conference/all'] as const,
   page: (params: ListConferenceParams) => ['/api/conference/page', params] as const,
 }
 
 export const getGetMineQueryKey = conferenceKeys.mine
 export const getGetUsersQueryKey = conferenceKeys.users
+export const getDelegatesQueryKey = conferenceKeys.delegates
 export const getListAll2QueryKey = conferenceKeys.listAll
 export const getListConferencePageQueryKey = conferenceKeys.page
 
@@ -37,6 +39,17 @@ export function useGetUsers<TData = UserInfoResponse[], TError = unknown>(
   return useQuery({
     queryKey: conferenceKeys.users(),
     queryFn: getUsers,
+    ...options?.query,
+  })
+}
+
+export function useGetDelegates<TData = NormalizedPage<UserInfoResponse>, TError = unknown>(
+  params: ListDelegatesParams,
+  options?: QueryHookOptions<NormalizedPage<UserInfoResponse>, TData, TError>,
+) {
+  return useQuery({
+    queryKey: conferenceKeys.delegates(params),
+    queryFn: () => getDelegates(params),
     ...options?.query,
   })
 }

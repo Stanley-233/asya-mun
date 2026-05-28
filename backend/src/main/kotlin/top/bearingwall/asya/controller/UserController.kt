@@ -223,7 +223,7 @@ class UserController(
         }
     }
 
-    @Operation(summary = "管理员重置用户密码", description = "仅系统管理员可执行")
+    @Operation(summary = "管理员重置用户密码", description = "SYS_ADMIN 可重置任意用户；DH 可重置自己会议内的代表")
     @PostMapping("/{uuid}/password-reset")
     fun resetPassword(
         @PathVariable uuid: UUID,
@@ -232,9 +232,9 @@ class UserController(
     ): ResponseEntity<Result<Unit>> {
         return try {
             val requester = userService.getUserFromToken(extractBearer(authorization))
-            if (requester.role != UserRole.SYS_ADMIN) {
+            if (requester.role !in setOf(UserRole.SYS_ADMIN, UserRole.DH)) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Result.failure(BizCode.PERMISSION_DENIED, "需要管理员权限"))
+                    .body(Result.failure(BizCode.PERMISSION_DENIED, "需要管理员或主席团指导权限"))
             }
 
             val newPassword = body["password"]
@@ -242,7 +242,7 @@ class UserController(
                 throw IllegalArgumentException("密码不能为空")
             }
 
-            userService.resetPassword(uuid, newPassword)
+            userService.resetPassword(uuid, newPassword, requester.uuid)
 
             ResponseEntity.ok(Result.success(Unit))
         } catch (e: Exception) {
@@ -343,6 +343,10 @@ class UserController(
         if (e is JwtException) {
             return ResponseEntity.status(HttpStatus.OK)
                 .body(Result.failure(BizCode.TOKEN_INVALID, e.message ?: "Token失效"))
+        }
+        if (e is SecurityException) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(Result.failure(BizCode.PERMISSION_DENIED, e.message ?: "权限不足"))
         }
         return ResponseEntity.status(HttpStatus.OK)
             .body(Result.failure(BizCode.PARAM_ERROR, e.message ?: "操作失败"))

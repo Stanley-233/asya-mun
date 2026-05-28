@@ -3,6 +3,7 @@ package top.bearingwall.asya.controller
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.data.domain.Page
+import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Pageable
 import org.springframework.data.domain.Sort
 import org.springframework.data.web.PageableDefault
@@ -16,6 +17,7 @@ import top.bearingwall.asya.dto.ConferenceRequest
 import top.bearingwall.asya.dto.ConferenceResponse
 import top.bearingwall.asya.dto.Result
 import top.bearingwall.asya.dto.UserInfoResponse
+import top.bearingwall.asya.model.UserRole
 import top.bearingwall.asya.service.ConferenceService
 import top.bearingwall.asya.service.UserService
 import java.util.UUID
@@ -89,6 +91,32 @@ class ConferenceController(
         return try {
             val requester = userService.getUserFromToken(extractBearer(authorization))
             val resp = conferenceService.getConferenceUsers(requester)
+            ResponseEntity.ok(Result.success(resp))
+        } catch (e: IllegalStateException) {
+            ResponseEntity.status(HttpStatus.OK).body(Result.failure(BizCode.PARAM_ERROR, e.message ?: "未关联会议"))
+        } catch (e: Exception) {
+            ResponseEntity.status(HttpStatus.OK).body(Result.failure(BizCode.TOKEN_INVALID, e.message ?: "Token解析失败"))
+        }
+    }
+
+    @Operation(summary = "分页查询当前会议代表", description = "DH、DM、SYS_ADMIN 可用，自动按当前用户关联会议过滤")
+    @GetMapping("/delegates")
+    fun getDelegates(
+        @RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String,
+        @RequestParam(required = false) name: String?,
+        @RequestParam(required = false) displayName: String?,
+        @RequestParam(required = false) current: Int?,
+        @RequestParam(required = false) pageNum: Int?,
+        @PageableDefault(sort = ["name"], direction = Sort.Direction.ASC) pageable: Pageable
+    ): ResponseEntity<Result<Page<UserInfoResponse>>> {
+        return try {
+            val requester = userService.getUserFromToken(extractBearer(authorization))
+            if (requester.role !in setOf(UserRole.DH, UserRole.DM, UserRole.SYS_ADMIN)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Result.failure(BizCode.PERMISSION_DENIED, "需要主席团指导或更高权限"))
+            }
+            val effectivePageable = resolvePageable(pageable, current, pageNum)
+            val resp = conferenceService.getConferenceDelegates(requester, effectivePageable, name, displayName)
             ResponseEntity.ok(Result.success(resp))
         } catch (e: IllegalStateException) {
             ResponseEntity.status(HttpStatus.OK).body(Result.failure(BizCode.PARAM_ERROR, e.message ?: "未关联会议"))
@@ -181,5 +209,11 @@ class ConferenceController(
         val prefix = "Bearer "
         require(authorization.startsWith(prefix)) { "Authorization header must start with 'Bearer '" }
         return authorization.substring(prefix.length)
+    }
+
+    private fun resolvePageable(pageable: Pageable, current: Int?, pageNum: Int?): Pageable {
+        val oneBasedPage = current ?: pageNum ?: return pageable
+        val zeroBasedPage = (oneBasedPage - 1).coerceAtLeast(0)
+        return PageRequest.of(zeroBasedPage, pageable.pageSize, pageable.sort)
     }
 }

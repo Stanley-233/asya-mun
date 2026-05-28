@@ -40,6 +40,7 @@ export * from "./download200";
 export * from "./downloadAnnouncementImage200";
 export * from "./getAllParams";
 export * from "./getAllSecretInConferenceParams";
+export * from "./getDelegatesParams";
 export * from "./getForManagementInstructionType";
 export * from "./getForManagementParams";
 export * from "./getForManagementStatus";

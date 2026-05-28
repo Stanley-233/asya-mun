@@ -218,10 +218,24 @@ class UserService(
 
     @Transactional
     @Auditable(type = AuditActionType.USER_PASSWORD_RESET, content = "重置用户密码")
-    fun resetPassword(uuid: UUID, newPassword: String) {
+    fun resetPassword(uuid: UUID, newPassword: String, requesterUuid: UUID? = null) {
         val user = userRepository.findById(uuid).orElseThrow {
             IllegalArgumentException("User not found: $uuid")
         }
+
+        if (requesterUuid != null) {
+            val requester = userRepository.findById(requesterUuid).orElseThrow {
+                IllegalArgumentException("Requester not found: $requesterUuid")
+            }
+            if (requester.role == UserRole.DH) {
+                val dhConferenceUuid = requester.conference?.uuid
+                val targetConferenceUuid = user.conference?.uuid
+                if (dhConferenceUuid == null || dhConferenceUuid != targetConferenceUuid) {
+                    throw SecurityException("DH can only reset passwords for delegates in their own conference")
+                }
+            }
+        }
+
         val hashed: String = requireNotNull(passwordEncoder.encode(newPassword)) {
             "BCryptPasswordEncoder returned null hash"
         }
@@ -234,13 +248,20 @@ class UserService(
     @Auditable(type = AuditActionType.USER_BATCH_REGISTER, content = "批量注册用户")
     fun batchRegister(requesterUuid: UUID, request: BatchRegisterRequest): BatchRegisterResponse {
         val requester = userRepository.findById(requesterUuid).orElseThrow { IllegalArgumentException("Requester not found") }
-        if (requester.role != UserRole.SYS_ADMIN) {
-            throw SecurityException("Only SYS_ADMIN can perform batch registration")
+        if (requester.role !in setOf(UserRole.SYS_ADMIN, UserRole.DH)) {
+            throw SecurityException("Only SYS_ADMIN or DH can perform batch registration")
         }
 
         val conferenceUuid = UUID.fromString(request.conferenceId)
         val conference = conferenceRepository.findById(conferenceUuid).orElseThrow {
             IllegalArgumentException("Conference not found: ${request.conferenceId}")
+        }
+
+        if (requester.role == UserRole.DH) {
+            val dhConferenceUuid = requester.conference?.uuid
+            if (dhConferenceUuid == null || dhConferenceUuid != conferenceUuid) {
+                throw SecurityException("DH can only batch register delegates to their own conference")
+            }
         }
 
         val createdUsers = mutableListOf<UserInfoResponse>()
