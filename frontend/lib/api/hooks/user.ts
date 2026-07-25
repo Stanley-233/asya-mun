@@ -1,6 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import {
   batchRegister,
+  batchRegisterFull,
   login,
   deleteUser,
   getCurrentUser,
@@ -17,6 +18,7 @@ import {
 } from '../apis/user.api'
 import type {
   BatchRegisterRequest,
+  BatchRegisterFullRequest,
   ResetPasswordBody,
   SetRegistrationSwitchParams,
   UserInfoResponse,
@@ -97,6 +99,15 @@ export function useBatchRegister<TError = unknown, TContext = unknown>(
 ) {
   return useMutation({
     mutationFn: ({ data }) => batchRegister(data),
+    ...options?.mutation,
+  })
+}
+
+export function useBatchRegisterFull<TError = unknown, TContext = unknown>(
+  options?: MutationHookOptions<void, { data: BatchRegisterFullRequest }, TError, TContext>,
+) {
+  return useMutation({
+    mutationFn: ({ data }) => batchRegisterFull(data),
     ...options?.mutation,
   })
 }

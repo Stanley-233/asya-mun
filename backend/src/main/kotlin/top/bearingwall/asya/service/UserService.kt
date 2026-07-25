@@ -16,11 +16,14 @@ import top.bearingwall.asya.dto.UserInfoResponse
 import top.bearingwall.asya.dto.UserUpdateRequest
 import top.bearingwall.asya.dto.BatchRegisterRequest
 import top.bearingwall.asya.dto.BatchRegisterResponse
+import top.bearingwall.asya.dto.BatchRegisterFullRequest
 import top.bearingwall.asya.dto.TokenRefreshResponse
 import top.bearingwall.asya.model.User
 import top.bearingwall.asya.model.UserRole
+import top.bearingwall.asya.model.UserGroup
 import top.bearingwall.asya.model.AuditActionType
 import top.bearingwall.asya.repository.UserRepository
+import top.bearingwall.asya.repository.UserGroupRepository
 import top.bearingwall.asya.repository.ConferenceRepository
 import top.bearingwall.asya.util.JwtUtil
 import top.bearingwall.asya.util.TokenType
@@ -30,7 +33,8 @@ import java.util.UUID
 class UserService(
     private val userRepository: UserRepository,
     private val systemConfigService: SystemConfigService,
-    private val conferenceRepository: ConferenceRepository
+    private val conferenceRepository: ConferenceRepository,
+    private val userGroupRepository: UserGroupRepository
 ) {
 
     private val log = LoggerFactory.getLogger(UserService::class.java)
@@ -231,7 +235,7 @@ class UserService(
                 val dhConferenceUuid = requester.conference?.uuid
                 val targetConferenceUuid = user.conference?.uuid
                 if (dhConferenceUuid == null || dhConferenceUuid != targetConferenceUuid) {
-                    throw SecurityException("DH can only reset passwords for delegates in their own conference")
+                    throw SecurityException("DH 只能重置本会议内用户的密码")
                 }
             }
         }
@@ -283,6 +287,83 @@ class UserService(
             )
             val saved = userRepository.save(user)
             createdUsers.add(toUserInfoResponse(saved))
+        }
+
+        return BatchRegisterResponse(createdUsers.size, createdUsers)
+    }
+
+    @Transactional
+    @Auditable(type = AuditActionType.USER_BATCH_REGISTER_FULL, content = "批量注册用户（含角色与会组）")
+    fun batchRegisterFull(requesterUuid: UUID, request: BatchRegisterFullRequest): BatchRegisterResponse {
+        val requester = userRepository.findById(requesterUuid).orElseThrow { IllegalArgumentException("Requester not found") }
+        if (requester.role !in setOf(UserRole.SYS_ADMIN, UserRole.DH)) {
+            throw SecurityException("Only SYS_ADMIN or DH can perform batch registration")
+        }
+
+        val conferenceUuid = UUID.fromString(request.conferenceId)
+        val conference = conferenceRepository.findById(conferenceUuid).orElseThrow {
+            IllegalArgumentException("Conference not found: ${request.conferenceId}")
+        }
+
+        if (requester.role == UserRole.DH) {
+            val dhConferenceUuid = requester.conference?.uuid
+            if (dhConferenceUuid == null || dhConferenceUuid != conferenceUuid) {
+                throw SecurityException("DH can only batch register users to their own conference")
+            }
+        }
+
+        if (request.users.isEmpty()) {
+            throw IllegalArgumentException("用户列表不能为空")
+        }
+
+        val createdUsers = mutableListOf<UserInfoResponse>()
+        // 缓存本批次内已建/复用的用户组，避免重复查询与重复创建同名组
+        val groupCache = mutableMapOf<String, UserGroup>()
+        // 用于本批次内用户名去重，避免依赖事务尚未提交时的查库结果
+        val namesInBatch = mutableSetOf<String>()
+
+        for (item in request.users) {
+            val name = item.name.trim()
+            val password = item.password
+            if (name.isEmpty()) {
+                throw IllegalArgumentException("用户昵称不能为空")
+            }
+            if (password.isBlank()) {
+                throw IllegalArgumentException("用户密码不能为空：$name")
+            }
+            if (item.role !in setOf(UserRole.DELEGATE, UserRole.DM)) {
+                throw IllegalArgumentException("批量注册仅支持 DELEGATE 或 DM 角色：$name")
+            }
+            if (!namesInBatch.add(name)) {
+                throw IllegalArgumentException("用户名重复：$name")
+            }
+            if (userRepository.findByName(name) != null) {
+                throw IllegalArgumentException("User already exists: $name")
+            }
+
+            val hashedPassword: String = requireNotNull(passwordEncoder.encode(password)) {
+                "BCryptPasswordEncoder returned null hash"
+            }
+            val user = User(
+                name = name,
+                displayName = item.displayName,
+                password = hashedPassword,
+                role = item.role,
+                conference = conference
+            )
+            val savedUser = userRepository.save(user)
+
+            val groupName = item.groupName?.trim()
+            if (!groupName.isNullOrEmpty()) {
+                val group = groupCache.getOrPut(groupName) {
+                    userGroupRepository.findFirstByGroupName(groupName)
+                        ?: userGroupRepository.save(UserGroup(groupName = groupName))
+                }
+                group.users.add(savedUser)
+                userGroupRepository.save(group)
+            }
+
+            createdUsers.add(toUserInfoResponse(savedUser))
         }
 
         return BatchRegisterResponse(createdUsers.size, createdUsers)

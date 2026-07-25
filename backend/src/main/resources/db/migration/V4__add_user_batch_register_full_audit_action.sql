@@ -1,0 +1,1 @@
+alter type public.auditactiontype add value if not exists 'USER_BATCH_REGISTER_FULL';

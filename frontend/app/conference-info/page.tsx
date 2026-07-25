@@ -35,8 +35,7 @@ import { buildLoginRedirect } from '@/lib/auth/return-to'
 import {
   useGetMine,
   useUpdate2,
-  useGetUsers,
-  useGetDelegates
+  useGetUsers
 } from "@/lib/api/hooks/conference"
 import {
   useGetAllUserGroups,
@@ -45,15 +44,16 @@ import {
   useDeleteUserGroup,
   useSetGroupMembers
 } from "@/lib/api/hooks/user-group"
-import { useBatchRegister, useResetPassword } from "@/lib/api/hooks/user"
+import { useBatchRegisterFull, useResetPassword } from "@/lib/api/hooks/user"
 import type {
   ConferenceResponse,
   ConferenceRequestStatus,
   UserInfoResponse,
   UserGroupResponse,
-  BatchRegisterUserItem
+  BatchRegisterFullUserItem,
+  BatchRegisterFullUserItemRole,
 } from "@/lib/api/generated"
-import type { ListDelegatesParams } from "@/lib/api/apis/conference.api"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { parseApiPayload } from '@/lib/api/response-utils'
 
 const statusLabels = {
@@ -101,6 +101,9 @@ function DraggableUserRow({ user, getUserLabel, onDetailStart, onResetPasswordSt
     >
       <td className="py-3 px-4 font-medium">{user.name}</td>
       <td className="py-3 px-4">{user.displayName || '—'}</td>
+      <td className="py-3 px-4">
+        <Badge variant="outline" className="text-xs">{roleLabels[user.role] || user.role}</Badge>
+      </td>
       <td className="py-3 px-4 text-right">
         <div className="flex justify-end gap-2">
           <Button
@@ -161,7 +164,7 @@ export default function ConferenceInfoPage() {
   const canManageConference = user?.role === 'DM' || user?.role === 'DH' || user?.role === 'SYS_ADMIN'
 
   const { data: conferenceData, isLoading: conferenceLoading } = useGetMine()
-  const { data: usersData } = useGetUsers({
+  const { data: usersData, isLoading: usersLoading, refetch: refetchUsers } = useGetUsers({
     query: {
       enabled: isAuthenticated && canManageConference,
     }
@@ -176,7 +179,7 @@ export default function ConferenceInfoPage() {
   const { mutate: deleteGroup, isPending: isDeletingGroup } = useDeleteUserGroup()
   const { mutate: setMembers, isPending: isSettingMembers } = useSetGroupMembers()
 
-  const { mutate: batchRegister, isPending: isBatchRegistering } = useBatchRegister()
+  const { mutate: batchRegister, isPending: isBatchRegistering } = useBatchRegisterFull()
   const { mutate: resetPassword, isPending: isResettingPassword } = useResetPassword()
 
   const [isEditing, setIsEditing] = useState(false)
@@ -210,30 +213,35 @@ export default function ConferenceInfoPage() {
 
   const canManageDelegates = user?.role === 'DH' || user?.role === 'SYS_ADMIN'
 
-  const [delegateNameFilter, setDelegateNameFilter] = useState('')
-  const [appliedDelegateNameFilter, setAppliedDelegateNameFilter] = useState('')
-  const [delegatePage, setDelegatePage] = useState(0)
-  const DELEGATE_PAGE_SIZE = 10
+  const [memberNameFilter, setMemberNameFilter] = useState('')
+  const [appliedMemberNameFilter, setAppliedMemberNameFilter] = useState('')
+  const [memberPage, setMemberPage] = useState(0)
+  const MEMBER_PAGE_SIZE = 10
 
-  const delegateParams = useMemo<ListDelegatesParams>(() => ({
-    name: appliedDelegateNameFilter.trim() || undefined,
-    pageable: {
-      page: delegatePage,
-      size: DELEGATE_PAGE_SIZE,
-      sort: ['name,asc'],
-    },
-  }), [appliedDelegateNameFilter, delegatePage])
+  const sortedMembers = useMemo(() => {
+    return [...users].sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
+  }, [users])
 
-  const { data: delegatesData, isLoading: delegatesLoading, refetch: refetchDelegates } = useGetDelegates(delegateParams, {
-    query: { enabled: isAuthenticated && canManageDelegates && !!conference }
-  })
+  const filteredMembers = useMemo(() => {
+    const keyword = appliedMemberNameFilter.trim().toLowerCase()
+    if (!keyword) return sortedMembers
+    return sortedMembers.filter(u => {
+      const name = (u.name || '').toLowerCase()
+      const displayName = (u.displayName?.trim() || '').toLowerCase()
+      return name.includes(keyword) || displayName.includes(keyword)
+    })
+  }, [sortedMembers, appliedMemberNameFilter])
 
-  const delegates = useMemo(() => delegatesData?.content ?? [], [delegatesData])
-  const totalDelegatePages = delegatesData?.totalPages ?? 0
-  const totalDelegateElements = delegatesData?.totalElements ?? 0
+  const totalMemberElements = filteredMembers.length
+  const totalMemberPages = Math.max(Math.ceil(totalMemberElements / MEMBER_PAGE_SIZE), 1)
+  const safeMemberPage = Math.min(memberPage, totalMemberPages - 1)
+  const pagedMembers = useMemo(() => {
+    const start = safeMemberPage * MEMBER_PAGE_SIZE
+    return filteredMembers.slice(start, start + MEMBER_PAGE_SIZE)
+  }, [filteredMembers, safeMemberPage])
 
   const [batchDialogOpen, setBatchDialogOpen] = useState(false)
-  const [batchUsers, setBatchUsers] = useState<BatchRegisterUserItem[]>([])
+  const [batchUsers, setBatchUsers] = useState<BatchRegisterFullUserItem[]>([])
   const [batchCsvError, setBatchCsvError] = useState<string | null>(null)
 
   const [resetDialogOpen, setResetDialogOpen] = useState(false)
@@ -355,23 +363,39 @@ export default function ConferenceInfoPage() {
     return result.map(item => item.trim())
   }
 
-  const parseCsvContent = (text: string): BatchRegisterUserItem[] => {
+  const parseCsvContent = (text: string): BatchRegisterFullUserItem[] => {
     const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
     const lines = normalized.split('\n').map(line => line.trim()).filter(Boolean)
     if (lines.length === 0) return []
     const rows = lines.map(parseCsvLine)
-    const header = rows[0].map(item => item.toLowerCase())
-    const hasHeader = header.includes('name') && header.includes('password')
+    const header = rows[0].map(item => item.trim().toLowerCase())
+    const findIndex = (...keys: string[]) => {
+      for (const k of keys) {
+        const i = header.indexOf(k)
+        if (i >= 0) return i
+      }
+      return -1
+    }
+    const hasHeader = header.includes('name') || header.includes('用户名')
     const dataRows = hasHeader ? rows.slice(1) : rows
-    const nameIndex = hasHeader ? header.indexOf('name') : 0
-    const displayNameIndex = hasHeader ? header.indexOf('displayname') : 1
-    const passwordIndex = hasHeader ? header.indexOf('password') : 2
+    const nameIndex = hasHeader ? findIndex('name', '用户名', '昵称') : 0
+    const displayNameIndex = hasHeader ? findIndex('displayname', '显示名', '用户显示名', '显示名称') : 1
+    const passwordIndex = hasHeader ? findIndex('password', '密码') : 2
+    const roleIndex = hasHeader ? findIndex('role', '角色') : 3
+    const groupIndex = hasHeader ? findIndex('groupname', '所属用户组名', '用户组', '组名') : 4
+    const normalizeRole = (raw: string): BatchRegisterFullUserItemRole => {
+      const v = raw.trim().toUpperCase()
+      if (v === 'DM' || v === '主席团成员') return 'DM'
+      return 'DELEGATE'
+    }
     return dataRows
       .filter(row => row.some(cell => cell.trim().length > 0))
       .map(row => ({
         name: row[nameIndex]?.trim() || '',
         displayName: row[displayNameIndex]?.trim() || '',
         password: row[passwordIndex]?.trim() || '',
+        role: normalizeRole(row[roleIndex]?.trim() || 'DELEGATE'),
+        groupName: row[groupIndex]?.trim() || '',
       }))
   }
 
@@ -392,14 +416,14 @@ export default function ConferenceInfoPage() {
   }
 
   const handleAddBatchUser = () => {
-    setBatchUsers(prev => ([...prev, { name: '', displayName: '', password: '' }]))
+    setBatchUsers(prev => ([...prev, { name: '', displayName: '', password: '', role: 'DELEGATE' as BatchRegisterFullUserItemRole, groupName: '' }]))
   }
 
   const handleRemoveBatchUser = (index: number) => {
     setBatchUsers(prev => prev.filter((_, i) => i !== index))
   }
 
-  const handleBatchUserChange = (index: number, field: keyof BatchRegisterUserItem, value: string) => {
+  const handleBatchUserChange = (index: number, field: keyof BatchRegisterFullUserItem, value: string) => {
     setBatchUsers(prev => prev.map((item, i) => (
       i === index ? { ...item, [field]: value } : item
     )))
@@ -422,17 +446,24 @@ export default function ConferenceInfoPage() {
       return
     }
     if (batchUsers.length === 0) {
-      toast.error('请添加至少一位代表')
+      toast.error('请添加至少一位用户')
       return
     }
     const sanitizedUsers = batchUsers.map(u => ({
       name: u.name.trim(),
       displayName: u.displayName?.trim() || '',
       password: u.password.trim(),
+      role: u.role,
+      groupName: u.groupName?.trim() || '',
     }))
     const hasInvalid = sanitizedUsers.some(u => !u.name || !u.password)
     if (hasInvalid) {
       toast.error('用户昵称和密码不能为空')
+      return
+    }
+    const hasBadRole = sanitizedUsers.some(u => u.role !== 'DELEGATE' && u.role !== 'DM')
+    if (hasBadRole) {
+      toast.error('角色仅允许 代表(DELEGATE) 或 DM')
       return
     }
     batchRegister(
@@ -441,7 +472,8 @@ export default function ConferenceInfoPage() {
         onSuccess: () => {
           toast.success(`批量注册成功（${sanitizedUsers.length} 人）`)
           handleCloseBatchDialog()
-          void refetchDelegates()
+          void refetchUsers()
+          void refetchGroups()
         },
         onError: () => { toast.error('批量注册失败，请重试') },
       }
@@ -690,7 +722,7 @@ export default function ConferenceInfoPage() {
           </DialogContent>
         </Dialog>
 
-        {/* 用户组管理 + 代表管理 左右并排 */}
+        {/* 用户组管理 + 会议用户管理 左右并排 */}
         <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
           <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
             {/* 用户组管理 */}
@@ -712,6 +744,9 @@ export default function ConferenceInfoPage() {
                     <p className="text-sm text-red-900 font-semibold">加载用户组失败，请查看控制台日志</p>
                   </div>
                 ) : (<>
+                <div className="flex items-start gap-2 rounded-lg border border-dashed bg-muted/30 p-3 text-xs text-muted-foreground">
+                  <span className="leading-5">提示：可将右侧会议用户拖拽到下方用户组，快速完成入组。</span>
+                </div>
                 {showGroupForm && (
                   <div className="flex gap-2 items-center p-3 bg-muted/50 rounded-lg">
                     <Input
@@ -772,14 +807,14 @@ export default function ConferenceInfoPage() {
               </CardContent>
             </Card>
 
-            {/* 代表管理 */}
+            {/* 会议用户管理 */}
             {canManageConference && conference && (
               <Card>
                 <CardHeader>
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                      <CardTitle>代表管理</CardTitle>
-                      <CardDescription>查看、批量注册和管理当前会议的代表</CardDescription>
+                      <CardTitle>会议用户管理</CardTitle>
+                      <CardDescription>查看、批量注册和管理当前会议关联的全部用户（含代表、DM、DH）</CardDescription>
                     </div>
                     {canManageDelegates && (
                       <Button
@@ -792,7 +827,7 @@ export default function ConferenceInfoPage() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {delegatesLoading ? (
+                  {usersLoading ? (
                     <p className="text-sm text-muted-foreground">加载中...</p>
                   ) : (
                     <div className="space-y-4">
@@ -805,20 +840,21 @@ export default function ConferenceInfoPage() {
                                   <div className="min-w-40 space-y-2">
                                     <div>用户昵称</div>
                                     <Input
-                                      value={delegateNameFilter}
-                                      onChange={(e) => setDelegateNameFilter(e.target.value)}
+                                      value={memberNameFilter}
+                                      onChange={(e) => setMemberNameFilter(e.target.value)}
                                       placeholder="全部"
                                       className="h-9 bg-background"
                                       onKeyDown={(e) => {
                                         if (e.key === 'Enter') {
-                                          setDelegatePage(0)
-                                          setAppliedDelegateNameFilter(delegateNameFilter)
+                                          setMemberPage(0)
+                                          setAppliedMemberNameFilter(memberNameFilter)
                                         }
                                       }}
                                     />
                                   </div>
                                 </th>
                                 <th className="py-3 px-4 text-left font-medium">显示名称</th>
+                                <th className="py-3 px-4 text-left font-medium">角色</th>
                                 <th className="py-3 px-4 text-right font-medium">
                                   <div className="flex flex-col items-end gap-2">
                                     <div>操作</div>
@@ -827,9 +863,9 @@ export default function ConferenceInfoPage() {
                                         variant="outline"
                                         size="sm"
                                         onClick={() => {
-                                          setDelegateNameFilter('')
-                                          setDelegatePage(0)
-                                          setAppliedDelegateNameFilter('')
+                                          setMemberNameFilter('')
+                                          setMemberPage(0)
+                                          setAppliedMemberNameFilter('')
                                         }}
                                       >
                                         重置
@@ -837,8 +873,8 @@ export default function ConferenceInfoPage() {
                                       <Button
                                         size="sm"
                                         onClick={() => {
-                                          setDelegatePage(0)
-                                          setAppliedDelegateNameFilter(delegateNameFilter)
+                                          setMemberPage(0)
+                                          setAppliedMemberNameFilter(memberNameFilter)
                                         }}
                                       >
                                         查询
@@ -849,14 +885,14 @@ export default function ConferenceInfoPage() {
                               </tr>
                             </thead>
                             <tbody className="divide-y">
-                              {delegates.length === 0 ? (
+                              {pagedMembers.length === 0 ? (
                                 <tr>
-                                  <td colSpan={3} className="px-4 py-10 text-center text-muted-foreground">
-                                    暂无代表数据
+                                  <td colSpan={4} className="px-4 py-10 text-center text-muted-foreground">
+                                    暂无会议用户
                                   </td>
                                 </tr>
                               ) : (
-                                delegates.map((d) => (
+                                pagedMembers.map((d) => (
                                   <DraggableUserRow
                                     key={d.uuid}
                                     user={d}
@@ -874,20 +910,20 @@ export default function ConferenceInfoPage() {
 
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <p className="text-sm text-muted-foreground">
-                          第 {Math.min(delegatePage + 1, Math.max(totalDelegatePages, 1))} 页，共 {Math.max(totalDelegatePages, 1)} 页，共 {totalDelegateElements} 位代表
+                          第 {Math.min(safeMemberPage + 1, totalMemberPages)} 页，共 {totalMemberPages} 页，共 {totalMemberElements} 位用户
                         </p>
                         <div className="flex gap-2">
                           <Button
                             variant="outline"
-                            onClick={() => setDelegatePage(prev => Math.max(prev - 1, 0))}
-                            disabled={delegatePage === 0}
+                            onClick={() => setMemberPage(prev => Math.max(prev - 1, 0))}
+                            disabled={safeMemberPage === 0}
                           >
                             上一页
                           </Button>
                           <Button
                             variant="outline"
-                            onClick={() => setDelegatePage(prev => Math.min(prev + 1, Math.max(totalDelegatePages - 1, 0)))}
-                            disabled={totalDelegatePages <= 1 || delegatePage >= totalDelegatePages - 1}
+                            onClick={() => setMemberPage(prev => Math.min(prev + 1, totalMemberPages - 1))}
+                            disabled={totalMemberPages <= 1 || safeMemberPage >= totalMemberPages - 1}
                           >
                             下一页
                           </Button>
@@ -999,9 +1035,9 @@ export default function ConferenceInfoPage() {
         >
           <AlertDialogContent className="!max-w-5xl !max-h-[90vh] overflow-hidden">
             <AlertDialogHeader>
-              <AlertDialogTitle>批量注册代表</AlertDialogTitle>
+              <AlertDialogTitle>批量注册用户</AlertDialogTitle>
               <AlertDialogDescription>
-                从 CSV 导入或手动填写代表信息，将注册到当前会议「{conference?.name}」。
+                从 CSV 导入或手动填写用户信息（用户名、用户显示名、密码、角色、所属用户组名），将注册到当前会议「{conference?.name}」。同名用户组将自动复用或创建。
               </AlertDialogDescription>
             </AlertDialogHeader>
 
@@ -1015,7 +1051,7 @@ export default function ConferenceInfoPage() {
                   onChange={(e) => handleBatchCsvUpload(e.target.files?.[0])}
                   className="mt-2"
                 />
-                <p className="text-xs text-muted-foreground mt-2">CSV 列：name, displayName, password（可带表头）</p>
+                <p className="text-xs text-muted-foreground mt-2">CSV 列：用户名、用户显示名、密码、角色（代表或DM）、所属用户组名（可带表头，支持中文表头）</p>
                 {batchCsvError && (
                   <p className="text-xs text-red-600 mt-1">{batchCsvError}</p>
                 )}
@@ -1044,13 +1080,15 @@ export default function ConferenceInfoPage() {
                       <th className="!py-3 !px-4 text-left font-medium">用户昵称</th>
                       <th className="!py-3 !px-4 text-left font-medium">显示名称</th>
                       <th className="!py-3 !px-4 text-left font-medium">密码</th>
+                      <th className="!py-3 !px-4 text-left font-medium">角色</th>
+                      <th className="!py-3 !px-4 text-left font-medium">所属用户组</th>
                       <th className="!py-3 !px-4 text-right font-medium">操作</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
                     {batchUsers.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="!py-4 !px-4 text-center text-muted-foreground">
+                        <td colSpan={6} className="!py-4 !px-4 text-center text-muted-foreground">
                           暂无数据，可手动添加或从 CSV 导入
                         </td>
                       </tr>
@@ -1079,6 +1117,28 @@ export default function ConferenceInfoPage() {
                               value={u.password}
                               onChange={(e) => handleBatchUserChange(index, 'password', e.target.value)}
                               placeholder="至少 6 位"
+                            />
+                          </td>
+                          <td className="!py-3 !px-4">
+                            <Select
+                              value={u.role}
+                              onValueChange={(value) => handleBatchUserChange(index, 'role', value)}
+                            >
+                              <SelectTrigger className="w-32">
+                                <SelectValue placeholder="选择角色" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="DELEGATE">代表</SelectItem>
+                                <SelectItem value="DM">DM</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </td>
+                          <td className="!py-3 !px-4">
+                            <Input
+                              type="text"
+                              value={u.groupName || ''}
+                              onChange={(e) => handleBatchUserChange(index, 'groupName', e.target.value)}
+                              placeholder="用户组名（可选，自动建组）"
                             />
                           </td>
                           <td className="!py-3 !px-4 text-right">
@@ -1148,11 +1208,11 @@ export default function ConferenceInfoPage() {
           </AlertDialogContent>
         </AlertDialog>
 
-        {/* 代表详情弹窗 */}
+        {/* 用户详情弹窗 */}
         <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
           <DialogContent className="max-w-lg">
             <DialogHeader>
-              <DialogTitle>代表详情</DialogTitle>
+              <DialogTitle>用户详情</DialogTitle>
               <DialogDescription>
                 {detailUser?.displayName || detailUser?.name} 的基本信息
               </DialogDescription>

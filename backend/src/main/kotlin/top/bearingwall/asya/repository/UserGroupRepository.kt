@@ -5,4 +5,6 @@ import org.springframework.stereotype.Repository
 import top.bearingwall.asya.model.UserGroup
 
 @Repository
-interface UserGroupRepository : JpaRepository<UserGroup, Long>
+interface UserGroupRepository : JpaRepository<UserGroup, Long> {
+    fun findFirstByGroupName(groupName: String): UserGroup?
+}

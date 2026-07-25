@@ -3,6 +3,7 @@ import { normalizePagePayload, type NormalizedPage } from '../core/page'
 import { withQuery } from '../core/query'
 import type {
   BatchRegisterRequest,
+  BatchRegisterFullRequest,
   Pageable,
   SetRegistrationSwitchParams,
   ResetPasswordBody,
@@ -84,6 +85,14 @@ export async function logoutSession() {
 export async function batchRegister(data: BatchRegisterRequest) {
   return apiRequester.requestProtected<void>({
     path: '/api/users/batch',
+    method: 'POST',
+    body: data,
+  })
+}
+
+export async function batchRegisterFull(data: BatchRegisterFullRequest) {
+  return apiRequester.requestProtected<void>({
+    path: '/api/users/batch-full',
     method: 'POST',
     body: data,
   })

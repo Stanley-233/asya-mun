@@ -23,6 +23,7 @@ import top.bearingwall.asya.dto.UserInfoResponse
 import top.bearingwall.asya.dto.UserUpdateRequest
 import top.bearingwall.asya.dto.BatchRegisterRequest
 import top.bearingwall.asya.dto.BatchRegisterResponse
+import top.bearingwall.asya.dto.BatchRegisterFullRequest
 import top.bearingwall.asya.dto.TokenRefreshResponse
 import top.bearingwall.asya.model.UserRole
 import top.bearingwall.asya.service.SystemConfigService
@@ -148,6 +149,29 @@ class UserController(
         }
     }
 
+    @Operation(
+        summary = "批量注册用户（含角色与用户组）",
+        description = "仅 SYS_ADMIN 或 DH 可调用。可为每个用户指定 DELEGATE/DM 角色，并按 groupName 自动创建或复用用户组，将用户加入其中。整体事务，任一失败全部回滚。"
+    )
+    @PostMapping("/batch-full")
+    fun batchRegisterFull(
+        @RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String,
+        @RequestBody request: BatchRegisterFullRequest
+    ): ResponseEntity<Result<BatchRegisterResponse>> {
+        return try {
+            val requester = userService.getUserFromToken(extractBearer(authorization))
+            val requesterUuid = requester.uuid ?: throw IllegalStateException("Requester id missing")
+            val response = userService.batchRegisterFull(requesterUuid, request)
+            ResponseEntity.ok(Result.success(response))
+        } catch (e: SecurityException) {
+            ResponseEntity.status(HttpStatus.FORBIDDEN).body(Result.failure(BizCode.PERMISSION_DENIED, e.message ?: "Access Denied"))
+        } catch (e: IllegalArgumentException) {
+            ResponseEntity.status(HttpStatus.OK).body(Result.failure(BizCode.PARAM_ERROR, e.message ?: "参数错误"))
+        } catch (e: Exception) {
+            ResponseEntity.status(HttpStatus.OK).body(Result.failure(BizCode.TOKEN_INVALID, e.message ?: "Error"))
+        }
+    }
+
     @Operation(summary = "分页查询用户", description = "仅系统管理员可访问，可按昵称、显示名称、关联会议、角色筛选")
     @GetMapping
     fun listAll(
@@ -223,7 +247,7 @@ class UserController(
         }
     }
 
-    @Operation(summary = "管理员重置用户密码", description = "SYS_ADMIN 可重置任意用户；DH 可重置自己会议内的代表")
+    @Operation(summary = "管理员重置用户密码", description = "SYS_ADMIN 可重置任意用户；DH 可重置自己会议内的任意用户")
     @PostMapping("/{uuid}/password-reset")
     fun resetPassword(
         @PathVariable uuid: UUID,
