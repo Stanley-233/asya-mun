@@ -3,6 +3,16 @@
 import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'react-toastify'
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  useSensor,
+  useSensors,
+  PointerSensor,
+} from '@dnd-kit/core'
+import { useDraggable, useDroppable } from '@dnd-kit/core'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -63,6 +73,80 @@ const roleLabels: Record<string, string> = {
   'DELEGATE': '代表',
   'DM': '主席团成员',
   'DH': '主席团指导'
+}
+
+function DraggableUserRow({ user, getUserLabel, onDetailStart, onResetPasswordStart, canManageDelegates }: {
+  user: UserInfoResponse
+  getUserLabel: (user: UserInfoResponse) => string
+  onDetailStart: (user: UserInfoResponse) => void
+  onResetPasswordStart: (user: UserInfoResponse) => void
+  canManageDelegates: boolean
+}) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: `user-${user.uuid}`,
+    data: { user }
+  })
+
+  const style = transform ? {
+    transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+  } : undefined
+
+  return (
+    <tr
+      ref={setNodeRef}
+      style={style}
+      {...listeners}
+      {...attributes}
+      className={`${isDragging ? 'opacity-50' : ''} cursor-grab active:cursor-grabbing`}
+    >
+      <td className="py-3 px-4 font-medium">{user.name}</td>
+      <td className="py-3 px-4">{user.displayName || '—'}</td>
+      <td className="py-3 px-4 text-right">
+        <div className="flex justify-end gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={(e) => { e.stopPropagation(); onDetailStart(user) }}
+          >
+            详情
+          </Button>
+          {canManageDelegates && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={(e) => { e.stopPropagation(); onResetPasswordStart(user) }}
+            >
+              重置密码
+            </Button>
+          )}
+        </div>
+      </td>
+    </tr>
+  )
+}
+
+function DroppableGroupCard({ group, children, onOpenMemberManagement, onOpenEditGroupForm, onDeleteGroup }: {
+  group: UserGroupResponse
+  children: React.ReactNode
+  onOpenMemberManagement: (group: UserGroupResponse) => void
+  onOpenEditGroupForm: (group: UserGroupResponse) => void
+  onDeleteGroup: (id: number) => void
+}) {
+  const { isOver, setNodeRef } = useDroppable({
+    id: `group-${group.id}`,
+    data: { group }
+  })
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`flex items-center justify-between p-3 rounded-lg transition-colors ${
+        isOver ? 'bg-primary/10 ring-2 ring-primary' : 'bg-muted/50'
+      }`}
+    >
+      {children}
+    </div>
+  )
 }
 
 export default function ConferenceInfoPage() {
@@ -158,6 +242,16 @@ export default function ConferenceInfoPage() {
 
   const [detailDialogOpen, setDetailDialogOpen] = useState(false)
   const [detailUser, setDetailUser] = useState<UserInfoResponse | null>(null)
+
+  // Drag and drop state
+  const [activeUser, setActiveUser] = useState<UserInfoResponse | null>(null)
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  )
 
   const filteredUsers = useMemo(() => {
     const keyword = memberKeyword.trim().toLowerCase()
@@ -365,6 +459,36 @@ export default function ConferenceInfoPage() {
     setDetailDialogOpen(true)
   }
 
+  const handleDragStart = (event: DragStartEvent) => {
+    const user = event.active.data.current?.user as UserInfoResponse
+    setActiveUser(user)
+  }
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    setActiveUser(null)
+
+    if (!over) return
+
+    const user = active.data.current?.user as UserInfoResponse
+    const group = over.data.current?.group as UserGroupResponse
+
+    if (!user || !group) return
+
+    // Check if user is already in the group
+    if (group.userUuids.includes(user.uuid)) {
+      toast.info('该用户已在该组中')
+      return
+    }
+
+    // Add user to group
+    const newUserUuids = [...group.userUuids, user.uuid]
+    setMembers(
+      { id: group.id, data: { userUuids: newUserUuids } },
+      { onSuccess: () => { refetchGroups(); toast.success(`已将 ${getUserLabel(user)} 添加到 ${group.groupName}`) } }
+    )
+  }
+
   const detailUserGroups = useMemo(() => {
     if (!detailUser) return []
     return groups.filter(g => g.userUuids.includes(detailUser.uuid))
@@ -567,223 +691,223 @@ export default function ConferenceInfoPage() {
         </Dialog>
 
         {/* 用户组管理 + 代表管理 左右并排 */}
-        <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
-          {/* 用户组管理 */}
-          <Card>
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <div>
-                  <CardTitle>用户组管理</CardTitle>
-                  <CardDescription>创建和管理用户分组</CardDescription>
-                </div>
-                <Button size="sm" onClick={openCreateGroupForm}>新建用户组</Button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {groupsLoading ? (
-                <p className="text-sm text-muted-foreground">加载中...</p>
-              ) : groupsError ? (
-                <div className="bg-red-50 border border-red-200 p-3 rounded-lg">
-                  <p className="text-sm text-red-900 font-semibold">加载用户组失败，请查看控制台日志</p>
-                </div>
-              ) : (<>
-              {showGroupForm && (
-                <div className="flex gap-2 items-center p-3 bg-muted/50 rounded-lg">
-                  <Input
-                    value={groupNameInput}
-                    onChange={e => setGroupNameInput(e.target.value)}
-                    placeholder="输入用户组名称"
-                    className="flex-1"
-                    onKeyDown={e => e.key === 'Enter' && handleSaveGroup()}
-                  />
-                  <Button
-                    size="sm"
-                    onClick={handleSaveGroup}
-                    disabled={isCreatingGroup || isUpdatingGroup || !groupNameInput.trim()}
-                  >
-                    {isCreatingGroup || isUpdatingGroup ? '保存中...' : '保存'}
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => { setShowGroupForm(false); setEditingGroup(null) }}>
-                    取消
-                  </Button>
-                </div>
-              )}
-
-              {groups.length === 0 && !showGroupForm ? (
-                <p className="text-sm text-muted-foreground">暂无用户组，点击「新建用户组」创建</p>
-              ) : (
-                groups.map(group => (
-                  <div key={group.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                    <div>
-                      <p className="font-medium text-sm">{group.groupName}</p>
-                      <p className="text-xs text-muted-foreground">{group.userUuids.length} 名成员</p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => openMemberManagement(group)}>
-                        管理成员
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => openEditGroupForm(group)}>
-                        编辑
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => setDeletingGroupId(group.id)}
-                      >
-                        删除
-                      </Button>
-                    </div>
-                  </div>
-                ))
-              )}
-              </>)}
-            </CardContent>
-          </Card>
-
-          {/* 代表管理 */}
-          {canManageConference && conference && (
+        <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+          <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
+            {/* 用户组管理 */}
             <Card>
               <CardHeader>
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex justify-between items-center">
                   <div>
-                    <CardTitle>代表管理</CardTitle>
-                    <CardDescription>查看、批量注册和管理当前会议的代表</CardDescription>
+                    <CardTitle>用户组管理</CardTitle>
+                    <CardDescription>创建和管理用户分组</CardDescription>
                   </div>
-                  {canManageDelegates && (
-                    <Button
-                      variant="outline"
-                      onClick={handleOpenBatchDialog}
-                    >
-                      批量注册
-                    </Button>
-                  )}
+                  <Button size="sm" onClick={openCreateGroupForm}>新建用户组</Button>
                 </div>
               </CardHeader>
-              <CardContent>
-                {delegatesLoading ? (
+              <CardContent className="space-y-3">
+                {groupsLoading ? (
                   <p className="text-sm text-muted-foreground">加载中...</p>
+                ) : groupsError ? (
+                  <div className="bg-red-50 border border-red-200 p-3 rounded-lg">
+                    <p className="text-sm text-red-900 font-semibold">加载用户组失败，请查看控制台日志</p>
+                  </div>
+                ) : (<>
+                {showGroupForm && (
+                  <div className="flex gap-2 items-center p-3 bg-muted/50 rounded-lg">
+                    <Input
+                      value={groupNameInput}
+                      onChange={e => setGroupNameInput(e.target.value)}
+                      placeholder="输入用户组名称"
+                      className="flex-1"
+                      onKeyDown={e => e.key === 'Enter' && handleSaveGroup()}
+                    />
+                    <Button
+                      size="sm"
+                      onClick={handleSaveGroup}
+                      disabled={isCreatingGroup || isUpdatingGroup || !groupNameInput.trim()}
+                    >
+                      {isCreatingGroup || isUpdatingGroup ? '保存中...' : '保存'}
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => { setShowGroupForm(false); setEditingGroup(null) }}>
+                      取消
+                    </Button>
+                  </div>
+                )}
+
+                {groups.length === 0 && !showGroupForm ? (
+                  <p className="text-sm text-muted-foreground">暂无用户组，点击「新建用户组」创建</p>
                 ) : (
-                  <div className="space-y-4">
-                    <div className="rounded-lg border">
-                      <div className="overflow-x-auto">
-                        <table className="min-w-full text-sm">
-                          <thead className="bg-muted/50 text-muted-foreground">
-                            <tr>
-                              <th className="py-3 px-4 text-left font-medium">
-                                <div className="min-w-40 space-y-2">
-                                  <div>用户昵称</div>
-                                  <Input
-                                    value={delegateNameFilter}
-                                    onChange={(e) => setDelegateNameFilter(e.target.value)}
-                                    placeholder="全部"
-                                    className="h-9 bg-background"
-                                    onKeyDown={(e) => {
-                                      if (e.key === 'Enter') {
-                                        setDelegatePage(0)
-                                        setAppliedDelegateNameFilter(delegateNameFilter)
-                                      }
-                                    }}
-                                  />
-                                </div>
-                              </th>
-                              <th className="py-3 px-4 text-left font-medium">显示名称</th>
-                              <th className="py-3 px-4 text-right font-medium">
-                                <div className="flex flex-col items-end gap-2">
-                                  <div>操作</div>
-                                  <div className="flex gap-2">
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => {
-                                        setDelegateNameFilter('')
-                                        setDelegatePage(0)
-                                        setAppliedDelegateNameFilter('')
-                                      }}
-                                    >
-                                      重置
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      onClick={() => {
-                                        setDelegatePage(0)
-                                        setAppliedDelegateNameFilter(delegateNameFilter)
-                                      }}
-                                    >
-                                      查询
-                                    </Button>
-                                  </div>
-                                </div>
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y">
-                            {delegates.length === 0 ? (
+                  groups.map(group => (
+                    <DroppableGroupCard
+                      key={group.id}
+                      group={group}
+                      onOpenMemberManagement={openMemberManagement}
+                      onOpenEditGroupForm={openEditGroupForm}
+                      onDeleteGroup={(id) => setDeletingGroupId(id)}
+                    >
+                      <div>
+                        <p className="font-medium text-sm">{group.groupName}</p>
+                        <p className="text-xs text-muted-foreground">{group.userUuids.length} 名成员</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" onClick={() => openMemberManagement(group)}>
+                          管理成员
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => openEditGroupForm(group)}>
+                          编辑
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => setDeletingGroupId(group.id)}
+                        >
+                          删除
+                        </Button>
+                      </div>
+                    </DroppableGroupCard>
+                  ))
+                )}
+                </>)}
+              </CardContent>
+            </Card>
+
+            {/* 代表管理 */}
+            {canManageConference && conference && (
+              <Card>
+                <CardHeader>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <CardTitle>代表管理</CardTitle>
+                      <CardDescription>查看、批量注册和管理当前会议的代表</CardDescription>
+                    </div>
+                    {canManageDelegates && (
+                      <Button
+                        variant="outline"
+                        onClick={handleOpenBatchDialog}
+                      >
+                        批量注册
+                      </Button>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {delegatesLoading ? (
+                    <p className="text-sm text-muted-foreground">加载中...</p>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="rounded-lg border">
+                        <div className="overflow-x-auto">
+                          <table className="min-w-full text-sm">
+                            <thead className="bg-muted/50 text-muted-foreground">
                               <tr>
-                                <td colSpan={3} className="px-4 py-10 text-center text-muted-foreground">
-                                  暂无代表数据
-                                </td>
-                              </tr>
-                            ) : (
-                              delegates.map((d) => (
-                                <tr key={d.uuid}>
-                                  <td className="py-3 px-4 font-medium">{d.name}</td>
-                                  <td className="py-3 px-4">{d.displayName || '—'}</td>
-                                  <td className="py-3 px-4 text-right">
-                                    <div className="flex justify-end gap-2">
+                                <th className="py-3 px-4 text-left font-medium">
+                                  <div className="min-w-40 space-y-2">
+                                    <div>用户昵称</div>
+                                    <Input
+                                      value={delegateNameFilter}
+                                      onChange={(e) => setDelegateNameFilter(e.target.value)}
+                                      placeholder="全部"
+                                      className="h-9 bg-background"
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                          setDelegatePage(0)
+                                          setAppliedDelegateNameFilter(delegateNameFilter)
+                                        }
+                                      }}
+                                    />
+                                  </div>
+                                </th>
+                                <th className="py-3 px-4 text-left font-medium">显示名称</th>
+                                <th className="py-3 px-4 text-right font-medium">
+                                  <div className="flex flex-col items-end gap-2">
+                                    <div>操作</div>
+                                    <div className="flex gap-2">
                                       <Button
                                         variant="outline"
                                         size="sm"
-                                        onClick={() => handleDetailStart(d)}
+                                        onClick={() => {
+                                          setDelegateNameFilter('')
+                                          setDelegatePage(0)
+                                          setAppliedDelegateNameFilter('')
+                                        }}
                                       >
-                                        详情
+                                        重置
                                       </Button>
-                                      {canManageDelegates && (
-                                        <Button
-                                          variant="secondary"
-                                          size="sm"
-                                          onClick={() => handleResetPasswordStart(d)}
-                                        >
-                                          重置密码
-                                        </Button>
-                                      )}
+                                      <Button
+                                        size="sm"
+                                        onClick={() => {
+                                          setDelegatePage(0)
+                                          setAppliedDelegateNameFilter(delegateNameFilter)
+                                        }}
+                                      >
+                                        查询
+                                      </Button>
                                     </div>
+                                  </div>
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y">
+                              {delegates.length === 0 ? (
+                                <tr>
+                                  <td colSpan={3} className="px-4 py-10 text-center text-muted-foreground">
+                                    暂无代表数据
                                   </td>
                                 </tr>
-                              ))
-                            )}
-                          </tbody>
-                        </table>
+                              ) : (
+                                delegates.map((d) => (
+                                  <DraggableUserRow
+                                    key={d.uuid}
+                                    user={d}
+                                    getUserLabel={getUserLabel}
+                                    onDetailStart={handleDetailStart}
+                                    onResetPasswordStart={handleResetPasswordStart}
+                                    canManageDelegates={canManageDelegates}
+                                  />
+                                ))
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <p className="text-sm text-muted-foreground">
-                        第 {Math.min(delegatePage + 1, Math.max(totalDelegatePages, 1))} 页，共 {Math.max(totalDelegatePages, 1)} 页，共 {totalDelegateElements} 位代表
-                      </p>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          onClick={() => setDelegatePage(prev => Math.max(prev - 1, 0))}
-                          disabled={delegatePage === 0}
-                        >
-                          上一页
-                        </Button>
-                        <Button
-                          variant="outline"
-                          onClick={() => setDelegatePage(prev => Math.min(prev + 1, Math.max(totalDelegatePages - 1, 0)))}
-                          disabled={totalDelegatePages <= 1 || delegatePage >= totalDelegatePages - 1}
-                        >
-                          下一页
-                        </Button>
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <p className="text-sm text-muted-foreground">
+                          第 {Math.min(delegatePage + 1, Math.max(totalDelegatePages, 1))} 页，共 {Math.max(totalDelegatePages, 1)} 页，共 {totalDelegateElements} 位代表
+                        </p>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            onClick={() => setDelegatePage(prev => Math.max(prev - 1, 0))}
+                            disabled={delegatePage === 0}
+                          >
+                            上一页
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => setDelegatePage(prev => Math.min(prev + 1, Math.max(totalDelegatePages - 1, 0)))}
+                            disabled={totalDelegatePages <= 1 || delegatePage >= totalDelegatePages - 1}
+                          >
+                            下一页
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-        </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+          </div>
+          <DragOverlay>
+            {activeUser ? (
+              <div className="p-3 bg-background border rounded-lg shadow-lg">
+                <p className="text-sm font-medium">{getUserLabel(activeUser)}</p>
+                <p className="text-xs text-muted-foreground">{roleLabels[activeUser.role] || activeUser.role}</p>
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
 
         {/* 删除确认 */}
         <AlertDialog open={deletingGroupId !== null} onOpenChange={open => !open && setDeletingGroupId(null)}>
