@@ -45,6 +45,10 @@ const MSG_TYPE_LABELS = {
   CRISIS: '危机',
   WAR_REPORT: '战报',
   SECRET_LETTER: '密函',
+  MEMORANDUM: '备忘录',
+  PROTOCOL: '议定书',
+  AMENDMENT: '修正案',
+  DECLARATION: '声明',
 } as const
 
 type MessageTypeVariant = NonNullable<ComponentProps<typeof Badge>['variant']>
@@ -55,6 +59,10 @@ const MSG_TYPE_VARIANTS = {
   CRISIS: 'destructive',
   WAR_REPORT: 'default',
   SECRET_LETTER: 'secondary',
+  MEMORANDUM: 'secondary',
+  PROTOCOL: 'default',
+  AMENDMENT: 'destructive',
+  DECLARATION: 'outline',
 } as const satisfies Record<NonNullable<MessageResponse['msgType']>, MessageTypeVariant>
 
 // 格式化游戏时间为人类可读格式

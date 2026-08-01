@@ -5,7 +5,7 @@ import java.time.LocalDateTime
 
 @Schema(description = "消息类型")
 enum class MessageType {
-    EVENT, NEWS, CRISIS, SECRET_LETTER, WAR_REPORT
+    EVENT, NEWS, CRISIS, SECRET_LETTER, WAR_REPORT, MEMORANDUM, PROTOCOL, AMENDMENT, DECLARATION
 }
 
 @Schema(description = "接收者及延迟阅读配置")
@@ -37,7 +37,7 @@ data class MessageCreateRequest(
     @Schema(description = "摘要(可选, 默认截取前30字)")
     val brief: String?,
 
-    @Schema(description = "消息类型: EVENT, NEWS, CRISIS, SECRET_LETTER, WAR_REPORT")
+    @Schema(description = "消息类型: EVENT, NEWS, CRISIS, SECRET_LETTER, WAR_REPORT, MEMORANDUM, PROTOCOL, AMENDMENT, DECLARATION")
     val msgType: MessageType,
 
     @Schema(description = "发布现实时间(可选，默认为服务器当前时间)")

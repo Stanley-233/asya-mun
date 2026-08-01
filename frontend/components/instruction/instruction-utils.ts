@@ -20,6 +20,7 @@ export const INSTRUCTION_TYPE_LABELS: Record<
 > = {
   MILITARY: '军事',
   DIPLOMACY: '外交',
+  ECONOMY: '经济',
   INTERNAL: '内政',
   OTHER: '其他',
 }

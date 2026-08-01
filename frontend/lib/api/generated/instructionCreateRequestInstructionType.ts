@@ -7,7 +7,7 @@
  */
 
 /**
- * 指令类型: MILITARY, DIPLOMACY, INTERNAL, OTHER
+ * 指令类型: MILITARY, DIPLOMACY, ECONOMY, INTERNAL, OTHER
  */
 export type InstructionCreateRequestInstructionType =
   (typeof InstructionCreateRequestInstructionType)[keyof typeof InstructionCreateRequestInstructionType];
@@ -15,6 +15,7 @@ export type InstructionCreateRequestInstructionType =
 export const InstructionCreateRequestInstructionType = {
   MILITARY: "MILITARY",
   DIPLOMACY: "DIPLOMACY",
+  ECONOMY: "ECONOMY",
   INTERNAL: "INTERNAL",
   OTHER: "OTHER",
 } as const;

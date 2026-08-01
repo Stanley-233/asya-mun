@@ -12,6 +12,7 @@ export type GetForManagementInstructionType =
 export const GetForManagementInstructionType = {
   MILITARY: "MILITARY",
   DIPLOMACY: "DIPLOMACY",
+  ECONOMY: "ECONOMY",
   INTERNAL: "INTERNAL",
   OTHER: "OTHER",
 } as const;

@@ -15,6 +15,7 @@ export type InstructionResponseInstructionType =
 export const InstructionResponseInstructionType = {
   MILITARY: "MILITARY",
   DIPLOMACY: "DIPLOMACY",
+  ECONOMY: "ECONOMY",
   INTERNAL: "INTERNAL",
   OTHER: "OTHER",
 } as const;

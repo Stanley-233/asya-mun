@@ -7,7 +7,7 @@
  */
 
 /**
- * 消息类型: EVENT, NEWS, CRISIS, SECRET_LETTER, WAR_REPORT
+ * 消息类型: EVENT, NEWS, CRISIS, SECRET_LETTER, WAR_REPORT, MEMORANDUM, PROTOCOL, AMENDMENT, DECLARATION
  */
 export type MessageCreateRequestMsgType =
   (typeof MessageCreateRequestMsgType)[keyof typeof MessageCreateRequestMsgType];
@@ -18,4 +18,8 @@ export const MessageCreateRequestMsgType = {
   CRISIS: "CRISIS",
   SECRET_LETTER: "SECRET_LETTER",
   WAR_REPORT: "WAR_REPORT",
+  MEMORANDUM: "MEMORANDUM",
+  PROTOCOL: "PROTOCOL",
+  AMENDMENT: "AMENDMENT",
+  DECLARATION: "DECLARATION",
 } as const;

@@ -10,7 +10,7 @@ data class InstructionCreateRequest(
     @Schema(description = "标题")
     val title: String,
 
-    @Schema(description = "指令类型: MILITARY, DIPLOMACY, INTERNAL, OTHER")
+    @Schema(description = "指令类型: MILITARY, DIPLOMACY, ECONOMY, INTERNAL, OTHER")
     val instructionType: InstructionType,
 
     @Schema(description = "指令内容")

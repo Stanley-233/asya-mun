@@ -271,6 +271,10 @@ const MSG_TYPE_OPTIONS = [
   { value: 'CRISIS', label: '危机' },
   { value: 'WAR_REPORT', label: '战报' },
   { value: 'SECRET_LETTER', label: '密函' },
+  { value: 'MEMORANDUM', label: '备忘录' },
+  { value: 'PROTOCOL', label: '议定书' },
+  { value: 'AMENDMENT', label: '修正案' },
+  { value: 'DECLARATION', label: '声明' },
 ]
 
 const ALLOWED_ATTACHMENT_EXTENSIONS = new Set([
@@ -381,7 +385,16 @@ export function MessageEditDialog({
     title: '',
     content: '',
     brief: '',
-    msgType: 'NEWS' as 'EVENT' | 'NEWS' | 'CRISIS' | 'WAR_REPORT' | 'SECRET_LETTER',
+    msgType: 'NEWS' as
+      | 'EVENT'
+      | 'NEWS'
+      | 'CRISIS'
+      | 'WAR_REPORT'
+      | 'SECRET_LETTER'
+      | 'MEMORANDUM'
+      | 'PROTOCOL'
+      | 'AMENDMENT'
+      | 'DECLARATION',
     publishRealTime: '',
     publishGameTime: '',
     isSecret: false,
@@ -530,7 +543,16 @@ export function MessageEditDialog({
         title: fullMessage.title || '',
         content: fullMessage.content || '',
         brief: fullMessage.brief || '',
-        msgType: (fullMessage.msgType || 'NEWS') as 'EVENT' | 'NEWS' | 'CRISIS' | 'WAR_REPORT' | 'SECRET_LETTER',
+        msgType: (fullMessage.msgType || 'NEWS') as
+          | 'EVENT'
+          | 'NEWS'
+          | 'CRISIS'
+          | 'WAR_REPORT'
+          | 'SECRET_LETTER'
+          | 'MEMORANDUM'
+          | 'PROTOCOL'
+          | 'AMENDMENT'
+          | 'DECLARATION',
         publishRealTime: fullMessage.publishRealTime || '',
         publishGameTime: fullMessage.publishGameTime || '',
         isSecret: getMessageIsSecret(fullMessage),
@@ -912,7 +934,16 @@ export function MessageEditDialog({
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      msgType: e.target.value as 'EVENT' | 'NEWS' | 'CRISIS' | 'WAR_REPORT' | 'SECRET_LETTER',
+                      msgType: e.target.value as
+                        | 'EVENT'
+                        | 'NEWS'
+                        | 'CRISIS'
+                        | 'WAR_REPORT'
+                        | 'SECRET_LETTER'
+                        | 'MEMORANDUM'
+                        | 'PROTOCOL'
+                        | 'AMENDMENT'
+                        | 'DECLARATION',
                     })
                   }
                   className="flex h-8 w-full items-center justify-between rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"

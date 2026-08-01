@@ -50,6 +50,7 @@ const statusOptions: Array<GetForManagementStatus> = [
 const typeOptions: Array<GetForManagementInstructionType> = [
   'MILITARY',
   'DIPLOMACY',
+  'ECONOMY',
   'INTERNAL',
   'OTHER',
 ]
