@@ -24,6 +24,7 @@ import top.bearingwall.asya.repository.UserRepository
 import top.bearingwall.asya.util.JwtUtil
 import java.math.BigDecimal
 import java.time.LocalDateTime
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
 @Service
@@ -42,7 +43,7 @@ class TestDataService(
     fun bootstrapScenario(requester: User): TestDataBootstrapResponse {
         require(requester.role == UserRole.SYS_ADMIN) { "Only SYS_ADMIN can bootstrap test data" }
 
-        val now = LocalDateTime.now()
+        val now = LocalDateTime.now(ZoneOffset.UTC)
         val seed = now.format(nameFormatter)
         val defaultPassword = "123456"
 

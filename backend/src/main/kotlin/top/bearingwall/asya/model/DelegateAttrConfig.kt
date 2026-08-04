@@ -15,6 +15,7 @@ import jakarta.persistence.UniqueConstraint
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
 import java.time.LocalDateTime
+import java.time.ZoneOffset
 import java.util.UUID
 
 @Entity
@@ -57,10 +58,10 @@ class DelegateAttrConfig(
     var sortOrder: Int = 0,
 
     @Column(name = "created_at", nullable = false)
-    var createdAt: LocalDateTime = LocalDateTime.now(),
+    var createdAt: LocalDateTime = LocalDateTime.now(ZoneOffset.UTC),
 
     @Column(name = "updated_at", nullable = false)
-    var updatedAt: LocalDateTime = LocalDateTime.now(),
+    var updatedAt: LocalDateTime = LocalDateTime.now(ZoneOffset.UTC),
 
     @Column(name = "created_by")
     var createdBy: UUID? = null,

@@ -1,6 +1,7 @@
 'use client'
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { formatServerDateTime } from "@/lib/date-time"
 
 interface CurrentGameTimeCardProps {
   currentGameTime: Date | null
@@ -30,20 +31,7 @@ function formatGameTime(date: Date | null): string {
 
 // 格式化时间戳
 function formatTimestamp(timestamp: string | undefined): string {
-  if (!timestamp) return '未知'
-  try {
-    const date = new Date(timestamp)
-    if (isNaN(date.getTime())) return '未知'
-    const y = date.getFullYear()
-    const m = String(date.getMonth() + 1).padStart(2, '0')
-    const d = String(date.getDate()).padStart(2, '0')
-    const h = String(date.getHours()).padStart(2, '0')
-    const min = String(date.getMinutes()).padStart(2, '0')
-    const s = String(date.getSeconds()).padStart(2, '0')
-    return `${y}/${m}/${d} ${h}:${min}:${s}`
-  } catch {
-    return '未知'
-  }
+  return formatServerDateTime(timestamp)
 }
 
 export function CurrentGameTimeCard({ currentGameTime, latestAnchor }: CurrentGameTimeCardProps) {

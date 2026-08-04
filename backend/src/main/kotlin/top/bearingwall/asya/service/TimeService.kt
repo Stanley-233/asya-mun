@@ -15,6 +15,7 @@ import top.bearingwall.asya.repository.TimeAnchorRepository
 import java.io.IOException
 import java.time.Duration
 import java.time.LocalDateTime
+import java.time.ZoneOffset
 import java.util.UUID
 import java.util.concurrent.CopyOnWriteArrayList
 
@@ -63,7 +64,7 @@ class TimeService(
         }
 
         val lastAnchor = timeAnchorRepository.findFirstByConferenceUuidOrderByIdDesc(conferenceUuid)
-        val now = LocalDateTime.now()
+        val now = LocalDateTime.now(ZoneOffset.UTC)
 
         val baseGameTime = if (lastAnchor != null && lastAnchor.anchorRealTime != null &&
             lastAnchor.anchorGameTime != null && lastAnchor.timeRatio != null
@@ -98,7 +99,7 @@ class TimeService(
         val conference = conferenceRepository.findById(conferenceUuid).orElseThrow {
             IllegalArgumentException("Conference not found: $conferenceUuid")
         }
-        val now = LocalDateTime.now()
+        val now = LocalDateTime.now(ZoneOffset.UTC)
 
         timeAnchorRepository.updateIsCurrentToFalseByConferenceUuid(conferenceUuid)
 
@@ -129,7 +130,7 @@ class TimeService(
             return anchor.anchorGameTime
         }
 
-        val now = LocalDateTime.now()
+        val now = LocalDateTime.now(ZoneOffset.UTC)
         if (anchor.anchorRealTime == null || anchor.anchorGameTime == null) {
             return anchor.anchorGameTime
         }

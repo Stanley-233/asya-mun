@@ -9,6 +9,7 @@ import jakarta.persistence.ManyToOne
 import jakarta.persistence.MapsId
 import jakarta.persistence.Table
 import java.time.LocalDateTime
+import java.time.ZoneOffset
 
 @Entity
 @Table(name = "message_receivers")
@@ -27,6 +28,6 @@ class MessageReceiver(
     var receiver: User? = null,
 
     @Column(name = "readable_at", nullable = false)
-    var readableAt: LocalDateTime = LocalDateTime.now()
+    var readableAt: LocalDateTime = LocalDateTime.now(ZoneOffset.UTC)
 )
 

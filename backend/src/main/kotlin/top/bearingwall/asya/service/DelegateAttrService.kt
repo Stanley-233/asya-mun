@@ -28,6 +28,7 @@ import top.bearingwall.asya.repository.DelegateAttrRecordRepository
 import top.bearingwall.asya.repository.DelegateAttrValueRepository
 import top.bearingwall.asya.repository.UserRepository
 import java.time.LocalDateTime
+import java.time.ZoneOffset
 import java.util.UUID
 
 @Service
@@ -52,7 +53,7 @@ class DelegateAttrService(
             throw IllegalArgumentException("Attribute key already exists in current conference: ${request.attrKey}")
         }
 
-        val now = LocalDateTime.now()
+        val now = LocalDateTime.now(ZoneOffset.UTC)
         val saved = configRepository.save(
             DelegateAttrConfig(
                 conference = conference,
@@ -89,7 +90,7 @@ class DelegateAttrService(
         request.enabled?.let { config.enabled = it }
         request.visible?.let { config.visible = it }
 
-        config.updatedAt = LocalDateTime.now()
+        config.updatedAt = LocalDateTime.now(ZoneOffset.UTC)
         config.updatedBy = requester.uuid
 
         return configRepository.save(config).toResponse()
@@ -135,7 +136,7 @@ class DelegateAttrService(
         val delegate = getDelegate(delegateId)
         ensureSameConference(delegate.conference?.uuid, conference.uuid)
 
-        val now = LocalDateTime.now()
+        val now = LocalDateTime.now(ZoneOffset.UTC)
         val record = DelegateAttrRecord(
             conference = conference,
             delegate = delegate,
@@ -169,7 +170,7 @@ class DelegateAttrService(
             ?: throw IllegalArgumentException("Record not found: $recordId")
 
         upsertRecordValues(record, conferenceUuid, request)
-        record.updatedAt = LocalDateTime.now()
+        record.updatedAt = LocalDateTime.now(ZoneOffset.UTC)
         record.updatedBy = requester.uuid
 
         val saved = recordRepository.save(record)

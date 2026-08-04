@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { useAuth } from '@/lib/contexts/auth-context'
+import { formatServerDateTime } from '@/lib/date-time'
 import type { MessageResponse } from '@/lib/api/generated'
 import { Edit2, Trash2 } from 'lucide-react'
 
@@ -65,16 +66,7 @@ function formatGameTime(isoString: string): string {
 }
 
 function formatRealTime(isoString: string): string {
-  if (!isoString) return '未知'
-  const d = new Date(isoString)
-  if (isNaN(d.getTime())) return isoString
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  const h = String(d.getHours()).padStart(2, '0')
-  const min = String(d.getMinutes()).padStart(2, '0')
-  const s = String(d.getSeconds()).padStart(2, '0')
-  return `${y}/${m}/${day} ${h}:${min}:${s}`
+  return formatServerDateTime(isoString)
 }
 
 function getSenderDisplayName(message: MessageResponse): string {

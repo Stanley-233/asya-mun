@@ -12,6 +12,7 @@ import top.bearingwall.asya.model.AuditActionType
 import top.bearingwall.asya.model.AuditLog
 import top.bearingwall.asya.repository.AuditLogRepository
 import java.time.LocalDateTime
+import java.time.ZoneOffset
 import java.util.UUID
 
 @Service
@@ -144,7 +145,7 @@ class AuditLogService(
     ) {
         auditLogRepository.saveAndFlush(
             AuditLog(
-                eventTime = LocalDateTime.now(),
+                eventTime = LocalDateTime.now(ZoneOffset.UTC),
                 actorUuid = actorUuid,
                 actorName = actorName,
                 actorIp = actorIp,

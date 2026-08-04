@@ -10,6 +10,7 @@ import {
   getListQueryKey,
   useCurrent,
 } from '@/lib/api/hooks/round'
+import { parseServerDateTime } from '@/lib/date-time'
 import type { RoundResponse } from '@/lib/api/generated'
 
 function formatDuration(totalSeconds: number) {
@@ -78,8 +79,8 @@ export function RoundStatusCard() {
       return Math.max(0, Math.floor(currentRound.remainingSeconds))
     }
 
-    const serverMs = Date.parse(currentRound.serverTime)
-    const baseMs = Number.isNaN(serverMs) ? clientNow : serverMs
+    const serverMs = parseServerDateTime(currentRound.serverTime)?.getTime()
+    const baseMs = serverMs ?? clientNow
     const elapsed = Math.floor((clientNow - baseMs) / 1000)
     return Math.max(0, currentRound.remainingSeconds - Math.max(0, elapsed))
   }, [clientNow, currentRound])

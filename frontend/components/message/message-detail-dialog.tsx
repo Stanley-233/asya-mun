@@ -20,6 +20,7 @@ import type {
 } from '@/lib/api/generated'
 import { Separator } from '@/components/ui/separator'
 import { useAuth } from '@/lib/contexts/auth-context'
+import { formatServerDateTime, parseServerDateTime } from '@/lib/date-time'
 import { Button } from '@/components/ui/button'
 import { ImagePreviewDialog } from '@/components/message/image-preview-dialog'
 import { Eye } from 'lucide-react'
@@ -124,28 +125,11 @@ function formatFileSize(size?: number): string {
 }
 
 function formatRealTime(isoString: string): string {
-  if (!isoString) return '未知'
-  const d = new Date(isoString)
-  if (isNaN(d.getTime())) return isoString
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  const h = String(d.getHours()).padStart(2, '0')
-  const min = String(d.getMinutes()).padStart(2, '0')
-  const s = String(d.getSeconds()).padStart(2, '0')
-  return `${y}/${m}/${day} ${h}:${min}:${s}`
+  return formatServerDateTime(isoString)
 }
 
 function formatReadableAt(isoString: string): string {
-  const date = new Date(isoString)
-  if (Number.isNaN(date.getTime())) return isoString || '未知'
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const d = String(date.getDate()).padStart(2, '0')
-  const h = String(date.getHours()).padStart(2, '0')
-  const min = String(date.getMinutes()).padStart(2, '0')
-  const s = String(date.getSeconds()).padStart(2, '0')
-  return `${y}/${m}/${d} ${h}:${min}:${s}`
+  return formatServerDateTime(isoString)
 }
 
 function getFilenameFromHeaders(headers: unknown, fallback: string): string {
@@ -225,8 +209,8 @@ export function MessageDetailDialog({
   const attachmentUuids = useMemo(() => message?.attachmentUuids || [], [message?.attachmentUuids])
 
   const receiverStatusList = receiverVisibilityList.map((receiver) => {
-    const readableAtTs = new Date(receiver.readableAt).getTime()
-    const isReadable = Number.isFinite(readableAtTs) ? readableAtTs <= Date.now() : false
+    const readableAtTs = parseServerDateTime(receiver.readableAt)?.getTime()
+    const isReadable = Number.isFinite(readableAtTs) ? readableAtTs! <= Date.now() : false
     return {
       ...receiver,
       isReadable,

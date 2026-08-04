@@ -31,6 +31,10 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/lib/contexts/auth-context'
 import { toast } from 'react-toastify'
 import { parseApiPayload } from '@/lib/api/response-utils'
+import {
+  parseDateTimeLocalToServerISO,
+  toServerDateTimeLocalInputValue,
+} from '@/lib/date-time'
 
 interface MessageEditDialogProps {
   open: boolean
@@ -121,26 +125,6 @@ function parseMessageReceivers(rawData: unknown): MessageReceiverVisibilityRespo
   })
 }
 
-function toDateTimeLocalInputValue(isoString?: string): string {
-  if (!isoString) return ''
-  const date = new Date(isoString)
-  if (Number.isNaN(date.getTime())) return ''
-
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  const hours = String(date.getHours()).padStart(2, '0')
-  const minutes = String(date.getMinutes()).padStart(2, '0')
-  return `${year}-${month}-${day}T${hours}:${minutes}`
-}
-
-function parseDateTimeLocalToISO(dateTimeLocal: string): string {
-  if (!dateTimeLocal.trim()) return ''
-  const date = new Date(dateTimeLocal)
-  if (Number.isNaN(date.getTime())) return ''
-  return date.toISOString()
-}
-
 function gameISOStringToDateTimeLocal(isoStr: string): string {
   if (!isoStr) return ''
   const match = isoStr.match(/^(-?\d+)-(\d{2})-(\d{2})T(\d{2}):(\d{2})/)
@@ -209,8 +193,8 @@ function parseNonNegativeInteger(value: string): number | null {
 }
 
 function getEarliestReadableAt(a: string, b: string): string {
-  const aTs = Date.parse(parseDateTimeLocalToISO(a))
-  const bTs = Date.parse(parseDateTimeLocalToISO(b))
+  const aTs = Date.parse(parseDateTimeLocalToServerISO(a))
+  const bTs = Date.parse(parseDateTimeLocalToServerISO(b))
 
   const aValid = Number.isFinite(aTs)
   const bValid = Number.isFinite(bTs)
@@ -553,7 +537,7 @@ export function MessageEditDialog({
           | 'PROTOCOL'
           | 'AMENDMENT'
           | 'DECLARATION',
-        publishRealTime: fullMessage.publishRealTime || '',
+        publishRealTime: toServerDateTimeLocalInputValue(fullMessage.publishRealTime) || '',
         publishGameTime: fullMessage.publishGameTime || '',
         isSecret: getMessageIsSecret(fullMessage),
       })
@@ -629,7 +613,7 @@ export function MessageEditDialog({
       parsedReceivers.map((receiver) => ({
         receiverId: receiver.uuid,
         delayMinutes: '',
-        readableAt: toDateTimeLocalInputValue(receiver.readableAt),
+        readableAt: toServerDateTimeLocalInputValue(receiver.readableAt),
       }))
     )
   }, [open, isEditing, canManageConference, receiversData])
@@ -831,13 +815,13 @@ export function MessageEditDialog({
     }
 
     if (isEditing && formData.isSecret) {
-      const invalidGroupReadableAt = selectedGroupConfigs.some((group) => !parseDateTimeLocalToISO(group.readableAt))
+      const invalidGroupReadableAt = selectedGroupConfigs.some((group) => !parseDateTimeLocalToServerISO(group.readableAt))
       if (invalidGroupReadableAt) {
         toast.warning('请为每个选中的用户组填写合法的可读时间')
         return
       }
 
-      const invalidReadableAt = secretReceivers.some((receiver) => !parseDateTimeLocalToISO(receiver.readableAt))
+      const invalidReadableAt = secretReceivers.some((receiver) => !parseDateTimeLocalToServerISO(receiver.readableAt))
       if (invalidReadableAt) {
         toast.warning('请为每个接收者填写合法的可读时间')
         return
@@ -860,13 +844,13 @@ export function MessageEditDialog({
         content: formData.content,
         brief: formData.brief || undefined,
         msgType: formData.msgType,
-        publishRealTime: formData.publishRealTime || undefined,
+        publishRealTime: parseDateTimeLocalToServerISO(formData.publishRealTime) || undefined,
         publishGameTime: gameTimeISO,
         isSecret: formData.isSecret,
         receiverIds: formData.isSecret
           ? resolvedReceivers.map((receiver) => ({
               receiverId: receiver.receiverId,
-              readableAt: parseDateTimeLocalToISO(receiver.readableAt),
+              readableAt: parseDateTimeLocalToServerISO(receiver.readableAt),
             }))
           : [],
         attachmentUuids,
@@ -879,7 +863,7 @@ export function MessageEditDialog({
         content: formData.content,
         brief: formData.brief || undefined,
         msgType: formData.msgType,
-        publishRealTime: formData.publishRealTime || undefined,
+        publishRealTime: parseDateTimeLocalToServerISO(formData.publishRealTime) || undefined,
         publishGameTime: gameTimeISO,
         isSecret: formData.isSecret,
         receiverIds: formData.isSecret
@@ -1115,7 +1099,7 @@ export function MessageEditDialog({
                               const map = new Map(prev.map((item) => [item.groupId, item]))
                               return conferenceGroups.map((group) => {
                                 const defaultReadableAt = isEditing
-                                  ? toDateTimeLocalInputValue(new Date().toISOString())
+                                  ? toServerDateTimeLocalInputValue(new Date().toISOString())
                                   : ''
                                 return map.get(group.id) || createDefaultGroupConfig(group.id, defaultReadableAt)
                               })
@@ -1150,7 +1134,7 @@ export function MessageEditDialog({
                                 onChange={(e) => {
                                   if (e.target.checked) {
                                     const defaultReadableAt = isEditing
-                                      ? toDateTimeLocalInputValue(new Date().toISOString())
+                                      ? toServerDateTimeLocalInputValue(new Date().toISOString())
                                       : ''
                                     setSelectedGroupConfigs((prev) => {
                                       if (prev.some((item) => item.groupId === group.id)) return prev
@@ -1220,7 +1204,7 @@ export function MessageEditDialog({
                               const map = new Map(prev.map((item) => [item.receiverId, item]))
                               return selectableUsers.map((user) => {
                                 const defaultReadableAt = isEditing
-                                  ? toDateTimeLocalInputValue(new Date().toISOString())
+                                  ? toServerDateTimeLocalInputValue(new Date().toISOString())
                                   : ''
                                 return map.get(user.uuid) || createDefaultReceiverConfig(user.uuid, defaultReadableAt)
                               })
@@ -1264,7 +1248,7 @@ export function MessageEditDialog({
                                     setSecretReceivers((prev) => {
                                       if (prev.some((item) => item.receiverId === conferenceUser.uuid)) return prev
                                       const defaultReadableAt = isEditing
-                                        ? toDateTimeLocalInputValue(new Date().toISOString())
+                                        ? toServerDateTimeLocalInputValue(new Date().toISOString())
                                         : ''
                                       return [...prev, createDefaultReceiverConfig(conferenceUser.uuid, defaultReadableAt)]
                                     })

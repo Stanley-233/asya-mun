@@ -12,6 +12,7 @@ import { getMyInstructions } from '@/lib/api/apis/instruction.api'
 import { getAll, getSecretMessages } from '@/lib/api/apis/message.api'
 import type { InstructionResponse, MessageResponse } from '@/lib/api/generated'
 import { useAuth } from '@/lib/contexts/auth-context'
+import { formatServerDateTime, parseServerDateTime } from '@/lib/date-time'
 import { getStoredAccessToken } from '@/lib/auth/token-storage'
 import { cn } from '@/lib/utils'
 import {
@@ -49,16 +50,13 @@ function buildWebSocketUrl(baseUrl?: string) {
   return normalizedBaseUrl.toString()
 }
 
+function truncateWithEllipsis(text: string, maxLength: number) {
+  if (text.length <= maxLength) return text
+  return `${text.slice(0, maxLength)}...`
+}
+
 function formatOccurredAt(value: string) {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const d = String(date.getDate()).padStart(2, '0')
-  const h = String(date.getHours()).padStart(2, '0')
-  const min = String(date.getMinutes()).padStart(2, '0')
-  const s = String(date.getSeconds()).padStart(2, '0')
-  return `${y}/${m}/${d} ${h}:${min}:${s}`
+  return formatServerDateTime(value)
 }
 
 function getMessageSenderName(message: MessageResponse) {
@@ -146,7 +144,10 @@ function DelegateNotificationToast({
   const Icon = meta.icon
 
   return (
-    <div className="asya-notification-card">
+    <div
+      className="asya-notification-card min-w-0 w-full cursor-pointer"
+      onClick={onView}
+    >
       <div className={cn('asya-notification-card__icon', meta.accentClassName)}>
         <Icon className="size-4.5" />
       </div>
@@ -157,12 +158,15 @@ function DelegateNotificationToast({
               {meta.label}
             </p>
             <p className="mt-1 truncate text-sm font-semibold text-foreground">
-              {event.title}
+              {truncateWithEllipsis(event.title, 20)}
             </p>
           </div>
           <button
             type="button"
-            onClick={onDismiss}
+            onClick={(e) => {
+              e.stopPropagation()
+              onDismiss()
+            }}
             className="rounded-full p-1 text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
             aria-label="关闭提醒"
           >
@@ -187,10 +191,13 @@ function DelegateNotificationToast({
       <Button
         size="sm"
         className="shrink-0"
-        onClick={onView}
+        onClick={(e) => {
+          e.stopPropagation()
+          onView()
+        }}
+        aria-label="查看"
       >
         <Eye />
-        查看
       </Button>
     </div>
   )
@@ -327,7 +334,7 @@ export function DelegateNotificationController() {
       .filter((event) => !isNotificationResolved(scope, event))
 
     const merged = [...publicEvents, ...secretEvents, ...instructionEvents]
-      .sort((a, b) => new Date(a.occurredAt).getTime() - new Date(b.occurredAt).getTime())
+      .sort((a, b) => (parseServerDateTime(a.occurredAt)?.getTime() ?? 0) - (parseServerDateTime(b.occurredAt)?.getTime() ?? 0))
 
     if (merged.length === 0 && (publicPage.content.length > 0 || secretPage.content.length > 0 || feedbackPage.content.length > 0)) {
       console.warn('[DelegateNotification] HTTP backfill found raw data but all events were already resolved', {

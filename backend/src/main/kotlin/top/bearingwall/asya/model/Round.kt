@@ -4,6 +4,7 @@ import jakarta.persistence.*
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
 import java.time.LocalDateTime
+import java.time.ZoneOffset
 import java.util.UUID
 
 @Entity
@@ -44,7 +45,7 @@ class Round(
     var endAt: LocalDateTime? = null,
 
     @Column(name = "updated_at", nullable = false)
-    var updatedAt: LocalDateTime = LocalDateTime.now(),
+    var updatedAt: LocalDateTime = LocalDateTime.now(ZoneOffset.UTC),
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "next_round_id")

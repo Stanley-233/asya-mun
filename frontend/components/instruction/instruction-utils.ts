@@ -1,6 +1,7 @@
 'use client'
 
 import { normalizePagePayload } from '@/lib/api/core/page'
+import { formatServerDateTime } from '@/lib/date-time'
 import type {
   GetForManagementInstructionType,
   GetForManagementStatus,
@@ -52,16 +53,7 @@ export const INSTRUCTION_STATUS_CLASSNAMES: Partial<Record<InstructionResponseSt
 }
 
 export function formatInstructionRealTime(value?: string) {
-  if (!value) return '未知'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const d = String(date.getDate()).padStart(2, '0')
-  const h = String(date.getHours()).padStart(2, '0')
-  const min = String(date.getMinutes()).padStart(2, '0')
-  const s = String(date.getSeconds()).padStart(2, '0')
-  return `${y}/${m}/${d} ${h}:${min}:${s}`
+  return formatServerDateTime(value)
 }
 
 export function formatInstructionGameTime(value?: string) {

@@ -17,6 +17,7 @@ import top.bearingwall.asya.repository.AttachmentRepository
 import top.bearingwall.asya.repository.MessageRepository
 import top.bearingwall.asya.repository.UserRepository
 import java.time.LocalDateTime
+import java.time.ZoneOffset
 import java.util.UUID
 
 @Service
@@ -48,7 +49,7 @@ class MessageService(
             brief = brief,
             content = request.content,
             msgType = request.msgType,
-            publishRealTime = request.publishRealTime ?: LocalDateTime.now(),
+            publishRealTime = request.publishRealTime ?: LocalDateTime.now(ZoneOffset.UTC),
             publishGameTime = request.publishGameTime,
             isSecret = request.isSecret
         )
@@ -173,7 +174,7 @@ class MessageService(
 
     @Transactional(readOnly = true)
     fun getSecretMessagesForUser(userUuid: UUID, pageable: Pageable, keyword: String? = null): Page<MessageResponse> {
-        var spec = isSecret().and(hasReadableReceiver(userUuid, LocalDateTime.now()))
+        var spec = isSecret().and(hasReadableReceiver(userUuid, LocalDateTime.now(ZoneOffset.UTC)))
         val normalizedKeyword = keyword?.trim()?.takeIf { it.isNotEmpty() }
         return if (normalizedKeyword == null) {
             messageRepository.findAll(spec, pageable).map {
@@ -198,7 +199,7 @@ class MessageService(
 
             if (!isPrivileged) {
                 val receiverMapping = message.receiverMappings.firstOrNull { it.receiver?.uuid == requesterUuid }
-                val canReadByTime = receiverMapping?.readableAt?.let { !it.isAfter(LocalDateTime.now()) } ?: false
+                val canReadByTime = receiverMapping?.readableAt?.let { !it.isAfter(LocalDateTime.now(ZoneOffset.UTC)) } ?: false
                 val isSender = message.sender?.uuid == requesterUuid
                 if ((!canReadByTime) && !isSender) {
                     throw SecurityException("Access denied for secret message")
@@ -380,7 +381,7 @@ class MessageService(
     }
 
     private fun notifyReadableSecretReceivers(message: Message) {
-        val now = LocalDateTime.now()
+        val now = LocalDateTime.now(ZoneOffset.UTC)
         message.receiverMappings
             .filter { !it.readableAt.isAfter(now) }
             .forEach(notificationService::notifySecretMessage)

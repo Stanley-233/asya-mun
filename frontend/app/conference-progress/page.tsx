@@ -26,6 +26,7 @@ import {
   useUpdateCurrent,
   useUpdateRemaining,
 } from '@/lib/api/hooks/round'
+import { parseServerDateTime } from '@/lib/date-time'
 import type { TimeAnchorResponse, RoundPublishRequestInitialStatus, RoundResponse } from "@/lib/api/generated"
 import { toast } from 'react-toastify'
 import { parseApiPayload } from '@/lib/api/response-utils'
@@ -154,8 +155,8 @@ export default function ConferenceProgressPage() {
     if (currentRound.status === 'PAUSED') {
       return Math.max(0, Math.floor(currentRound.remainingSeconds))
     }
-    const serverMs = Date.parse(currentRound.serverTime)
-    const baseMs = Number.isNaN(serverMs) ? clientNow : serverMs
+    const serverMs = parseServerDateTime(currentRound.serverTime)?.getTime()
+    const baseMs = serverMs ?? clientNow
     const elapsed = Math.floor((clientNow - baseMs) / 1000)
     return Math.max(0, currentRound.remainingSeconds - Math.max(0, elapsed))
   }, [clientNow, currentRound])

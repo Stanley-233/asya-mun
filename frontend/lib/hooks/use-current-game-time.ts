@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { parseServerDateTime } from "@/lib/date-time"
 import type { TimeAnchorResponse } from "@/lib/api/generated"
 
 // 解析包含负数年份的ISO格式时间字符串
@@ -74,7 +75,8 @@ export function useCurrentGameTime(latestAnchor: TimeAnchorResponse | null | und
         return anchorGameTime
       }
 
-      const anchorRealTime = new Date(latestAnchor.anchorRealTime)
+      const anchorRealTime = parseServerDateTime(latestAnchor.anchorRealTime)
+      if (!anchorRealTime) return null
       const timeDiffMs = currentRealTimeMs - anchorRealTime.getTime()
       const gameTimeDiffMs = timeDiffMs * ratio
       return new Date(anchorGameTime.getTime() + gameTimeDiffMs)

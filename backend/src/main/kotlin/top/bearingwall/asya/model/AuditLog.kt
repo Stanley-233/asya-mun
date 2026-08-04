@@ -11,6 +11,7 @@ import jakarta.persistence.Table
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
 import java.time.LocalDateTime
+import java.time.ZoneOffset
 import java.util.UUID
 
 @Entity
@@ -21,7 +22,7 @@ class AuditLog(
     var id: Long? = null,
 
     @Column(name = "event_time", nullable = false)
-    var eventTime: LocalDateTime = LocalDateTime.now(),
+    var eventTime: LocalDateTime = LocalDateTime.now(ZoneOffset.UTC),
 
     @Column(name = "actor_uuid")
     var actorUuid: UUID? = null,

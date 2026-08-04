@@ -19,6 +19,7 @@ import top.bearingwall.asya.model.UserRole
 import top.bearingwall.asya.repository.InstructionRepository
 import top.bearingwall.asya.repository.UserRepository
 import java.time.LocalDateTime
+import java.time.ZoneOffset
 import java.util.UUID
 
 @Service
@@ -39,7 +40,7 @@ class InstructionService(
         val conference = submitter.conference ?: throw IllegalStateException("Submitter not associated with any conference")
         require(!conferenceService.isInstructionSubmissionPaused(conference.uuid!!)) { "Instruction submission is paused" }
 
-        val submitRealTime = LocalDateTime.now()
+        val submitRealTime = LocalDateTime.now(ZoneOffset.UTC)
         val submitGameTime = timeService.getCurrentGameTime(conference.uuid!!) ?: submitRealTime
 
         val saved = instructionRepository.save(
@@ -129,7 +130,7 @@ class InstructionService(
         val instruction = getInstructionEntity(uuid)
         ensureSameConference(reviewer, instruction)
 
-        val reviewRealTime = LocalDateTime.now()
+        val reviewRealTime = LocalDateTime.now(ZoneOffset.UTC)
         val reviewGameTime = timeService.getCurrentGameTime(instruction.conference.uuid!!) ?: reviewRealTime
 
         instruction.status = request.status

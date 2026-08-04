@@ -17,6 +17,7 @@ import top.bearingwall.asya.repository.ConferenceRepository
 import top.bearingwall.asya.repository.RoundRepository
 import java.time.Duration
 import java.time.LocalDateTime
+import java.time.ZoneOffset
 import java.util.UUID
 import kotlin.math.max
 
@@ -38,7 +39,7 @@ class RoundService(
         }
 
         val nextRound = parseNextRound(request.nextRoundId, conferenceUuid)
-        val now = LocalDateTime.now()
+        val now = LocalDateTime.now(ZoneOffset.UTC)
 
         roundRepository.updateIsCurrentToFalseByConferenceUuid(conferenceUuid)
 
@@ -65,9 +66,9 @@ class RoundService(
             ?: throw IllegalArgumentException("Round not found: $roundUuid")
 
         round.nextRound = parseNextRound(request.nextRoundId, conferenceUuid)
-        round.updatedAt = LocalDateTime.now()
+        round.updatedAt = LocalDateTime.now(ZoneOffset.UTC)
 
-        return roundRepository.save(round).toResponse(LocalDateTime.now())
+        return roundRepository.save(round).toResponse(LocalDateTime.now(ZoneOffset.UTC))
     }
 
     @Transactional
@@ -88,7 +89,7 @@ class RoundService(
 
         val targetRoundUuid = runCatching { UUID.fromString(request.roundId) }
             .getOrElse { throw IllegalArgumentException("Invalid roundId") }
-        val now = LocalDateTime.now()
+        val now = LocalDateTime.now(ZoneOffset.UTC)
 
         val target = roundRepository.findByUuidAndConferenceUuid(targetRoundUuid, conferenceUuid)
             ?: throw IllegalArgumentException("Round not found: $targetRoundUuid")
@@ -130,7 +131,7 @@ class RoundService(
         val round = roundRepository.findByUuidAndConferenceUuid(roundUuid, conferenceUuid)
             ?: throw IllegalArgumentException("Round not found: $roundUuid")
 
-        val now = LocalDateTime.now()
+        val now = LocalDateTime.now(ZoneOffset.UTC)
         round.remainingSeconds = request.remainingSeconds
         if (round.status == RoundStatus.RUNNING) {
             round.endAt = now.plusSeconds(request.remainingSeconds)
@@ -152,7 +153,7 @@ class RoundService(
         require(current.uuid == roundUuid) { "Only current round can be paused" }
         require(current.status == RoundStatus.RUNNING) { "Round is not running" }
 
-        val now = LocalDateTime.now()
+        val now = LocalDateTime.now(ZoneOffset.UTC)
         current.remainingSeconds = remainingSeconds(current, now)
         current.status = RoundStatus.PAUSED
         current.endAt = null
@@ -171,7 +172,7 @@ class RoundService(
         require(current.uuid == roundUuid) { "Only current round can be resumed" }
         require(current.status == RoundStatus.PAUSED) { "Round is not paused" }
 
-        val now = LocalDateTime.now()
+        val now = LocalDateTime.now(ZoneOffset.UTC)
         if (current.remainingSeconds <= 0) {
             current.remainingSeconds = current.durationSeconds
         }
@@ -184,7 +185,7 @@ class RoundService(
 
     @Transactional(readOnly = true)
     fun listRounds(conferenceUuid: UUID): List<RoundResponse> {
-        val now = LocalDateTime.now()
+        val now = LocalDateTime.now(ZoneOffset.UTC)
         return roundRepository.findAllByConferenceUuidOrderByUpdatedAtDesc(conferenceUuid).map { it.toResponse(now) }
     }
 
@@ -193,20 +194,20 @@ class RoundService(
         advanceIfExpired(conferenceUuid)
         val round = roundRepository.findByUuidAndConferenceUuid(roundUuid, conferenceUuid)
             ?: throw IllegalArgumentException("Round not found: $roundUuid")
-        return round.toResponse(LocalDateTime.now())
+        return round.toResponse(LocalDateTime.now(ZoneOffset.UTC))
     }
 
     @Transactional
     fun getCurrentRound(conferenceUuid: UUID): RoundResponse? {
         advanceIfExpired(conferenceUuid)
-        val now = LocalDateTime.now()
+        val now = LocalDateTime.now(ZoneOffset.UTC)
         return roundRepository.findFirstByConferenceUuidAndIsCurrentTrue(conferenceUuid)?.toResponse(now)
     }
 
     @Transactional
     @Auditable(type = AuditActionType.ROUND_AUTO_ADVANCE, content = "回合自动推进")
     fun advanceIfExpired(conferenceUuid: UUID): RoundResponse? {
-        val now = LocalDateTime.now()
+        val now = LocalDateTime.now(ZoneOffset.UTC)
         val current = roundRepository.findCurrentForUpdate(conferenceUuid) ?: return null
 
         if (current.status != RoundStatus.RUNNING || current.endAt == null || current.endAt!!.isAfter(now)) {
@@ -241,7 +242,7 @@ class RoundService(
 
     @Transactional
     fun advanceExpiredRounds() {
-        val now = LocalDateTime.now()
+        val now = LocalDateTime.now(ZoneOffset.UTC)
         val conferenceIds = roundRepository.findConferenceIdsWithExpiredCurrentRound(now)
         conferenceIds.forEach { conferenceId ->
             runCatching { advanceIfExpired(conferenceId) }
@@ -266,7 +267,7 @@ class RoundService(
         require(request.name.isNotBlank()) { "Round name cannot be blank" }
         require(request.durationSeconds > 0) { "durationSeconds must be greater than 0" }
 
-        val now = LocalDateTime.now()
+        val now = LocalDateTime.now(ZoneOffset.UTC)
         val currentRemaining = remainingSeconds(round, now)
         val elapsedSeconds = max(0, round.durationSeconds - currentRemaining)
         val newRemainingSeconds = max(0, request.durationSeconds - elapsedSeconds)

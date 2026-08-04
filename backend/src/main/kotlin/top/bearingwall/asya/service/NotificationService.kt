@@ -18,6 +18,7 @@ import top.bearingwall.asya.repository.MessageReceiverRepository
 import top.bearingwall.asya.repository.MessageRepository
 import top.bearingwall.asya.repository.UserRepository
 import java.time.LocalDateTime
+import java.time.ZoneOffset
 import java.util.UUID
 
 @Service
@@ -38,7 +39,7 @@ class NotificationService(
         }
 
         val conferenceUuid = delegate.conference?.uuid ?: return
-        val now = LocalDateTime.now()
+        val now = LocalDateTime.now(ZoneOffset.UTC)
 
         val publicMessages = request.publicMessageAfter?.let {
             messageRepository.findAllPublicMessagesPublishedAfter(conferenceUuid, it)

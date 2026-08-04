@@ -204,6 +204,8 @@
   .asya-toast .Toastify__toast-body {
     margin: 0;
     padding: 0;
+    width: 100%;
+    min-width: 0;
   }
 
   .asya-toast-progress {
