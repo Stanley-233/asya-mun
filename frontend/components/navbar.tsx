@@ -12,6 +12,7 @@ import {
   CircleUserRound,
   ClipboardList,
   Command,
+  Dices,
   FileText,
   Info,
   LayoutDashboard,
@@ -199,6 +200,7 @@ function buildNavGroups({
     ? []
     : isAuthenticated
       ? [
+          { href: "/dlc/dice", label: "骰娘", icon: Dices },
           { href: "/dlc/medieval-strategy", label: "中世纪战略", icon: Swords },
           { href: "/dlc/rppi-calculator", label: "投射能力计算", icon: Calculator },
         ]

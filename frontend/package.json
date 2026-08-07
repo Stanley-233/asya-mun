@@ -1,6 +1,6 @@
 {
   "name": "asya-frontend",
-  "version": "0.14.2",
+  "version": "0.14.3",
   "private": true,
   "scripts": {
     "predev": "node ../scripts/sync-version.mjs --package ./package.json --version-file ../VERSION --public-changelog ./public/VERSION_CHANGELOG.md",
