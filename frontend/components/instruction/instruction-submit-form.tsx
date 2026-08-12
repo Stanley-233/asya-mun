@@ -27,17 +27,18 @@ const instructionTypes: InstructionCreateRequestInstructionType[] = [
   'INTERNAL',
   'OTHER',
 ]
-const INSTRUCTION_INPUT_MAX_CHARS = 1500
+// 指令字数上限已放开，如需恢复请取消以下注释并恢复各输入框的 maxLength / limitInstructionInput 调用
+// const INSTRUCTION_INPUT_MAX_CHARS = 1500
 
 const SECRECY_OPTIONS = ['公开', '保密'] as const
 
-function limitInstructionInput(value: string) {
-  return Array.from(value).slice(0, INSTRUCTION_INPUT_MAX_CHARS).join('')
-}
+// function limitInstructionInput(value: string) {
+//   return Array.from(value).slice(0, INSTRUCTION_INPUT_MAX_CHARS).join('')
+// }
 
-function getInstructionInputLength(value: string) {
-  return Array.from(value).length
-}
+// function getInstructionInputLength(value: string) {
+//   return Array.from(value).length
+// }
 
 function getInstructionSubmitErrorMessage(error: unknown) {
   const fallbackMessage = '指令提交失败，请稍后重试'
@@ -205,10 +206,10 @@ export function InstructionSubmitForm({
                 <Input
                   id="instruction-country"
                   value={country}
-                  onChange={event => setCountry(limitInstructionInput(event.target.value))}
+                  onChange={event => setCountry(event.target.value)}
                   placeholder="国家，如“德国”"
                   disabled={disabled || isPending}
-                  maxLength={INSTRUCTION_INPUT_MAX_CHARS}
+                  // maxLength={INSTRUCTION_INPUT_MAX_CHARS}
                 />
               </div>
               <div className="space-y-2">
@@ -218,7 +219,7 @@ export function InstructionSubmitForm({
                   min={1}
                   step={1}
                   value={meetingUnit}
-                  onChange={event => setMeetingUnit(limitInstructionInput(event.target.value))}
+                  onChange={event => setMeetingUnit(event.target.value)}
                   placeholder="会议单元序号，如“1”"
                   disabled={disabled || isPending}
                 />
@@ -255,10 +256,10 @@ export function InstructionSubmitForm({
               <Input
                 id="instruction-drafter"
                 value={drafter}
-                onChange={event => setDrafter(limitInstructionInput(event.target.value))}
+                onChange={event => setDrafter(event.target.value)}
                 placeholder="席位名+人名，默认为当前账号"
                 disabled={disabled || isPending}
-                maxLength={INSTRUCTION_INPUT_MAX_CHARS}
+                // maxLength={INSTRUCTION_INPUT_MAX_CHARS}
               />
             </div>
 
@@ -288,10 +289,10 @@ export function InstructionSubmitForm({
             <Input
               id="instruction-situation-update"
               value={situationUpdate}
-              onChange={event => setSituationUpdate(limitInstructionInput(event.target.value))}
+              onChange={event => setSituationUpdate(event.target.value)}
               placeholder="如【局势更新 3.1】；若为主动采取的行动，请留空或填写“无”"
               disabled={disabled || isPending}
-              maxLength={INSTRUCTION_INPUT_MAX_CHARS}
+              // maxLength={INSTRUCTION_INPUT_MAX_CHARS}
             />
           </div>
 
@@ -300,10 +301,10 @@ export function InstructionSubmitForm({
             <Input
               id="instruction-target"
               value={target}
-              onChange={event => setTarget(limitInstructionInput(event.target.value))}
+              onChange={event => setTarget(event.target.value)}
               placeholder="请输入指令对象，如“驻西班牙德军第 88 轰炸飞行大队”"
               disabled={disabled || isPending}
-              maxLength={INSTRUCTION_INPUT_MAX_CHARS}
+              // maxLength={INSTRUCTION_INPUT_MAX_CHARS}
             />
           </div>
 
@@ -312,15 +313,15 @@ export function InstructionSubmitForm({
             <Textarea
               id="instruction-content"
               value={content}
-              onChange={event => setContent(limitInstructionInput(event.target.value))}
+              onChange={event => setContent(event.target.value)}
               placeholder="请输入具体指令内容"
               rows={8}
               disabled={disabled || isPending}
-              maxLength={INSTRUCTION_INPUT_MAX_CHARS}
+              // maxLength={INSTRUCTION_INPUT_MAX_CHARS}
             />
-            <p className="text-right text-xs text-muted-foreground">
+            {/* <p className="text-right text-xs text-muted-foreground">
               {getInstructionInputLength(content)}/{INSTRUCTION_INPUT_MAX_CHARS}
-            </p>
+            </p> */}
           </div>
 
           <div className="space-y-2">
@@ -328,15 +329,15 @@ export function InstructionSubmitForm({
             <Textarea
               id="instruction-purpose"
               value={purpose}
-              onChange={event => setPurpose(limitInstructionInput(event.target.value))}
+              onChange={event => setPurpose(event.target.value)}
               placeholder="请输入行动目的"
               rows={4}
               disabled={disabled || isPending}
-              maxLength={INSTRUCTION_INPUT_MAX_CHARS}
+              // maxLength={INSTRUCTION_INPUT_MAX_CHARS}
             />
-            <p className="text-right text-xs text-muted-foreground">
+            {/* <p className="text-right text-xs text-muted-foreground">
               {getInstructionInputLength(purpose)}/{INSTRUCTION_INPUT_MAX_CHARS}
-            </p>
+            </p> */}
           </div>
 
           <div className="rounded-md border bg-muted/30 p-3">

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Dices, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -28,6 +28,8 @@ interface NumberTerm {
 
 type Term = DiceTerm | NumberTerm
 
+type SuccessLevel = 'critical' | 'extreme' | 'hard' | 'success' | 'failure' | 'fumble'
+
 interface RollResult {
   id: string
   timestamp: number
@@ -35,7 +37,51 @@ interface RollResult {
   grandTotal: number
   targetRate: number | null
   rateRoll: number | null
-  success: boolean | null
+  successLevel: SuccessLevel | null
+}
+
+const SUCCESS_LEVEL_LABELS: Record<SuccessLevel, string> = {
+  critical: '大成功',
+  extreme: '极难成功',
+  hard: '困难成功',
+  success: '成功',
+  failure: '失败',
+  fumble: '大失败',
+}
+
+const SUCCESS_LEVEL_STYLES: Record<SuccessLevel, string> = {
+  critical: 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300',
+  extreme: 'bg-teal-500/10 text-teal-700 dark:text-teal-400',
+  hard: 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-400',
+  success: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
+  failure: 'bg-red-500/10 text-red-700 dark:text-red-400',
+  fumble: 'bg-red-700/15 text-red-800 dark:text-red-300',
+}
+
+// COC 7 版简化规则：1 大成功；目标<50 时 96-100 大失败，目标≥50 时 100 大失败；
+// 骰值 ≤ 目标/5 极难成功，≤ 目标/2 困难成功，≤ 目标 成功，其余失败
+function judgeSuccessLevel(roll: number, target: number): SuccessLevel {
+  if (roll === 1) return 'critical'
+  if (target < 50 ? roll >= 96 : roll === 100) return 'fumble'
+  if (roll <= Math.floor(target / 5)) return 'extreme'
+  if (roll <= Math.floor(target / 2)) return 'hard'
+  if (roll <= target) return 'success'
+  return 'failure'
+}
+
+const HISTORY_STORAGE_KEY = 'asya-dice-roller-history'
+const MAX_HISTORY_COUNT = 100
+
+function loadHistoryFromStorage(): RollResult[] {
+  try {
+    const raw = localStorage.getItem(HISTORY_STORAGE_KEY)
+    if (!raw) return []
+    const parsed: unknown = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed.slice(0, MAX_HISTORY_COUNT)
+  } catch {
+    return []
+  }
 }
 
 function rollDie(sides: number): number {
@@ -124,6 +170,20 @@ export function DiceRoller() {
   const [history, setHistory] = useState<RollResult[]>([])
   const [error, setError] = useState<string | null>(null)
 
+  useEffect(() => {
+    // 挂载后从 localStorage 恢复历史记录（避免 SSR hydration 不一致）
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setHistory(loadHistoryFromStorage())
+  }, [])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history.slice(0, MAX_HISTORY_COUNT)))
+    } catch {
+      // 存储失败（如隐私模式）时静默忽略，不影响掷骰功能
+    }
+  }, [history])
+
   const handleRoll = () => {
     setError(null)
 
@@ -143,7 +203,7 @@ export function DiceRoller() {
 
     let targetRate: number | null = null
     let rateRoll: number | null = null
-    let success: boolean | null = null
+    let successLevel: SuccessLevel | null = null
 
     const trimmedRate = targetRateRaw.trim()
     if (trimmedRate) {
@@ -151,7 +211,7 @@ export function DiceRoller() {
       if (!Number.isNaN(rate) && rate >= 1 && rate <= 100) {
         targetRate = rate
         rateRoll = rollDie(100)
-        success = rateRoll <= rate
+        successLevel = judgeSuccessLevel(rateRoll, rate)
       }
     }
 
@@ -162,10 +222,10 @@ export function DiceRoller() {
       grandTotal,
       targetRate,
       rateRoll,
-      success,
+      successLevel,
     }
 
-    setHistory((prev) => [result, ...prev])
+    setHistory((prev) => [result, ...prev].slice(0, MAX_HISTORY_COUNT))
   }
 
   const clearHistory = () => setHistory([])
@@ -213,7 +273,9 @@ export function DiceRoller() {
                 placeholder="例如：50"
                 onKeyDown={(e) => { if (e.key === 'Enter') handleRoll() }}
               />
-              <p className="text-xs text-muted-foreground">填写后会额外投掷 1d100，骰值 ≤ 目标值即为成功</p>
+              <p className="text-xs text-muted-foreground">
+                填写后额外投掷 1d100 按 COC 7 版规则判定：骰值=1 大成功；≤目标/5 极难成功；≤目标/2 困难成功；≤目标 成功；目标&lt;50 时 96-100 大失败，目标≥50 时 100 大失败；其余失败
+              </p>
             </div>
           </div>
 
@@ -265,18 +327,16 @@ export function DiceRoller() {
                     </div>
                   ))}
                 </div>
-                {result.targetRate !== null && result.rateRoll !== null && (
+                {result.targetRate !== null && result.rateRoll !== null && result.successLevel !== null && (
                   <div
                     className={cn(
                       'mt-2 flex items-center gap-2 rounded-md px-2 py-1 text-sm',
-                      result.success
-                        ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
-                        : 'bg-red-500/10 text-red-700 dark:text-red-400'
+                      SUCCESS_LEVEL_STYLES[result.successLevel]
                     )}
                   >
                     <span>1d100 = {result.rateRoll}</span>
                     <span>/ 目标 {result.targetRate}</span>
-                    <span className="font-semibold">{result.success ? '成功' : '失败'}</span>
+                    <span className="font-semibold">{SUCCESS_LEVEL_LABELS[result.successLevel]}</span>
                   </div>
                 )}
               </div>
