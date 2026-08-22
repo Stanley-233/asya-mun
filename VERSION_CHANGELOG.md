@@ -1,3 +1,7 @@
+# v0.14.6
+- 修复精简 JRE 启动失败问题：补齐 jlink 缺失的 java.compiler 模块
+- 后端 JRE 使用 jlink 精简，进一步缩小 Docker 镜像体积
+
 # v0.14.5
 - 优化构建体积与CDN缓存问题
 

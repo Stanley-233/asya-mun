@@ -28,7 +28,7 @@ const lines = content.split("\n");
 
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const versionPattern = new RegExp(
-  `^(#{2,6})\\s+v${escapeRegExp(normalizedVersion)}\\b`
+  `^(#{1,6})\\s+v${escapeRegExp(normalizedVersion)}\\b`
 );
 
 let capturing = false;
@@ -79,7 +79,7 @@ if (!trimmed || !versionHeadingLine) {
   process.exit(0);
 }
 
-const output = parentHeading
+const output = parentHeading && parentHeading !== versionHeadingLine
   ? `${parentHeading}\n\n${versionHeadingLine}\n${trimmed}`
   : `${versionHeadingLine}\n${trimmed}`;
 

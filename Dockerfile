@@ -21,7 +21,7 @@ RUN set -eux; \
     jar_path="$(find build/libs -maxdepth 1 -name '*.jar' ! -name '*-plain.jar' | head -n 1)"; \
     test -n "$jar_path"; \
     { jdeps --ignore-missing-deps --print-module-deps "$jar_path"; \
-      printf 'java.logging,java.sql,java.naming,java.management,java.xml,java.security.jgss,java.transaction.xa,java.instrument,jdk.unsupported,java.net.http,java.rmi,java.prefs'; \
+      printf 'java.logging,java.sql,java.naming,java.management,java.xml,java.security.jgss,java.transaction.xa,java.instrument,jdk.unsupported,java.net.http,java.rmi,java.prefs,java.compiler'; \
     } | tr ',' '\n' | sort -u | grep -v '^$' | paste -sd, - > /tmp/modules.txt; \
     echo "jlink modules: $(cat /tmp/modules.txt)"; \
     jlink \
