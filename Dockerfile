@@ -17,6 +17,21 @@ COPY backend/src ./src
 RUN --mount=type=cache,target=/root/.gradle,sharing=locked \
     ./gradlew --no-daemon bootJar
 
+RUN set -eux; \
+    jar_path="$(find build/libs -maxdepth 1 -name '*.jar' ! -name '*-plain.jar' | head -n 1)"; \
+    test -n "$jar_path"; \
+    { jdeps --ignore-missing-deps --print-module-deps "$jar_path"; \
+      printf 'java.logging,java.sql,java.naming,java.management,java.xml,java.security.jgss,java.transaction.xa,java.instrument,jdk.unsupported,java.net.http,java.rmi,java.prefs'; \
+    } | tr ',' '\n' | sort -u | grep -v '^$' | paste -sd, - > /tmp/modules.txt; \
+    echo "jlink modules: $(cat /tmp/modules.txt)"; \
+    jlink \
+      --add-modules "$(cat /tmp/modules.txt)" \
+      --strip-debug \
+      --no-man-pages \
+      --no-header-files \
+      --compress=zip-6 \
+      --output /opt/jre
+
 FROM node:24-bookworm-slim AS frontend-builder
 WORKDIR /workspace/frontend
 
@@ -41,13 +56,11 @@ COPY VERSION_CHANGELOG.md ./public/VERSION_CHANGELOG.md
 
 ENV SKIP_TYPE_CHECK=true
 ENV NEXT_PUBLIC_API_BASE_URL=
-ENV NEXT_PROXY_API_TO_BACKEND=true
 
 RUN node /workspace/scripts/sync-version.mjs --package ./package.json --version-file /workspace/VERSION
 RUN pnpm build
 
-
-FROM node:24-bookworm-slim AS runtime
+FROM debian:bookworm-slim AS runtime
 WORKDIR /app
 
 RUN apt-get update \
@@ -55,30 +68,22 @@ RUN apt-get update \
     && apt-get upgrade -y \
     && rm -rf /var/lib/apt/lists/*
 
-ENV JAVA_HOME=/opt/java/openjdk
+ENV JAVA_HOME=/opt/jre
 ENV PATH="${JAVA_HOME}/bin:${PATH}"
-ENV NODE_ENV=production
-ENV NEXT_PUBLIC_API_BASE_URL=
-ENV NEXT_PROXY_API_TO_BACKEND=true
-ENV PORT=3000
 ENV SERVER_PORT=8080
 ENV SERVER_ADDRESS=127.0.0.1
-ENV FRONTEND_INTERNAL_PORT=3001
 
-COPY --from=backend-builder /opt/java/openjdk /opt/java/openjdk
+COPY --from=backend-builder /opt/jre /opt/jre
 COPY --from=backend-builder /workspace/backend/build/libs/*.jar /app/backend/
+COPY --from=frontend-builder /workspace/frontend/out /app/frontend
+COPY nginx/default.conf /etc/nginx/conf.d/default.conf
+COPY scripts/start-container.sh /app/start-container.sh
 
 RUN set -eux; \
     find /app/backend -name "*-plain.jar" -delete; \
-    jar_path="$(find /app/backend -maxdepth 1 -name "*.jar" | head -n 1)"; \
+    jar_path="$(find /app/backend -maxdepth 1 -name '*.jar' | head -n 1)"; \
     test -n "$jar_path"; \
     mv "$jar_path" /app/backend/asya-backend.jar
-
-COPY --from=frontend-builder /workspace/frontend/.next/standalone /app/frontend
-COPY --from=frontend-builder /workspace/frontend/.next/static /app/frontend/.next/static
-COPY --from=frontend-builder /workspace/frontend/public /app/frontend/public
-COPY nginx/default.conf /etc/nginx/conf.d/default.conf
-COPY scripts/start-container.sh /app/start-container.sh
 
 RUN chmod +x /app/start-container.sh
 

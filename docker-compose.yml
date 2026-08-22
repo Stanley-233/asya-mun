@@ -10,11 +10,8 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-asya-local-password}
       FLYWAY_BASELINE_ON_MIGRATE: ${FLYWAY_BASELINE_ON_MIGRATE:-false}
       JWT_SECRET: ${JWT_SECRET:-asya-local-jwt-secret-key-change-me-32chars}
-      NEXT_PUBLIC_API_BASE_URL: ""
-      NEXT_PROXY_API_TO_BACKEND: "true"
       SERVER_PORT: "8080"
       SERVER_ADDRESS: "127.0.0.1"
-      PORT: "3000"
     ports:
       - "3000:3000"
 
