@@ -14,76 +14,38 @@
 
 ## 部署指南
 
-如果你只是想部署并运行 ASYA，直接使用已经发布到 DockerHub 的镜像即可。
+ASYA 以**自包含单文件可执行程序**发布（无需安装 .NET 运行时，也无需 Docker）。从 [GitHub Releases](https://github.com/anomalyco/asya-mun/releases) 下载对应平台的 `asya-mun-server-*.zip`：
 
-使用前请先准备好 Docker 和 Docker Compose，然后在项目根目录执行：
-```bash
-sudo docker compose up -d
-```
+- `asya-mun-server-linux-x64.zip` / `asya-mun-server-linux-arm64.zip` — Linux
+- `asya-mun-server-win-x64.zip` — Windows
+- `asya-mun-server-osx-x64.zip` / `asya-mun-server-osx-arm64.zip` — macOS（x64 / Apple Silicon）
 
-其中：
-- 3000 用于浏览器统一访问；
-- /api 会在容器内转发到后端接口；
-- /ws 会在容器内转发到后端 WebSocket 服务；
-- 8080 仅用于容器内部后端服务，不再暴露到宿主机或公网。
+以上为**自包含版**（无需安装 .NET，解压即用）。若服务器已经装好 .NET（ASP.NET Core 运行时 10.x），每个平台还可选 `-fd` 后缀的**轻量版**（仅几 MB，升级只需重新下载它，不必反复拉取运行时）。
 
-Docker 部署默认采用单入口模式：
-- 浏览器统一访问 3000；
-- 前端页面、后端 API 与 WebSocket 都通过同一个入口访问；
-- 宿主机和公网只需要暴露 3000，不需要暴露 8080。
+解压后直接运行 `AsyaMun.Api`（Linux/macOS）或 `AsyaMun.Api.exe`（Windows）。前端页面、REST API 与 WebSocket 由**同一个服务进程**同源提供（`/api`、`/ws`），不需要 nginx 或其他静态文件服务器。
 
-如果你想指定某个版本，或者改用你自己的镜像地址，可以在执行前覆盖 `ASYA_IMAGE`，例如：
+运行前通过环境变量配置：
 
-```bash
-ASYA_IMAGE=stanleyzh/asya-mun:v0.13.0 sudo docker compose up -d
-```
+- `ConnectionStrings__DefaultConnection`：Postgres 连接串，例如 `Host=localhost;Port=5432;Database=asya;Username=asya;Password=<pwd>`；
+- `JWT_SECRET`：JWT 签名密钥（至少 32 字符）；
+- `ASPNETCORE_URLS`（可选）：监听地址，例如 `http://+:8080`（默认 `http://localhost:5000`）；
+- `ASYA_WEBROOT`（可选）：前端静态目录覆盖，默认取可执行文件同目录的 `wwwroot`。
 
 ## 反向代理配置说明
 
-如果你希望通过域名访问 ASYA，例如：
+ASYA 本身就是单进程服务，直接对外暴露监听端口即可访问全部功能，**这步不是必选项**。
 
-https://mun.example.com
+只有当你想通过域名访问 ASYA（例如 https://mun.example.com ），或需要在最外层再加一层反向代理（TLS、负载均衡、多服务共用入口）时，把请求转发到 ASYA 服务实际监听的端口即可。
 
-可以在最外层使用 Nginx、Caddy、Traefik 等反向代理，将请求转发到宿主机的 3000 端口。
+以 Caddy 为例（Caddyfile）：
 
-需要注意的是，ASYA 使用 WebSocket 提供实时通知和代表端提醒能力。因此，**反向代理必须正确支持 WebSocket Upgrade**，否则可能出现页面可以正常打开，但**代表端提醒或后续电子投票等实时功能无法连接**的情况。
-
-以 Nginx 为例：
-
-```Nginx
-server {
-    server_name mun.example.com;
-
-    client_max_body_size 0;
-
-    location /ws {
-        proxy_pass http://127.0.0.1:3000;
-
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-
-        proxy_read_timeout 3600s;
-        proxy_send_timeout 3600s;
-    }
-
-    location / {
-        proxy_pass http://127.0.0.1:3000;
-
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
+```Caddyfile
+mun.example.com {
+    # 转发到 ASYA 实际监听端口；需先让服务监听对应端口，例如：
+    #   ASPNETCORE_URLS=http://+:3000 ./AsyaMun.Api
+    reverse_proxy 127.0.0.1:3000
 }
 ```
-
-如果你已经使用 Certbot 配置了 HTTPS，只需要在现有 server 块中补充 /ws 的反向代理配置即可。
 
 ## 许可证
 

@@ -11,7 +11,7 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: process.env.SKIP_TYPE_CHECK === 'true',
   },
   // headers/rewrites 依赖 Node 服务端运行，静态导出（output: export）不支持，
-  // 仅保留在本地开发（next dev）中生效；生产由 nginx/default.conf 负责转发与缓存控制。
+  // 仅保留在本地开发（next dev）中生效；生产由 ASP.NET 静态托管负责转发与缓存控制。
   ...(process.env.NODE_ENV === 'development'
     ? {
         async headers() {

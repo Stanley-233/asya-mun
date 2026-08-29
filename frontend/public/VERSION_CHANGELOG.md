@@ -1,3 +1,10 @@
+# v0.15.0
+## 部署与后端重构
+- 后端由 Spring Boot 迁移至 ASP.NET（.NET 10，单进程）：前端静态页面、REST API 与 WebSocket（`/ws`）由同一进程同源提供，不再依赖 nginx
+- 移除 Docker 发布链路（Dockerfile、docker-compose、nginx 配置及相关镜像发布工作流），Release 改为交叉编译发布 Windows / Linux / macOS（x64 与 arm64）自包含单文件服务端，另附 `-fd` 轻量版（需先安装 ASP.NET Core 运行时，适合服务器安装一次后反复快速更新）
+- 修复 SignalR 连接问题：跨域放行与 negotiate URL scheme
+- 数据库迁移：空库首启自动建表；兼容既有 Flyway 老库，并可继续应用后续新增的 EF Core 迁移
+
 # v0.14.6
 - 修复精简 JRE 启动失败问题：补齐 jlink 缺失的 java.compiler 模块
 - 后端 JRE 使用 jlink 精简，进一步缩小 Docker 镜像体积

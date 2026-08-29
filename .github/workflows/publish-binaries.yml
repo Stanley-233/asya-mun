@@ -1,0 +1,270 @@
+name: Publish Server Binaries
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+concurrency:
+  group: publish-binaries-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      release_tag: ${{ steps.meta.outputs.release_tag }}
+      version: ${{ steps.meta.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate release tag
+        id: meta
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          version="$(tr -d '\n' < VERSION)"
+          expected_tag="v${version}"
+          if [ "${tag}" != "${expected_tag}" ]; then
+            echo "Release tag ${tag} does not match VERSION file (${expected_tag})."
+            exit 1
+          fi
+          echo "release_tag=${tag}" >> "${GITHUB_OUTPUT}"
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.23.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Sync version
+        working-directory: frontend
+        run: |
+          node ../scripts/sync-version.mjs --package ./package.json --version-file ../VERSION
+          cp ../VERSION_CHANGELOG.md ./public/VERSION_CHANGELOG.md
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Build frontend
+        working-directory: frontend
+        env:
+          NEXT_PUBLIC_API_BASE_URL: ""
+          SKIP_TYPE_CHECK: "true"
+        run: pnpm build
+
+      - name: Upload frontend output
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-out
+          path: frontend/out
+          if-no-files-found: error
+          retention-days: 1
+
+  build:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: linux-x64
+          - rid: linux-arm64
+          - rid: win-x64
+          - rid: osx-x64
+          - rid: osx-arm64
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Download frontend output
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-out
+          path: frontend/out
+
+      - name: Publish single-file binary
+        working-directory: backend-dotnet/src/AsyaMun.Api
+        env:
+          RID: ${{ matrix.rid }}
+        run: |
+          set -euo pipefail
+          rm -rf wwwroot
+          cp -r ../../../frontend/out wwwroot
+          dotnet publish \
+            -c Release \
+            -r "${RID}" \
+            --self-contained true \
+            -p:PublishSingleFile=true \
+            -p:IncludeNativeLibrariesForSelfExtract=true \
+            -p:IncludeAllContentForSelfExtract=true \
+            -p:DebugType=None \
+            -p:DebugSymbols=false \
+            -o /tmp/publish
+
+      - name: Package archive
+        run: |
+          set -euo pipefail
+          artifact="asya-mun-server-${{ matrix.rid }}.zip"
+          (cd /tmp/publish && zip -q -r "/tmp/${artifact}" .)
+          mkdir -p dist
+          mv "/tmp/${artifact}" dist/
+
+      - name: Upload archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-${{ matrix.rid }}
+          path: dist/*.zip
+          if-no-files-found: error
+          retention-days: 7
+
+  build-fd:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: linux-x64
+          - rid: linux-arm64
+          - rid: win-x64
+          - rid: osx-x64
+          - rid: osx-arm64
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Download frontend output
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-out
+          path: frontend/out
+
+      - name: Publish framework-dependent single-file
+        working-directory: backend-dotnet/src/AsyaMun.Api
+        env:
+          RID: ${{ matrix.rid }}
+        run: |
+          set -euo pipefail
+          rm -rf wwwroot
+          cp -r ../../../frontend/out wwwroot
+          dotnet publish \
+            -c Release \
+            -r "${RID}" \
+            --self-contained false \
+            -p:PublishSingleFile=true \
+            -p:IncludeAllContentForSelfExtract=true \
+            -p:DebugType=None \
+            -p:DebugSymbols=false \
+            -o /tmp/publish-fd
+
+      - name: Package archive
+        run: |
+          set -euo pipefail
+          artifact="asya-mun-server-${{ matrix.rid }}-fd.zip"
+          (cd /tmp/publish-fd && zip -q -r "/tmp/${artifact}" .)
+          mkdir -p dist
+          mv "/tmp/${artifact}" dist/
+
+      - name: Upload archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-fd-${{ matrix.rid }}
+          path: dist/*.zip
+          if-no-files-found: error
+          retention-days: 7
+
+  attach:
+    needs:
+      - prepare
+      - build
+      - build-fd
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Download all archives
+        uses: actions/download-artifact@v4
+        with:
+          pattern: server-*
+          path: dist
+          merge-multiple: true
+
+      - name: Generate checksums
+        working-directory: dist
+        run: sha256sum *.zip > SHA256SUMS.txt
+        shell: bash
+
+      - name: Prepare release notes
+        run: |
+          set -euo pipefail
+          node "$GITHUB_WORKSPACE/scripts/extract-changelog.mjs" \
+            --changelog "$GITHUB_WORKSPACE/VERSION_CHANGELOG.md" \
+            --version "${{ needs.prepare.outputs.version }}" \
+            --output /tmp/changelog-body.md || true
+
+          cat > /tmp/release-body.md <<'EOF'
+          ## 服务器二进制
+
+          每个平台提供两种版本：
+
+          - **自包含版**（`asya-mun-server-<rid>.zip`）：无需安装 .NET，解压即用，体积较大。
+          - **轻量版**（`asya-mun-server-<rid>-fd.zip`）：framework-dependent，仅需更新应用本身，体积很小；要求目标机器已安装 .NET（ASP.NET Core 运行时 10.x）。
+
+          平台与文件名：
+          - `linux-x64` / `linux-arm64` — Linux
+          - `win-x64` — Windows
+          - `osx-x64` / `osx-arm64` — macOS（x64 / Apple Silicon）
+
+          ## 部署说明
+
+          下载对应平台的 zip，解压后直接运行「自包含版」（Windows：`AsyaMun.Api.exe`；Linux / macOS：`./AsyaMun.Api`）。
+          
+          「轻量版」运行方式相同，但服务器需先安装 [ASP.NET Core 运行时 10.x](https://dotnet.microsoft.com/download/dotnet/10.0)。服务器装过一次运行时后，后续升级只需下载几十 MB 的 `-fd` 版本。
+
+          - `ConnectionStrings__DefaultConnection`：Postgres 连接串，例如 `Host=localhost;Port=5432;Database=asya;Username=asya;Password=<pwd>`
+          - `JWT_SECRET`：JWT 签名密钥（至少 32 字符）
+          - `ASPNETCORE_URLS`（可选）：监听地址，例如 `http://+:8080`（默认 `http://localhost:5000`）
+          EOF
+
+          if [ -s /tmp/changelog-body.md ]; then
+            printf '\n## 版本变更\n\n' >> /tmp/release-body.md
+            cat /tmp/changelog-body.md >> /tmp/release-body.md
+          fi
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.prepare.outputs.release_tag }}
+          name: ${{ needs.prepare.outputs.release_tag }}
+          body_path: /tmp/release-body.md
+          files: |
+            dist/*.zip
+            dist/SHA256SUMS.txt
