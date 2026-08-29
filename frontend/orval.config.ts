@@ -4,7 +4,7 @@ export default defineConfig({
   api: {
     input: {
       // 开发环境使用本地 API 文档
-      target: 'http://127.0.0.1:8080/v3/api-docs',
+      target: 'http://127.0.0.1:5151/openapi/v1.json',
     },
     output: {
       target: '.orval/api.ts',

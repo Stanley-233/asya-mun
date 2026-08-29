@@ -2,7 +2,7 @@
 
 import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Client } from '@stomp/stompjs'
+import { HubConnection, HubConnectionBuilder, LogLevel } from '@microsoft/signalr'
 import { BellRing, Eye, Mail, MessageSquareMore, ScrollText, X } from 'lucide-react'
 import { toast } from 'react-toastify'
 import { Button } from '@/components/ui/button'
@@ -36,14 +36,13 @@ function buildWebSocketUrl(baseUrl?: string) {
     const { hostname, origin, protocol } = window.location
     const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1'
     if (process.env.NODE_ENV !== 'production' && isLocalHost) {
-      return `${protocol}//${hostname}:8080`
+      return `${protocol}//${hostname}:5151`
     }
 
     return origin
   })()
 
   const normalizedBaseUrl = new URL(fallbackBaseUrl)
-  normalizedBaseUrl.protocol = normalizedBaseUrl.protocol === 'https:' ? 'wss:' : 'ws:'
   normalizedBaseUrl.pathname = `${normalizedBaseUrl.pathname.replace(/\/$/, '')}/ws`
   normalizedBaseUrl.search = ''
   normalizedBaseUrl.hash = ''
@@ -206,7 +205,7 @@ function DelegateNotificationToast({
 export function DelegateNotificationController() {
   const queryClient = useQueryClient()
   const { user, isAuthenticated } = useAuth()
-  const clientRef = useRef<Client | null>(null)
+  const connectionRef = useRef<HubConnection | null>(null)
   const seenEventIdsRef = useRef<Set<string>>(new Set())
   const visibleToastIdsRef = useRef<Set<string>>(new Set())
   const [selectedMessageUuid, setSelectedMessageUuid] = useState<string | null>(null)
@@ -355,8 +354,8 @@ export function DelegateNotificationController() {
 
   useEffect(() => {
     if (!isEnabled || !user?.uuid || !user.conferenceUuid || !token) {
-      clientRef.current?.deactivate()
-      clientRef.current = null
+      void connectionRef.current?.stop()
+      connectionRef.current = null
       visibleToastIdsRef.current.forEach((toastId) => toast.dismiss(toastId))
       visibleToastIdsRef.current.clear()
       seenEventIdsRef.current.clear()
@@ -370,56 +369,63 @@ export function DelegateNotificationController() {
     }
     const visibleToastIds = visibleToastIdsRef.current
     const seenEventIds = seenEventIdsRef.current
-    const client = new Client({
-      brokerURL: buildWebSocketUrl(process.env.NEXT_PUBLIC_API_BASE_URL),
-      reconnectDelay: 3000,
-      debug: (message) => {
-        if (process.env.NODE_ENV !== 'production') {
-          console.info('[DelegateNotification/STOMP]', message)
-        }
-      },
-      connectHeaders: {
-        Authorization: `Bearer ${token}`,
-      },
-      onConnect: () => {
+    const connection = new HubConnectionBuilder()
+      .withUrl(buildWebSocketUrl(process.env.NEXT_PUBLIC_API_BASE_URL), {
+        accessTokenFactory: () => token,
+      })
+      .withAutomaticReconnect([1000, 3000, 5000, 10000, 30000])
+      .configureLogging(process.env.NODE_ENV !== 'production' ? LogLevel.Information : LogLevel.None)
+      .build()
+
+    connection.on('Notification', (payload: DelegateNotificationEvent) => {
+      if (cancelled) return
+      if (process.env.NODE_ENV !== 'production') {
+        console.info('[DelegateNotification] notification received', payload)
+      }
+      handleNotification(payload)
+    })
+
+    connection.onreconnecting((error) => {
+      if (process.env.NODE_ENV !== 'production') {
+        console.info('[DelegateNotification] websocket reconnecting:', error)
+      }
+    })
+
+    connection.onreconnected(() => {
+      if (cancelled) return
+      console.info('[DelegateNotification] websocket reconnected')
+      void runHttpBackfill(scope).catch((error) => {
+        console.error('Delegate notification HTTP backfill failed:', error)
+      })
+    })
+
+    connection.onclose((error) => {
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('[DelegateNotification] websocket closed:', error)
+      }
+    })
+
+    connectionRef.current = connection
+
+    connection
+      .start()
+      .then(() => {
         if (cancelled) return
         console.info('[DelegateNotification] websocket connected')
-        client.subscribe('/user/queue/notifications', (message) => {
-          if (cancelled) return
-          try {
-            console.info('[DelegateNotification] message received', message.body)
-            handleNotification(JSON.parse(message.body) as DelegateNotificationEvent)
-          } catch (error) {
-            console.error('Delegate notification payload parse error:', error)
-          }
-        })
         void runHttpBackfill(scope).catch((error) => {
           console.error('Delegate notification HTTP backfill failed:', error)
         })
-      },
-      onStompError: (frame) => {
-        console.error('Delegate notification STOMP error:', frame.body)
-      },
-      onWebSocketError: (event) => {
-        console.error('Delegate notification websocket error:', event)
-      },
-      onWebSocketClose: (event) => {
-        console.error(
-          'Delegate notification websocket closed:',
-          `code=${event.code}`,
-          `reason=${event.reason || '(empty)'}`,
-          `wasClean=${event.wasClean}`,
-        )
-      },
-    })
-
-    clientRef.current = client
-    client.activate()
+      })
+      .catch((error) => {
+        if (process.env.NODE_ENV !== 'production') {
+          console.error('[DelegateNotification] websocket connect failed:', error)
+        }
+      })
 
     return () => {
       cancelled = true
-      clientRef.current?.deactivate()
-      clientRef.current = null
+      void connectionRef.current?.stop()
+      connectionRef.current = null
       visibleToastIds.forEach((toastId) => toast.dismiss(toastId))
       visibleToastIds.clear()
       seenEventIds.clear()

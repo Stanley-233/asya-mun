@@ -88,7 +88,7 @@ export default function Page() {
     }
   }, [authLoading, isAuthenticated])
 
-  const backendBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8080'
+  const backendBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:5151'
   const backendStatus = registrationSwitchLoading
     ? {
         label: '连接检测中',

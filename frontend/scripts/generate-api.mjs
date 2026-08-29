@@ -8,9 +8,12 @@ const projectDir = resolve(scriptDir, '..')
 const tempOutputDir = resolve(projectDir, '.orval')
 
 try {
-  execFileSync(resolve(projectDir, 'node_modules/.bin/orval'), ['--config', './orval.config.ts'], {
+  const isWin = process.platform === 'win32'
+  const binName = isWin ? 'orval.CMD' : 'orval'
+  execFileSync(resolve(projectDir, 'node_modules/.bin', binName), ['--config', './orval.config.ts'], {
     cwd: projectDir,
     stdio: 'inherit',
+    shell: isWin,
   })
 } finally {
   rmSync(tempOutputDir, { recursive: true, force: true })

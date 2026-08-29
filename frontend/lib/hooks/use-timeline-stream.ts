@@ -31,7 +31,7 @@ export function useTimelineStream(_options: UseTimelineStreamOptions = {}) {
   //     return
   //   }
 
-  //   const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8080'
+  //   const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:5151'
   //   const streamUrl = `${apiBaseUrl}/api/time/stream`
 
   //   console.log('🔌 [SSE] 连接时间轴事件流:', streamUrl)

@@ -1,0 +1,13 @@
+bin/
+obj/
+/packages/
+riderModule.iml
+/_ReSharper.Caches/
+*.DotSettings.user
+
+.idea/
+.openchamber/
+.opencode/
+.codex/
+.claude/
+.vscode/

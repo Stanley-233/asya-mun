@@ -6,19 +6,22 @@ import type { TimeAnchorResponse } from "@/lib/api/generated"
 function parseGameDateTime(isoString: string): Date {
   // console.log('🔍 [parseGameDateTime] 输入字符串:', isoString)
   
-  // 匹配格式: -YYYY-MM-DDTHH:mm:ss 或 YYYY-MM-DDTHH:mm:ss
-  const match = isoString.match(/^(-?\d+)-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/)
+  // 匹配格式: -YYYY-MM-DDTHH:mm 或 -YYYY-MM-DDTHH:mm:ss(.fff) 或对应正年份
+  // 后端 GameTimeString.Format 在秒为 0 时会省略秒部分，因此秒数必须可选
+  const match = isoString.match(/^(-?\d+)-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?(?:\.(\d{1,9}))?$/)
   if (!match) {
     console.error('❌ [parseGameDateTime] 无法匹配日期格式:', isoString)
     throw new Error(`Invalid date format: ${isoString}`)
   }
   
-  const [, yearStr, month, day, hour, minute, second] = match
+  const [, yearStr, month, day, hour, minute, secondStr, fractionStr] = match
   const year = parseInt(yearStr, 10)
+  const second = secondStr ? parseInt(secondStr, 10) : 0
+  const millisecond = fractionStr ? parseInt(fractionStr.padEnd(3, '0').slice(0, 3), 10) : 0
   
   // console.log('📅 [parseGameDateTime] 解析结果:', { year, month, day, hour, minute, second })
   
-  // JavaScript Date构造函数：new Date(year, monthIndex, day, hour, minute, second)
+  // JavaScript Date构造函数：new Date(year, monthIndex, day, hour, minute, second, millisecond)
   // 注意：月份是0-based（0-11）
   const date = new Date(
     year,
@@ -26,7 +29,8 @@ function parseGameDateTime(isoString: string): Date {
     parseInt(day, 10),
     parseInt(hour, 10),
     parseInt(minute, 10),
-    parseInt(second, 10)
+    second,
+    millisecond
   )
   
   // console.log('✅ [parseGameDateTime] 生成的Date对象:', date, 'getFullYear():', date.getFullYear())
