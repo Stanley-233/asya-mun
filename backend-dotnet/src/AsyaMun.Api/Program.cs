@@ -13,7 +13,18 @@ using Scalar.AspNetCore;
 
 LoadEnvironmentFileIfPresent();
 
+// 始终以 exe 所在目录为 ContentRoot（无论从哪个 CWD 启动，都能找到 wwwroot / appsettings）
+if (Environment.ProcessPath is { } exePath)
+{
+    var exeDir = Path.GetDirectoryName(exePath);
+    if (!string.IsNullOrEmpty(exeDir) && Directory.Exists(exeDir))
+    {
+        Environment.CurrentDirectory = exeDir;
+    }
+}
+
 var builder = WebApplication.CreateBuilder(args);
+builder.WebHost.UseContentRoot(Environment.CurrentDirectory);
 
 builder.Services.AddControllers(options =>
     {
@@ -139,6 +150,71 @@ app.UseCors("asya");
 
 app.UseMiddleware<AuditContextMiddleware>();
 
+// 单进程部署形态：wwwroot 独立文件夹
+var webRootPath = Path.Combine(app.Environment.ContentRootPath, "wwwroot");
+app.Environment.WebRootPath = webRootPath;
+app.Environment.WebRootFileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(webRootPath);
+
+// 前端静态托管：等价 nginx `location / { try_files $uri.html $uri/index.html $uri /index.html; }`。
+// 在认证之前处理，命中即短路返回，完全不经过认证/授权，保证与 nginx 静态托管行为一致。
+app.Use(async (context, next) =>
+{
+    var path = context.Request.Path.Value ?? string.Empty;
+    var staticFile = context.RequestServices.GetRequiredService<IWebHostEnvironment>().WebRootFileProvider.GetFileInfo(
+        path.StartsWith('/') ? path.TrimStart('/') : path);
+
+    // API / WebSocket / Scalar / OpenAPI 等请求不发 || 非 GET：交给后续
+    if (!HttpMethods.IsGet(context.Request.Method)
+        || path.StartsWith("/api", StringComparison.Ordinal)
+        || path.StartsWith("/ws", StringComparison.Ordinal)
+        || path.StartsWith("/scalar", StringComparison.Ordinal)
+        || path.StartsWith("/openapi", StringComparison.Ordinal)
+        || path is "/" or "" or "/_next" or "/_next/")
+    {
+        await next(context);
+        return;
+    }
+
+    // 依次尝试：$uri.html -> $uri/index.html -> $uri
+    var candidates = new[]
+    {
+        path.TrimStart('/') + ".html",
+        (path.TrimStart('/') + "/index.html").TrimStart('/'),
+        path.TrimStart('/'),
+    };
+    foreach (var candidate in candidates)
+    {
+        var info = context.RequestServices.GetRequiredService<IWebHostEnvironment>().WebRootFileProvider.GetFileInfo(candidate);
+        if (info.Exists && !info.IsDirectory)
+        {
+            context.Response.ContentType = path.EndsWith(".txt", StringComparison.Ordinal) ? "text/plain"
+                : path.EndsWith(".js", StringComparison.Ordinal) ? "application/javascript"
+                : path.EndsWith(".css", StringComparison.Ordinal) ? "text/css"
+                : path.EndsWith(".json", StringComparison.Ordinal) ? "application/json"
+                : path.EndsWith(".png", StringComparison.Ordinal) ? "image/png"
+                : path.EndsWith(".svg", StringComparison.Ordinal) ? "image/svg+xml"
+                : path.EndsWith(".ico", StringComparison.Ordinal) ? "image/x-icon"
+                : "text/html";
+            context.Response.Headers.CacheControl = path.StartsWith("/_next", StringComparison.Ordinal)
+                ? "public, max-age=31536000, immutable"
+                : "no-store";
+            await context.Response.SendFileAsync(info, context.RequestAborted);
+            return;
+        }
+    }
+    
+    var fallback = context.RequestServices.GetRequiredService<IWebHostEnvironment>().WebRootFileProvider.GetFileInfo("index.html");
+    if (fallback.Exists && !fallback.IsDirectory)
+    {
+        context.Response.ContentType = "text/html";
+        context.Response.Headers.CacheControl = "no-store";
+        await context.Response.SendFileAsync(fallback, context.RequestAborted);
+        return;
+    }
+
+    await next(context);
+});
+
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -150,37 +226,6 @@ app.MapScalarApiReference(options => options
 app.MapControllers();
 app.MapHub<NotificationHub>("/ws");
 
-// 单进程部署：由 ASP.NET 一并托管前端静态产物（Next 静态导出），API/WebSocket 与站点同源。
-// 优先级：ASYA_WEBROOT 环境变量 > 仓库内 frontend/out（本地 dotnet run 直接可用） > 默认 wwwroot。
-var webRoot = Environment.GetEnvironmentVariable("ASYA_WEBROOT");
-if (string.IsNullOrWhiteSpace(webRoot) || !Directory.Exists(webRoot))
-{
-    var repoFrontendOut = Path.GetFullPath(Path.Combine(app.Environment.ContentRootPath, "..", "..", "..", "frontend", "out"));
-    if (Directory.Exists(repoFrontendOut))
-    {
-        webRoot = repoFrontendOut;
-    }
-}
-
-if (!string.IsNullOrWhiteSpace(webRoot))
-{
-    app.Environment.WebRootPath = webRoot;
-}
-
-app.UseDefaultFiles();
-app.UseStaticFiles(new StaticFileOptions
-{
-    OnPrepareResponse = staticFile =>
-    {
-        var response = staticFile.Context.Response;
-        var isHashedAsset = staticFile.Context.Request.Path.StartsWithSegments("/_next/static");
-        response.Headers.CacheControl = isHashedAsset
-            ? "public, max-age=31536000, immutable"
-            : "no-store";
-    }
-});
-
-// SPA 回退：Swagger/API/WS 之外的非文件路径一律返回 index.html
 app.MapFallbackToFile("index.html");
 
 app.Run();

@@ -1,3 +1,8 @@
+# v0.15.1
+## 修复
+- 修复单进程模式下【登录成功 → 跳回首页 → 再跳】死循环：Next 静态导出按路由生成独立 `.html` 文件，服务端现会将无后缀路由精确映射到对应页面（如 `/progress` → `progress.html`），而非将所有非文件路径一律回退到登录页 `index.html`，同时保留 SPA 404 回退行为
+- 移除 `ASYA_WEBROOT` 环境变量——统一 `ContentRoot/wwwroot`（与 CI build-release.ps1 / publish-server.ps1 的独立文件夹拷贝一致），避免单文件发布时空 WebRootPath 导致 fallback 失败
+
 # v0.15.0
 ## 部署与后端重构
 - 后端由 Spring Boot 迁移至 ASP.NET（.NET 10，单进程）

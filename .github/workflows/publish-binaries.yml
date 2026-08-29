@@ -230,7 +230,7 @@ jobs:
             --version "${{ needs.prepare.outputs.version }}" \
             --output /tmp/changelog-body.md || true
 
-          cat > /tmp/release-body.md <<'EOF'
+          cat > /tmp/release-static.md <<'EOF'
           ## 服务器二进制
 
           每个平台提供两种版本：
@@ -255,8 +255,14 @@ jobs:
           EOF
 
           if [ -s /tmp/changelog-body.md ]; then
-            printf '\n## 版本变更\n\n' >> /tmp/release-body.md
-            cat /tmp/changelog-body.md >> /tmp/release-body.md
+            {
+              printf '## 版本变更\n\n'
+              cat /tmp/changelog-body.md
+              printf '\n\n'
+              cat /tmp/release-static.md
+            } > /tmp/release-body.md
+          else
+            cp /tmp/release-static.md /tmp/release-body.md
           fi
 
       - name: Upload to GitHub Release
