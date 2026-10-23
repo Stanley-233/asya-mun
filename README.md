@@ -55,7 +55,7 @@ mun.example.com {
 
 本项目基于 **PolyForm Shield License 1.0.0** 授权。
 
-你可以在 PolyForm Shield 的条款下使用本软件。具体条款请查看 [LICENSE](./LICENSE) 文件。
+你可以在 PolyForm Shield 的条款下使用本软件。具体条款请查看 [英文许可证](./LICENSE)；另提供 [中文参考译文](./LICENSE.zh-CN.md) 方便阅读，如有歧义或不一致，以英文原文为准。
 
 在 PolyForm Shield 下，开发者授予你如下几项版权许可：
 
