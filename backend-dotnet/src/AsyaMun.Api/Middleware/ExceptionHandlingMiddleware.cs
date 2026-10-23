@@ -1,6 +1,6 @@
 using System.Net;
 using AsyaMun.Api.Dtos;
-using AsyaMun.Api.Errors;
+using AsyaMun.Core.Errors;
 
 namespace AsyaMun.Api.Middleware;
 

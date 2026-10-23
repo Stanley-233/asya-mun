@@ -1,8 +1,9 @@
 using AsyaMun.Api.Auth;
+using AsyaMun.Core.Auth;
 using AsyaMun.Api.Dtos;
-using AsyaMun.Api.Errors;
-using AsyaMun.Api.Models;
-using AsyaMun.Api.Services;
+using AsyaMun.Core.Errors;
+using AsyaMun.Core.Models;
+using AsyaMun.Application.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -35,7 +36,7 @@ public class AuditLogController : ControllerBase
             return ApiResp.Fail(BizCode.PERMISSION_DENIED, "需要管理员权限", StatusCodes.Status403Forbidden);
         }
 
-        var input = PageInput.Parse(HttpContext.Request, 20);
+        var input = PageInputParser.Parse(HttpContext.Request, 20);
         var page = await _auditLogService.GetAuditLogsAsync(
             input, actorName, actionType, success, ip, eventTimeFrom, eventTimeTo);
 

@@ -1,4 +1,4 @@
-using AsyaMun.Api.Models;
+using AsyaMun.Core.Models;
 
 namespace AsyaMun.Api.Audit;
 

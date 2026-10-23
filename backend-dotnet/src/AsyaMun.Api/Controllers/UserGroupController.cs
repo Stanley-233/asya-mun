@@ -1,9 +1,10 @@
 using AsyaMun.Api.Auth;
+using AsyaMun.Core.Auth;
 using AsyaMun.Api.Audit;
 using AsyaMun.Api.Dtos;
-using AsyaMun.Api.Errors;
-using AsyaMun.Api.Models;
-using AsyaMun.Api.Services;
+using AsyaMun.Core.Errors;
+using AsyaMun.Core.Models;
+using AsyaMun.Application.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

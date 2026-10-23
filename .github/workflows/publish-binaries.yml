@@ -69,8 +69,18 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+  verify-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Verify architecture and migration compatibility
+        run: dotnet run --project backend-dotnet/tests/AsyaMun.SmokeTests/AsyaMun.SmokeTests.csproj --no-launch-profile
+
   build:
-    needs: prepare
+    needs: [prepare, verify-backend]
     strategy:
       fail-fast: false
       matrix:
@@ -133,7 +143,7 @@ jobs:
           retention-days: 7
 
   build-fd:
-    needs: prepare
+    needs: [prepare, verify-backend]
     strategy:
       fail-fast: false
       matrix:

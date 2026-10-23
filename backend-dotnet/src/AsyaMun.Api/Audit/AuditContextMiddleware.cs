@@ -1,4 +1,5 @@
 using AsyaMun.Api.Auth;
+using AsyaMun.Core.Auth;
 
 namespace AsyaMun.Api.Audit;
 

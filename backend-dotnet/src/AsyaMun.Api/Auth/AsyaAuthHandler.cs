@@ -1,9 +1,10 @@
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using System.Text.Json;
-using AsyaMun.Api.Data;
+using AsyaMun.Core.Data;
 using AsyaMun.Api.Dtos;
-using AsyaMun.Api.Models;
+using AsyaMun.Core.Auth;
+using AsyaMun.Core.Models;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;

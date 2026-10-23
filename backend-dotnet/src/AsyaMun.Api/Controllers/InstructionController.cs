@@ -1,9 +1,10 @@
 using AsyaMun.Api.Audit;
 using AsyaMun.Api.Auth;
+using AsyaMun.Core.Auth;
 using AsyaMun.Api.Dtos;
-using AsyaMun.Api.Errors;
-using AsyaMun.Api.Models;
-using AsyaMun.Api.Services;
+using AsyaMun.Core.Errors;
+using AsyaMun.Core.Models;
+using AsyaMun.Application.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -47,7 +48,7 @@ public class InstructionController : ControllerBase
         [FromQuery] string? keyword)
     {
         var requester = RequireCurrentUser();
-        var input = PageInput.Parse(HttpContext.Request, 20);
+        var input = PageInputParser.Parse(HttpContext.Request, 20);
         var page = await _instructionService.GetMyInstructionsAsync(requester, input, status, keyword);
 
         return ApiResp.Ok(page);
@@ -73,7 +74,7 @@ public class InstructionController : ControllerBase
         [FromQuery] string? keyword)
     {
         var requester = RequireCurrentUser();
-        var input = PageInput.Parse(HttpContext.Request, 20);
+        var input = PageInputParser.Parse(HttpContext.Request, 20);
         var page = await _instructionService.QueryInstructionsForManagementAsync(
             requester, input, status, instructionType, userGroupId, submitterUuids, keyword);
 

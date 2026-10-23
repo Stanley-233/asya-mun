@@ -26,6 +26,8 @@ dotnet run
 
 数据库表结构由 EF Core Migrations 管理：全新空库首启自动迁移；既有 Flyway 库会自动标记为首个迁移已应用，避免重复建表。
 
+后端已拆为 `AsyaMun.Api`、`AsyaMun.Application`、`AsyaMun.Core`，迁移位于 Core。职责和验证命令见 [后端架构](./Backend-Architecture.md)。
+
 ## 前端
 
 ```bash
@@ -39,14 +41,17 @@ pnpm dev
 
 不跑 `next dev`、让后端把静态产物和 API/WebSocket 一起托管时：
 
-```bash
+```powershell
 # 1. 先构建静态前端
-cd frontend
-NEXT_PUBLIC_API_BASE_URL= pnpm build   # 生成 frontend/out
+Push-Location frontend
+$env:NEXT_PUBLIC_API_BASE_URL = ''
+$env:SKIP_TYPE_CHECK = 'true'          # 与现有发布流程一致
+pnpm build                           # 生成 frontend/out
+Pop-Location
 
-# 2. 再启动后端（Program.cs 会自动识别仓库内 frontend/out 作为静态目录）
-cd backend-dotnet/src/AsyaMun.Api
-dotnet run
+# 2. 从仓库根目录指定静态前端目录，再启动后端
+$env:ASYA_WEBROOT = (Resolve-Path frontend/out).Path
+dotnet run --project backend-dotnet/src/AsyaMun.Api
 # http://localhost:5151 直接提供整站（前端页面 + API + WebSocket 同源）
 ```
 

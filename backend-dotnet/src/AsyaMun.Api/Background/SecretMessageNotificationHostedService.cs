@@ -1,6 +1,6 @@
 namespace AsyaMun.Api.Background;
 
-using AsyaMun.Api.Services;
+using AsyaMun.Application.Services;
 
 public class SecretMessageNotificationHostedService : BackgroundService
 {

@@ -1,9 +1,10 @@
 using AsyaMun.Api.Audit;
 using AsyaMun.Api.Auth;
+using AsyaMun.Core.Auth;
 using AsyaMun.Api.Dtos;
-using AsyaMun.Api.Errors;
-using AsyaMun.Api.Models;
-using AsyaMun.Api.Services;
+using AsyaMun.Core.Errors;
+using AsyaMun.Core.Models;
+using AsyaMun.Application.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -65,7 +66,7 @@ public class MessageController : ControllerBase
     public async Task<IActionResult> GetAll([FromQuery] string? keyword)
     {
         var requester = RequireCurrentUser();
-        var input = PageInput.Parse(HttpContext.Request, 20);
+        var input = PageInputParser.Parse(HttpContext.Request, 20);
         var page = await _messageService.GetMessagesForConferenceAsync(requester, input, keyword);
 
         return ApiResp.Ok(page);
@@ -84,7 +85,7 @@ public class MessageController : ControllerBase
             return ApiResp.Fail(BizCode.PERMISSION_DENIED, "无权访问", StatusCodes.Status403Forbidden);
         }
 
-        var input = PageInput.Parse(HttpContext.Request, 20);
+        var input = PageInputParser.Parse(HttpContext.Request, 20);
         var page = await _messageService.GetSecretMessagesForConferenceAsync(
             requester, input, senderId, receiverId, keyword);
 
@@ -96,7 +97,7 @@ public class MessageController : ControllerBase
     public async Task<IActionResult> GetSecretMessages([FromQuery] string? keyword)
     {
         var requester = RequireCurrentUser();
-        var input = PageInput.Parse(HttpContext.Request, 20);
+        var input = PageInputParser.Parse(HttpContext.Request, 20);
         var page = await _messageService.GetSecretMessagesForUserAsync(requester, input, keyword);
 
         return ApiResp.Ok(page);

@@ -1,9 +1,10 @@
 using AsyaMun.Api.Auth;
+using AsyaMun.Core.Auth;
 using AsyaMun.Api.Audit;
 using AsyaMun.Api.Dtos;
-using AsyaMun.Api.Errors;
-using AsyaMun.Api.Models;
-using AsyaMun.Api.Services;
+using AsyaMun.Core.Errors;
+using AsyaMun.Core.Models;
+using AsyaMun.Application.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -84,7 +85,7 @@ public class ConferenceController : ControllerBase
             return ApiResp.Fail(BizCode.PERMISSION_DENIED, "需要主席团指导或更高权限", StatusCodes.Status403Forbidden);
         }
 
-        var input = PageInput.Parse(HttpContext.Request, 20);
+        var input = PageInputParser.Parse(HttpContext.Request, 20);
         if (input.Sort.Count == 0)
         {
             input = new PageInput { Page = input.Page, Size = input.Size, Sort = new List<SortSpec> { new("Name", false) } };
@@ -111,7 +112,7 @@ public class ConferenceController : ControllerBase
     {
         var requester = RequireCurrentUser();
 
-        var input = PageInput.Parse(HttpContext.Request, 20);
+        var input = PageInputParser.Parse(HttpContext.Request, 20);
         if (input.Sort.Count == 0)
         {
             input = new PageInput { Page = input.Page, Size = input.Size, Sort = new List<SortSpec> { new("Name", false) } };

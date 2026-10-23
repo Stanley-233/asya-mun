@@ -1,12 +1,16 @@
 using System.Text.Json.Serialization;
+using AsyaMun.Application;
+using AsyaMun.Core.Notifications;
+using AsyaMun.Api.Extensions;
 using AsyaMun.Api.Audit;
 using AsyaMun.Api.Auth;
+using AsyaMun.Core.Auth;
 using AsyaMun.Api.Background;
-using AsyaMun.Api.Data;
+using AsyaMun.Core.Data;
 using AsyaMun.Api.Hubs;
 using AsyaMun.Api.Middleware;
-using AsyaMun.Api.Models;
-using AsyaMun.Api.Services;
+using AsyaMun.Core.Models;
+using AsyaMun.Application.Services;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
@@ -93,20 +97,9 @@ builder.Services.AddSignalR(options =>
         options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
 
-builder.Services.AddScoped<AuditLogService>();
-builder.Services.AddScoped<SystemConfigService>();
-builder.Services.AddScoped<UserService>();
-builder.Services.AddScoped<ConferenceService>();
-builder.Services.AddScoped<UserGroupService>();
-builder.Services.AddScoped<RoundService>();
-builder.Services.AddScoped<TimeService>();
-builder.Services.AddScoped<MessageService>();
-builder.Services.AddScoped<InstructionService>();
-builder.Services.AddScoped<AttachmentService>();
-builder.Services.AddScoped<AnnouncementService>();
-builder.Services.AddScoped<DelegateAttrService>();
-builder.Services.AddScoped<NotificationService>();
-builder.Services.AddScoped<TestDataService>();
+builder.Services.AddAsyaApplication();
+builder.Services.AddScoped<INotificationSender, SignalRNotificationSender>();
+builder.Services.AddSingleton<ExtensionCatalog>();
 
 builder.Services.AddHostedService<RoundAutoAdvanceHostedService>();
 builder.Services.AddHostedService<SecretMessageNotificationHostedService>();
@@ -151,7 +144,9 @@ app.UseCors("asya");
 app.UseMiddleware<AuditContextMiddleware>();
 
 // 单进程部署形态：wwwroot 独立文件夹
-var webRootPath = Path.Combine(app.Environment.ContentRootPath, "wwwroot");
+var webRootPath = Path.GetFullPath(Environment.GetEnvironmentVariable("ASYA_WEBROOT")
+    ?? Path.Combine(app.Environment.ContentRootPath, "wwwroot"));
+Directory.CreateDirectory(webRootPath);
 app.Environment.WebRootPath = webRootPath;
 app.Environment.WebRootFileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(webRootPath);
 
@@ -169,6 +164,8 @@ app.Use(async (context, next) =>
         || path.StartsWith("/ws", StringComparison.Ordinal)
         || path.StartsWith("/scalar", StringComparison.Ordinal)
         || path.StartsWith("/openapi", StringComparison.Ordinal)
+        || path.Equals("/extension", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/extension/", StringComparison.OrdinalIgnoreCase)
         || path is "/" or "" or "/_next" or "/_next/")
     {
         await next(context);

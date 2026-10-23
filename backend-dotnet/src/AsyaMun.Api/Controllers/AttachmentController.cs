@@ -1,9 +1,10 @@
 using AsyaMun.Api.Audit;
 using AsyaMun.Api.Auth;
+using AsyaMun.Core.Auth;
 using AsyaMun.Api.Dtos;
-using AsyaMun.Api.Errors;
-using AsyaMun.Api.Models;
-using AsyaMun.Api.Services;
+using AsyaMun.Core.Errors;
+using AsyaMun.Core.Models;
+using AsyaMun.Application.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -41,7 +42,8 @@ public class AttachmentController : ControllerBase
             return ApiResp.Fail(BizCode.PARAM_ERROR, "文件大小不能超过8MB");
         }
 
-        var response = await _attachmentService.UploadAttachmentAsync(file);
+        await using var content = file.OpenReadStream();
+        var response = await _attachmentService.UploadAttachmentAsync(new AsyaMun.Core.Files.UploadFile(file.FileName, file.Length, content));
         return ApiResp.Ok(response);
     }
 
