@@ -2,10 +2,9 @@
 
 import Image from "next/image"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useSearchParams } from "next/navigation"
 import {
   Activity,
-  Calculator,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -41,6 +40,7 @@ import {
 } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/lib/contexts/auth-context"
+import { useExtensions, extensionHref } from "@/lib/extensions/registry"
 import { ProfileDialog } from "@/components/profile-dialog"
 
 type NavItem = {
@@ -163,12 +163,14 @@ function buildNavGroups({
   isSysAdmin,
   canManageConference,
   isDelegate,
+  extensions,
 }: {
   isAuthenticated: boolean
   isLoading: boolean
   isSysAdmin: boolean
   canManageConference: boolean
   isDelegate: boolean
+  extensions: NavItem[]
 }): NavGroup[] {
   const delegateItems: NavItem[] = [
     ...(isAuthenticated ? [{ href: "/progress", label: "会议", icon: Timer }] : []),
@@ -196,15 +198,7 @@ function buildNavGroups({
           : []),
       ]
 
-  const dlcItems: NavItem[] = isLoading
-    ? []
-    : isAuthenticated
-      ? [
-          { href: "/dlc/dice", label: "骰娘", icon: Dices },
-          { href: "/dlc/medieval-strategy", label: "中世纪战略", icon: Swords },
-          { href: "/dlc/rppi-calculator", label: "投射能力计算", icon: Calculator },
-        ]
-      : []
+  const dlcItems = !isLoading && isAuthenticated ? extensions : []
 
   const systemItems: NavItem[] = isLoading
     ? []
@@ -217,7 +211,7 @@ function buildNavGroups({
   return [
     { label: "代表", icon: LayoutDashboard, items: delegateItems },
     { label: "学团", icon: Command, items: academyItems },
-    { label: "DLC", icon: Puzzle, items: dlcItems },
+    { label: "扩展", icon: Puzzle, items: dlcItems },
     { label: "系统", icon: Settings, items: systemItems },
   ].filter((group) => group.items.length > 0)
 }
@@ -318,8 +312,11 @@ function NavigationGroups({
 }
 
 export function Navbar() {
-  const pathname = usePathname()
+  const basePath = usePathname()
+  const search = useSearchParams()
+  const pathname = basePath === "/extensions" && search.get("id") ? extensionHref(search.get("id")!) : basePath
   const { user, isAuthenticated, isSysAdmin, canManageConference, logout, isLoading } = useAuth()
+  const { data: extensions = [] } = useExtensions(isAuthenticated)
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [closedGroups, setClosedGroups] = useState<string[]>([])
@@ -333,6 +330,11 @@ export function Navbar() {
     isSysAdmin,
     canManageConference,
     isDelegate,
+    extensions: extensions.map(extension => ({
+      href: extensionHref(extension.id),
+      label: extension.name,
+      icon: ({ dices: Dices, swords: Swords } as Record<string, LucideIcon>)[extension.frontend.icon ?? ""] ?? Puzzle,
+    })),
   })
   const toggleGroup = (label: string) => {
     setClosedGroups((current) =>

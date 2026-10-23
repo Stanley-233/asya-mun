@@ -15,8 +15,7 @@ const eslintConfig = defineConfig([
     // Project-specific generated files:
     "lib/api/endpoints/**",
     "lib/api/client.ts",
-    // Third-party WASM glue code:
-    "public/wasm/**",
+    "public/extension/**",
   ]),
 ]);
 

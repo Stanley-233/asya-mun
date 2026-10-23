@@ -31,9 +31,9 @@ ASYA 以**自包含单文件可执行程序**发布（无需安装 .NET 运行�
 - `ASPNETCORE_URLS`（可选）：监听地址，例如 `http://+:8080`（默认 `http://localhost:5000`）；
 - `ASYA_WEBROOT`（可选）：前端静态目录覆盖，默认取可执行文件同目录的 `wwwroot`。
 
-## 开发
+## 扩展与开发
 
-后端职责与迁移命令见 [后端架构](./docs/Backend-Architecture.md)。
+插件开发、选装和卸载请参阅 [插件文档](./docs/Extensions.md)；后端职责与迁移命令见 [后端架构](./docs/Backend-Architecture.md)。
 
 ## 反向代理配置说明
 

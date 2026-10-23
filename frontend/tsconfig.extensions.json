@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "incremental": false,
+    "types": ["react", "react-dom"],
+    "paths": {
+      "@asya-mun/extension-sdk": ["../packages/extension-sdk/src/index.tsx"],
+      "@asya-mun/extension-sdk/ui": ["../packages/extension-sdk/src/ui/index.ts"],
+      "react": ["./node_modules/@types/react"],
+      "react/*": ["./node_modules/@types/react/*"],
+      "react-dom/*": ["./node_modules/@types/react-dom/*"],
+      "*": ["./node_modules/*"]
+    }
+  },
+  "include": ["../extension/**/*.tsx", "../packages/extension-sdk/src/**/*.ts", "../packages/extension-sdk/src/**/*.tsx"],
+  "exclude": ["node_modules"]
+}

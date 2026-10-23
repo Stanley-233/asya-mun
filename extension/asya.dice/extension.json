@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "hostApiVersion": 1,
+  "id": "asya.dice",
+  "name": "骰娘",
+  "version": "1.0.0",
+  "author": "ASYA",
+  "description": "骰子投掷与成功率判定工具",
+  "frontend": {
+    "entry": "index.html",
+    "icon": "dices"
+  },
+  "permissions": [
+    "storage"
+  ]
+}

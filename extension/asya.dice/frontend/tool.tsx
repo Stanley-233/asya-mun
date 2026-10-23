@@ -1,12 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { storage } from '@asya-mun/extension-sdk'
 import { Dices, Trash2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { cn } from '@/lib/utils'
+import { Button, Card, CardContent, CardHeader, CardTitle, CardDescription, Input, Label, cn } from '@asya-mun/extension-sdk/ui'
 
 interface DiceTerm {
   raw: string
@@ -74,6 +71,8 @@ const MAX_HISTORY_COUNT = 100
 
 function loadHistoryFromStorage(): RollResult[] {
   try {
+    const stored = storage.get<RollResult[]>('history')
+    if (Array.isArray(stored)) return stored.slice(0, MAX_HISTORY_COUNT)
     const raw = localStorage.getItem(HISTORY_STORAGE_KEY)
     if (!raw) return []
     const parsed: unknown = JSON.parse(raw)
@@ -167,18 +166,12 @@ const PRESETS = ['1d3', '1d6', '1d20', '1d100']
 export function DiceRoller() {
   const [expression, setExpression] = useState('1d6')
   const [targetRateRaw, setTargetRateRaw] = useState('')
-  const [history, setHistory] = useState<RollResult[]>([])
+  const [history, setHistory] = useState<RollResult[]>(loadHistoryFromStorage)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    // 挂载后从 localStorage 恢复历史记录（避免 SSR hydration 不一致）
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setHistory(loadHistoryFromStorage())
-  }, [])
-
-  useEffect(() => {
     try {
-      localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history.slice(0, MAX_HISTORY_COUNT)))
+      storage.set('history', history.slice(0, MAX_HISTORY_COUNT))
     } catch {
       // 存储失败（如隐私模式）时静默忽略，不影响掷骰功能
     }

@@ -37,6 +37,8 @@ pnpm dev
 # 开发调试走 Next dev（http://localhost:3000），/api、/scalar、/openapi 由 Next 重写到 5151
 ```
 
+开发启动与生产构建会自动编译 `extension/` 中的内置插件。插件结构、构建选装和部署后的管理命令见 [插件文档](./Extensions.md)。
+
 ## 单进程模式（后端直接托管前端）
 
 不跑 `next dev`、让后端把静态产物和 API/WebSocket 一起托管时：

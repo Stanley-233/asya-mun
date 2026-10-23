@@ -1,5 +1,6 @@
 'use client'
 
+import { Suspense } from "react"
 import { usePathname } from "next/navigation"
 import { siteBrand, siteLicense, siteLinks } from "@/assets"
 import { Navbar } from "@/components/navbar"
@@ -11,7 +12,7 @@ export function LayoutContent({ children }: { children: React.ReactNode }) {
   if (!isAuthEntryPage) {
     return (
       <div className="min-h-screen bg-background md:flex">
-        <Navbar />
+        <Suspense fallback={<div className="hidden w-[280px] shrink-0 md:block" />}><Navbar /></Suspense>
         <main className="min-w-0 flex-1">{children}</main>
       </div>
     )

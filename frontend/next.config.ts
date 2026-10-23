@@ -1,7 +1,11 @@
 import type { NextConfig } from "next";
+import path from "node:path";
 
 const nextConfig: NextConfig = {
   output: 'export',
+  turbopack: {
+    root: path.resolve(__dirname, '..'),
+  },
   images: {
     // 静态导出不提供运行时图片优化，本地静态资源原样输出
     unoptimized: true,
@@ -41,6 +45,10 @@ const nextConfig: NextConfig = {
         },
         async rewrites() {
           return [
+            {
+              source: '/extension/:path*',
+              destination: 'http://127.0.0.1:5151/extension/:path*',
+            },
             {
               source: '/api/:path*',
               destination: 'http://127.0.0.1:5151/api/:path*',

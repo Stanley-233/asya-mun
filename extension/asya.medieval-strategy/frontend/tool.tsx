@@ -1,12 +1,10 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { toast } from 'react-toastify'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { cn } from '@/lib/utils'
+import { notify } from '@asya-mun/extension-sdk'
+import { Button, Card, CardContent, CardHeader, CardTitle, Input, Label, cn } from '@asya-mun/extension-sdk/ui'
+
+const notifyWarning = (message: string) => notify(message, 'warning')
 
 export type RepresentativeSide = 'none' | 'attacker' | 'defender'
 export type CombatResultCode = 'AE' | 'DE' | 'AL' | 'DL' | 'AA' | 'DA' | 'BL' | 'AR' | 'DR'
@@ -320,18 +318,18 @@ export function QuickCalculator() {
   const handleParseInputs = () => {
     const attackerParsed = parseUnits(attackerInput)
     if (attackerParsed.invalidToken) {
-      toast.warning(`攻方输入包含无效值：${attackerParsed.invalidToken}`)
+      notifyWarning(`攻方输入包含无效值：${attackerParsed.invalidToken}`)
       return null
     }
 
     const defenderParsed = parseUnits(defenderInput)
     if (defenderParsed.invalidToken) {
-      toast.warning(`守方输入包含无效值：${defenderParsed.invalidToken}`)
+      notifyWarning(`守方输入包含无效值：${defenderParsed.invalidToken}`)
       return null
     }
 
     if (attackerParsed.values.length === 0 || defenderParsed.values.length === 0) {
-      toast.warning('攻守双方都需要至少 1 个算子')
+      notifyWarning('攻守双方都需要至少 1 个算子')
       return null
     }
 
@@ -351,7 +349,7 @@ export function QuickCalculator() {
     const nextAttackSum = parsed.attacker.reduce((sum, unit) => sum + unit.attack, 0)
     const nextDefenseSum = parsed.defender.reduce((sum, unit) => sum + unit.defense, 0)
     if (nextDefenseSum === 0 && nextAttackSum === 0) {
-      toast.warning('攻守总战力同时为 0，无法计算')
+      notifyWarning('攻守总战力同时为 0，无法计算')
       return
     }
 
@@ -371,13 +369,13 @@ export function QuickCalculator() {
     const nextAttackSum = parsed.attacker.reduce((sum, unit) => sum + unit.attack, 0)
     const nextDefenseSum = parsed.defender.reduce((sum, unit) => sum + unit.defense, 0)
     if (nextDefenseSum === 0 && nextAttackSum === 0) {
-      toast.warning('攻守总战力同时为 0，无法进行海战判定')
+      notifyWarning('攻守总战力同时为 0，无法进行海战判定')
       return
     }
 
     const probability = Number(navalProbabilityInput.trim())
     if (!Number.isFinite(probability) || probability < 0 || probability > 100) {
-      toast.warning('海战发生概率需输入 0-100 的数字')
+      notifyWarning('海战发生概率需输入 0-100 的数字')
       return
     }
 

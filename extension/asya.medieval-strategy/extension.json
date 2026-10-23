@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "hostApiVersion": 1,
+  "id": "asya.medieval-strategy",
+  "name": "中世纪战略",
+  "version": "1.0.0",
+  "author": "ASYA",
+  "description": "快捷战斗计算器与战术推演工具；原用于 RUCMUNC 21st 历史联动委员会 · 1269 亚欧局势联动",
+  "frontend": {
+    "entry": "index.html",
+    "icon": "swords"
+  },
+  "permissions": []
+}
